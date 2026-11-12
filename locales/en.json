@@ -1031,6 +1031,26 @@
     }
   },
   "importNeedsKey": "Choose the key file after importing",
+  "importChooseKey": "Choose the key file…",
+  "importKeyNote": "{count} of the connections listed log in with a key that {source} keeps in its own store: choose one key file for all of them, or choose each one's after importing.",
+  "@importKeyNote": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "importKeyUses": "key file: {name}",
+  "@importKeyUses": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "importNoProxy": "Proxy not imported",
   "importNothing": "No SSH connections to import.",
   "importProblems": "Not imported: {failed} failed, {skipped} skipped",
@@ -1050,14 +1070,6 @@
   "problemTooManyFiles": "too many files: this one and those after it were not read",
   "problemNoHost": "no host address",
   "problemNotSSH": "not an SSH connection, skipped",
-  "problemDeleted": "deleted in {source}, skipped",
-  "@problemDeleted": {
-    "placeholders": {
-      "source": {
-        "type": "String"
-      }
-    }
-  },
   "importResult": "Imported {imported, plural, one {# connection} other {# connections}}, skipped {skipped}, failed {failed}.",
   "@importResult": {
     "placeholders": {

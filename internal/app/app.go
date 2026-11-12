@@ -200,11 +200,13 @@ type App struct {
 	editor *connEditor
 
 	// The import window's state (import.go); its sources,
-	// allImportSources() unless tests replace them, and the kind of the
-	// one chosen last, "" for the first.
+	// allImportSources() unless tests replace them, the kind of the one
+	// chosen last, "" for the first, and the key file chosen for the
+	// connections that need one, "" for none.
 	imp           *importState
 	importSources []importSource
 	importKind    importer.Kind
+	importKeyFile string
 
 	// The password prompt: the password a connection takes (a saved
 	// host's, a jump host's or a proxy's), or a key's passphrase, and

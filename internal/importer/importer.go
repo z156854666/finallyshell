@@ -174,8 +174,6 @@ const (
 	NoHost Reason = "no-host"
 	// NotSSH is a connection of another kind: RDP, VNC, Telnet and such.
 	NotSSH Reason = "not-ssh"
-	// DeletedThere is a connection deleted in the other client.
-	DeletedThere Reason = "deleted"
 )
 
 // skipped are the reasons of connections skipped on purpose, rather than
@@ -183,7 +181,7 @@ const (
 // init of its own file, so that sources do not edit the same lines:
 //
 //	func init() { skipped[Telnet] = true }
-var skipped = map[Reason]bool{NotSSH: true, DeletedThere: true}
+var skipped = map[Reason]bool{NotSSH: true}
 
 // Failed tells whether a problem with the reason r failed to import,
 // rather than was skipped on purpose.

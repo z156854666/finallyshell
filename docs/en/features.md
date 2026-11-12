@@ -559,13 +559,21 @@ the selected row.
   cannot be checked and is not imported. Of two identical connections in
   the source, only the first is imported.
 - Files, or lines of a file, that cannot be read (not in the source's
-  format, too large, a read error, no host address) count as failed.
-  Connections of other kinds (RDP, VNC and such) and connections deleted
-  in the other client count as skipped. Both are listed below the table,
-  each with its file, or its file and line (`file:line`).
+  format, too large, a read error, no host address) count as failed;
+  connections of other kinds (RDP, VNC and such) count as skipped. Both
+  are listed below the table, each with its file, or its file and line
+  (`file:line`). Connections deleted in the other client are not listed,
+  nor imported.
 - The Note column says what is not imported of a connection, such as a
-  proxy, or that its key file must be chosen after importing, and the jump
-  host it will connect through.
+  proxy, or that its key file must be chosen after importing (the file's
+  name once one is chosen above), and the jump host it will connect
+  through.
+- When the connections include ones that log in with a key the source
+  keeps in a store of its own (FinalShell's and Xshell's key stores), the
+  window has "Choose the key file…" above the table: one key file, used by
+  every connection imported that way, so none has to be edited afterwards.
+  Without one, each is chosen after importing. The next import window of
+  the same run has the key file chosen last.
 
 "Import N" puts the connections into folders that follow the source's
 folder structure. Folders are matched by name level by level from the top:
@@ -588,8 +596,9 @@ For every source:
   `hosts.json`.
 - A private key file the source names becomes the host's key file. A key
   the other client keeps in a store of its own is not imported: the host
-  has "Private key" authentication without a key file, and the Note
-  column and the result say to choose it.
+  has "Private key" authentication without a key file, which the key file
+  chosen in the window stands in for, and the Note column and the result
+  say to choose it.
 
 ### From FinalShell
 
@@ -616,11 +625,19 @@ off). The time added is not FinalShell's `create_time`.
 - A connection that uses a private key is imported with "Private key"
   authentication but no key file. FinalShell stores private keys in its
   own `config.json` and the connection only records the key's ID; that
-  file is not read, so edit the connection and choose the key file.
+  file is not read, so choose the key file in the import window ("Choose
+  the key file…") for all of them, or edit each connection to choose it.
 - Proxies (`proxy_id` points into FinalShell's own proxy list), port
   forwarding, terminal encoding and backspace settings are not imported
   (the format FinalShell stores those values in is not known yet). A
   connection that used a proxy says so in the Note column.
+- Connections FinalShell deleted are filtered out: not imported, and not
+  listed below the table either. Both places a deletion is written are
+  read: a connection's own `delete_time`, or its folder's in `folder.json`
+  (and so is any folder under that one); and the ids in
+  `sync\deletions.json` of the data folder, where FinalShell records the
+  connections and folders it deleted while leaving their files in `conn`
+  with a `delete_time` of 0.
 
 FinalShell's file format has no official documentation. The import follows
 the FinalShell import code of other open source clients (Hatoba,
@@ -658,9 +675,9 @@ sessions are skipped.
   file; Finallyshell does not decrypt them and does not read that field.
 - A session that uses a public key is imported with "Private key"
   authentication but no key file: Xshell keeps its keys in its own key
-  store, and the session only names the key. Edit the connection and
-  choose the key file (exported from Xshell's User Keys in OpenSSH format
-  if needed).
+  store, and the session only names the key. Choose one key file in the
+  import window for all of them, or edit each connection to choose it
+  (exported from Xshell's User Keys in OpenSSH format if needed).
 - Proxies (a name from Xshell's own proxy list), port forwarding and
   terminal settings are not imported. A session that used a proxy says so
   in the Note column.

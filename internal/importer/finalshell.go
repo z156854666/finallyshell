@@ -32,6 +32,14 @@ import (
 // the folders, without folder.json, so a directory without one is a
 // folder of its name.
 //
+// What FinalShell deletes is written in two places, and both are read: a
+// deleted folder's folder.json has a delete_time, and the ids of the
+// connections and folders deleted, with their delete_time, are in
+// sync/deletions.json of the data folder (FinalShell's own sync keeps
+// them there). A connection's file stays in conn with its own delete_time
+// at 0 when it was deleted that second way, so the file alone does not
+// say whether it is deleted.
+//
 // A connection's file is one JSON object; the keys read here, from what
 // other importers found in real files (none is documented by FinalShell):
 //
@@ -45,7 +53,9 @@ import (
 //	description          the notes
 //	proxy_id             a proxy of FinalShell's own list
 //	exec_channel_enable  the server monitor's exec channel
-//	delete_time          non-zero for a connection FinalShell deleted
+//	delete_time          non-zero for a connection FinalShell deleted,
+//	                     as for a folder: what is deleted there is not
+//	                     imported, nor listed as a problem
 //	password             encrypted by FinalShell: never read here
 //
 // Others (terminal_encoding, port_forwarding_list, backspace_key_sequence,
@@ -72,6 +82,15 @@ var finalShellReader = &Reader{Kind: FinalShell, Folder: true, Find: FindFinalSh
 
 // ConnDir is the name of FinalShell's folder of connections.
 const ConnDir = "conn"
+
+// deletionsFile is FinalShell's record of what it deleted, in the sync
+// folder of its data folder: {"data": {"<id>": {"delete_time", "name",
+// "id", "type"}}}, the connections and folders deleted, by id. A folder
+// without one has no id deleted that way.
+var deletionsFile = filepath.Join("sync", "deletions.json")
+
+// connFileSuffix is the end of the name of a connection's file.
+const connFileSuffix = "_connect_config.json"
 
 // Limits on what ReadFinalShell reads, should the user choose a folder that is not
 // FinalShell's, as their home.
@@ -148,9 +167,11 @@ func isDir(path string) bool {
 
 // ReadFinalShell reads the connections of FinalShell's data folder dir,
 // or of its conn folder, or of a folder FinalShell exported. Files that do
-// not parse are Problems, as are connections it does not import; Entries
-// are in folder order, then by name. It fails when dir cannot be read, or
-// has no connection's file at all.
+// not parse are Problems, as are connections it does not import; the
+// connections FinalShell deleted, and those in a folder it deleted, are
+// left out altogether: neither entries nor problems. Entries are in folder
+// order, then by name. It fails when dir cannot be read, or has no
+// connection's file at all.
 func ReadFinalShell(dir string) (*Source, error) {
 	conn := dir
 	if sub := filepath.Join(dir, ConnDir); isDir(sub) {
@@ -159,7 +180,8 @@ func ReadFinalShell(dir string) (*Source, error) {
 	if _, err := os.ReadDir(conn); err != nil {
 		return nil, err
 	}
-	r := &fsReader{src: &Source{Kind: FinalShell, Path: conn}, folders: map[string]*fsFolder{}, dirFolder: map[string]string{}}
+	r := &fsReader{src: &Source{Kind: FinalShell, Path: conn}, folders: map[string]*fsFolder{}, dirFolder: map[string]string{}, deleted: map[string]bool{}}
+	r.readDeletions()
 	r.walk(conn, "", 0)
 	if r.connFiles == 0 {
 		return nil, fmt.Errorf("%s: %w", conn, ErrNoConnections)
@@ -214,6 +236,9 @@ type fsReader struct {
 	// dirFolder is the folder of each directory, by its path relative to
 	// the conn folder: "" for the top level.
 	dirFolder map[string]string
+	// deleted are the ids of the connections and folders FinalShell
+	// deleted, from its sync/deletions.json.
+	deleted   map[string]bool
 	conns     []*fsConn
 	files     int
 	connFiles int
@@ -263,7 +288,7 @@ func (r *fsReader) walk(abs, rel string, depth int) {
 			if depth < maxDepth {
 				r.walk(path, relPath, depth+1)
 			}
-		case strings.HasSuffix(strings.ToLower(name), "_connect_config.json"):
+		case strings.HasSuffix(strings.ToLower(name), connFileSuffix):
 			r.connFiles++
 			data, ok := r.readFile(path, relPath)
 			if !ok {
@@ -319,6 +344,51 @@ func (r *fsReader) readFile(path, rel string) ([]byte, bool) {
 	return data, true
 }
 
+// readDeletions reads the ids of the connections and folders FinalShell
+// deleted, from the deletions file of the data folder the conn folder
+// read is in, when it is one: a folder chosen elsewhere, as one exported,
+// has none. A missing file is no deletion; one that cannot be read, or
+// that is not JSON, is a Problem.
+func (r *fsReader) readDeletions() {
+	data := filepath.Dir(r.src.Path)
+	if !isDir(filepath.Join(data, ConnDir)) { // not a data folder's conn
+		return
+	}
+	path := filepath.Join(data, deletionsFile)
+	rel, err := filepath.Rel(r.src.Path, path)
+	if err != nil {
+		rel = path
+	}
+	rel = filepath.ToSlash(rel)
+	b, ok := r.readFile(path, rel)
+	if !ok {
+		return
+	}
+	var v struct {
+		Data map[string]json.RawMessage `json:"data"`
+	}
+	if err := json.Unmarshal(b, &v); err != nil {
+		r.problem(rel, Broken, err)
+		return
+	}
+	for id := range v.Data {
+		r.deleted[id] = true
+	}
+}
+
+// connID is the id of the connection c: the one in its file, or the one
+// in the name of its file when it has none there.
+func connID(c *fsConn) string {
+	if id := text(c.ID); id != "" {
+		return id
+	}
+	name := filepath.Base(c.file)
+	if n := len(name) - len(connFileSuffix); n > 0 && strings.EqualFold(name[n:], connFileSuffix) {
+		return name[:n]
+	}
+	return ""
+}
+
 func (r *fsReader) problem(rel string, reason Reason, err error) {
 	p := Problem{File: filepath.ToSlash(rel), Reason: reason}
 	if err != nil {
@@ -364,11 +434,18 @@ func decodeObject(data []byte, v any) error {
 }
 
 // add makes the connection c an entry, or a problem, once every folder is
-// known.
+// known. A connection deleted in FinalShell is neither, nor is one in a
+// folder it deleted, which it keeps in its files as well: those are
+// filtered out.
 func (r *fsReader) add(c *fsConn) {
 	bad := func(reason Reason) { r.src.Problems = append(r.src.Problems, Problem{File: c.file, Reason: reason}) }
-	if number(c.DeleteTime) != 0 {
-		bad(DeletedThere)
+	// parent_id may name a folder FinalShell deleted, which is not on the
+	// disk any more: that is checked the same way as the folder of the
+	// directory the file is in, which takes its place when no folder has
+	// the id.
+	parent := topOr(text(c.ParentID), c.dir)
+	folder := r.folder(parent, c.dir)
+	if number(c.DeleteTime) != 0 || r.deleted[connID(c)] || r.deletedFolder(parent) || r.deletedFolder(folder) {
 		return
 	}
 	if t, ok := numberOK(c.Type); ok && t != 100 {
@@ -400,7 +477,7 @@ func (r *fsReader) add(c *fsConn) {
 	e := &Entry{
 		File:     c.file,
 		Host:     h,
-		Folder:   r.folderPath(topOr(text(c.ParentID), c.dir), c.dir),
+		Folder:   r.folderPath(folder),
 		NeedsKey: h.Auth == config.AuthKey,
 	}
 	if text(c.ProxyID) != "" {
@@ -409,13 +486,38 @@ func (r *fsReader) add(c *fsConn) {
 	r.src.Entries = append(r.src.Entries, e)
 }
 
-// folderPath is the names of the folder id and those it is in, the
-// top-level one first, without deleted folders. An id no folder has is
-// the folder of the directory, dir.
-func (r *fsReader) folderPath(id, dir string) []string {
+// folder is the folder of a connection whose parent_id names id, or the
+// folder of its directory, dir, when no folder has that id.
+func (r *fsReader) folder(id, dir string) string {
 	if id != "" && r.folders[id] == nil {
-		id = dir
+		return dir
 	}
+	return id
+}
+
+// deletedFolder tells whether the folder id, or one it is in, is one
+// FinalShell deleted: its id is in the deletions file, or its folder.json
+// says so. An id no folder has is one of the deletions when it is there.
+func (r *fsReader) deletedFolder(id string) bool {
+	for range len(r.folders) + 1 { // a loop of parents ends
+		if r.deleted[id] {
+			return true
+		}
+		f := r.folders[id]
+		if f == nil {
+			return false
+		}
+		if f.deleted {
+			return true
+		}
+		id = f.parent
+	}
+	return false
+}
+
+// folderPath is the names of the folder id and those it is in, the
+// top-level one first, without deleted folders.
+func (r *fsReader) folderPath(id string) []string {
 	var path []string
 	for range len(r.folders) + 1 { // a loop of parents ends
 		f := r.folders[id]

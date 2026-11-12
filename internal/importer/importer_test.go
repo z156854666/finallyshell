@@ -127,7 +127,7 @@ func TestProblems(t *testing.T) {
 	if p := NewProblem("a.json", 0, Broken, errors.New("bad")); p.File != "a.json" || p.Detail != "bad" {
 		t.Errorf("%+v", p)
 	}
-	if !Broken.Failed() || !NoHost.Failed() || !TooLarge.Failed() || !Unreadable.Failed() || NotSSH.Failed() || DeletedThere.Failed() {
+	if !Broken.Failed() || !NoHost.Failed() || !TooLarge.Failed() || !Unreadable.Failed() || NotSSH.Failed() {
 		t.Error("which reasons fail")
 	}
 	// A source's own reason fails unless its init skips it.

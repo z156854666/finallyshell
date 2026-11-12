@@ -74,6 +74,26 @@ func TestReadFinalShell(t *testing.T) {
 		t.Errorf("bare %+v %+v", bare, h)
 	}
 
+	// Deleted in FinalShell are filtered out, not even listed as skipped:
+	// the connection whose file says so, the ones its sync folder's
+	// deletions.json names, and the ones in a folder it deleted either
+	// way, or in a folder under that one.
+	for _, name := range []string{"old-box", "parent deleted", "in deleted folder", "tombstoned", "in tombstoned folder"} {
+		for _, e := range src.Entries {
+			if e.Host.Name == name {
+				t.Errorf("%s imported", name)
+			}
+		}
+	}
+	for _, p := range src.Problems {
+		dir := filepath.Dir(p.File)
+		base := filepath.Base(p.File)
+		if dir == "f5old" || dir == "f7gone" || strings.HasPrefix(dir, "f5old"+string(filepath.Separator)) ||
+			strings.HasPrefix(base, "1012_") || strings.HasPrefix(base, "1013_") || strings.HasPrefix(base, "1014_") || strings.HasPrefix(base, "1015_") {
+			t.Errorf("%s listed as a problem: %+v", p.File, p)
+		}
+	}
+
 	problems := map[string]Reason{}
 	for _, p := range src.Problems {
 		if _, dup := problems[p.File]; dup {
@@ -87,14 +107,13 @@ func TestReadFinalShell(t *testing.T) {
 	wantProblems := map[string]Reason{
 		"1005_connect_config.json": Broken,
 		"1006_connect_config.json": NotSSH,
-		"1007_connect_config.json": DeletedThere,
 		"1008_connect_config.json": NoHost,
 		"1011_connect_config.json": Broken,
 	}
 	if !maps(problems, wantProblems) {
 		t.Errorf("problems %v, want %v", problems, wantProblems)
 	}
-	if !Broken.Failed() || !NoHost.Failed() || NotSSH.Failed() || DeletedThere.Failed() {
+	if !Broken.Failed() || !NoHost.Failed() || NotSSH.Failed() {
 		t.Error("which reasons fail")
 	}
 
@@ -140,6 +159,38 @@ func TestReadConnAndExport(t *testing.T) {
 	// folders of the machine it was exported on.
 	if want := []string{"Staging|stage", "Staging / Web|stage-web"}; !slices.Equal(got, want) || len(src.Problems) != 0 {
 		t.Errorf("export %q, problems %v; want %q", got, src.Problems, want)
+	}
+}
+
+// What FinalShell deleted is in the deletions.json of the data folder's
+// sync folder as well, which the conn folder read on its own finds too.
+func TestReadDeletions(t *testing.T) {
+	src, err := ReadFinalShell(filepath.Join("testdata", "finalshell", "conn"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range src.Entries {
+		if e.Host.Name == "tombstoned" || e.Host.Name == "in tombstoned folder" {
+			t.Errorf("%s imported", e.Host.Name)
+		}
+	}
+	if filepath.Base(src.Path) != "conn" {
+		t.Errorf("path %q", src.Path)
+	}
+
+	// One that is not JSON is a problem, named from the conn folder, and
+	// no deletion: what it does not say is imported.
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "conn"), 0o755)
+	os.MkdirAll(filepath.Join(dir, "sync"), 0o755)
+	os.WriteFile(filepath.Join(dir, "conn", "1_connect_config.json"), []byte(`{"id":"1","host":"192.0.2.1","name":"a"}`), 0o600)
+	os.WriteFile(filepath.Join(dir, "sync", "deletions.json"), []byte("not JSON"), 0o600)
+	src, err = ReadFinalShell(dir)
+	if err != nil || len(src.Entries) != 1 {
+		t.Fatalf("%+v, %v", src, err)
+	}
+	if len(src.Problems) != 1 || src.Problems[0].Reason != Broken || src.Problems[0].File != "../sync/deletions.json" {
+		t.Errorf("problems %+v", src.Problems)
 	}
 }
 

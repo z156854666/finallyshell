@@ -6476,6 +6476,38 @@ func (msgs Messages) ImportNeedsKey() string {
 	return Catalog.Format(msgs.locale, "importNeedsKey", nil)
 }
 
+// ImportChooseKey says "Choose the key file…"
+// in the language the app shows.
+func ImportChooseKey() string { return In(i18n.Locale()).ImportChooseKey() }
+
+// ImportChooseKey says "Choose the key file…"
+// in the language of msgs.
+func (msgs Messages) ImportChooseKey() string {
+	return Catalog.Format(msgs.locale, "importChooseKey", nil)
+}
+
+// ImportKeyNote says "{count} of the connections listed log in with a key that {source} keeps in its own store: choose one key file for all…"
+// in the language the app shows.
+func ImportKeyNote(count int, source string) string {
+	return In(i18n.Locale()).ImportKeyNote(count, source)
+}
+
+// ImportKeyNote says "{count} of the connections listed log in with a key that {source} keeps in its own store: choose one key file for all…"
+// in the language of msgs.
+func (msgs Messages) ImportKeyNote(count int, source string) string {
+	return Catalog.Format(msgs.locale, "importKeyNote", map[string]any{"count": count, "source": source})
+}
+
+// ImportKeyUses says "key file: {name}"
+// in the language the app shows.
+func ImportKeyUses(name string) string { return In(i18n.Locale()).ImportKeyUses(name) }
+
+// ImportKeyUses says "key file: {name}"
+// in the language of msgs.
+func (msgs Messages) ImportKeyUses(name string) string {
+	return Catalog.Format(msgs.locale, "importKeyUses", map[string]any{"name": name})
+}
+
 // ImportNoProxy says "Proxy not imported"
 // in the language the app shows.
 func ImportNoProxy() string { return In(i18n.Locale()).ImportNoProxy() }
@@ -6566,16 +6598,6 @@ func ProblemNotSSH() string { return In(i18n.Locale()).ProblemNotSSH() }
 // in the language of msgs.
 func (msgs Messages) ProblemNotSSH() string {
 	return Catalog.Format(msgs.locale, "problemNotSSH", nil)
-}
-
-// ProblemDeleted says "deleted in {source}, skipped"
-// in the language the app shows.
-func ProblemDeleted(source string) string { return In(i18n.Locale()).ProblemDeleted(source) }
-
-// ProblemDeleted says "deleted in {source}, skipped"
-// in the language of msgs.
-func (msgs Messages) ProblemDeleted(source string) string {
-	return Catalog.Format(msgs.locale, "problemDeleted", map[string]any{"source": source})
 }
 
 // ImportResult says "Imported {imported, plural, one {# connection} other {# connections}}, skipped {skipped}, failed {failed}."

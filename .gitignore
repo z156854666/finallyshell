@@ -1,6 +1,7 @@
 build/
 *.test
 .claude/worktrees/
+.mygo/
 dist/
 /resources/LICENSE.txt
 /resources/THIRD_PARTY_LICENSES.txt

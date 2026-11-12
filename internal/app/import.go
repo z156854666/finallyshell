@@ -14,6 +14,7 @@ import (
 	"finallyshell/internal/config"
 	"finallyshell/internal/icons"
 	"finallyshell/internal/importer"
+	"finallyshell/internal/sshx"
 	"finallyshell/internal/widgets"
 	"finallyshell/locales"
 
@@ -33,7 +34,10 @@ import (
 // not imported (see the importer package): the first connection asks for
 // them, as for any host. Those of a list that has them go in the system's
 // credential store, as a remembered password does; the table then has a
-// Password column saying which rows have one, without showing it. A
+// Password column saying which rows have one, without showing it. Keys
+// kept in a store of the source's own, as FinalShell's, come with no key
+// file: one key file is chosen for all of those connections above the
+// table, and each host imported that way takes it as its key file. A
 // source the user writes (a server list) has "Save template…", which
 // writes a file to fill in (importText.template).
 
@@ -60,7 +64,8 @@ type importState struct {
 	rows     []importRow
 	list     ui.ListState
 	row      int
-	reads    int // the readings started, so that an older one's result is dropped
+	reads    int    // the readings started, so that an older one's result is dropped
+	keyFile  string // the key file for the connections that need one (Entry.NeedsKey)
 
 	// The source's template (importText.template): saving it, and where
 	// it was saved, or why not.
@@ -109,7 +114,7 @@ func (a *App) openImport() {
 		a.plat.FocusWindow(WindowImport)
 		return
 	}
-	st := &importState{row: -1, source: a.importSource(a.importKind)}
+	st := &importState{row: -1, source: a.importSource(a.importKind), keyFile: a.importKeyFile}
 	a.imp = st
 	a.openWindow(importSpec, a.importView)
 	a.readImport(st, false)
@@ -132,7 +137,7 @@ func (a *App) chooseImportSource(st *importState, s importSource) {
 		return
 	}
 	a.importKind = s.Kind
-	*st = importState{source: s, row: -1, reads: st.reads}
+	*st = importState{source: s, row: -1, reads: st.reads, keyFile: st.keyFile}
 	a.readImport(st, false)
 }
 
@@ -249,6 +254,9 @@ func (a *App) importView(c *ui.Context) {
 			if st.source.note != nil {
 				widgets.Muted(c, st.source.note()).FontSize(12)
 			}
+			if n := st.keyCount(); n > 0 {
+				a.importKeyRow(c, st, n)
+			}
 			a.importTable(c, st, statuses)
 			a.importProblems(c, st)
 		default:
@@ -348,6 +356,63 @@ func tildePath(path, home, goos string) string {
 	return path
 }
 
+// keyCount is how many of the connections listed log in with a key the
+// source does not name a file for, as FinalShell's: one key file can be
+// chosen for all of them.
+func (st *importState) keyCount() int {
+	n := 0
+	for _, r := range st.rows {
+		if r.e.NeedsKey {
+			n++
+		}
+	}
+	return n
+}
+
+// importKeyRow is the choice of one private key file for the connections
+// that log in with a key the source keeps in a store of its own: all of
+// them use it, and it becomes the key file of each host imported.
+func (a *App) importKeyRow(c *ui.Context, st *importState, n int) {
+	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
+		if ui.Button(c, locales.ImportChooseKey()).Clicked() {
+			a.chooseImportKey(st)
+		}
+		if st.keyFile == "" {
+			widgets.Muted(c, locales.ImportKeyNote(n, st.source.name())).SingleLine().MinWidth(0).Grow(1)
+			return
+		}
+		ui.Icon(c, icons.Get("key-round")).FontSize(14).TextColor(theme.TextMuted)
+		ui.Text(c, tildePath(st.keyFile, a.home(), runtime.GOOS)).SingleLine().MinWidth(0).Grow(1).Tooltip(st.keyFile)
+	})
+}
+
+// chooseImportKey asks for the key file the connections that need one log
+// in with, starting where the one chosen is, else in ~/.ssh. The choice
+// is the import windows after this one's too, this run.
+func (a *App) chooseImportKey(st *importState) {
+	dir := ""
+	if st.keyFile != "" {
+		dir = filepath.Dir(sshx.ExpandHome(st.keyFile))
+	} else if home, err := os.UserHomeDir(); err == nil {
+		if fi, err := os.Stat(filepath.Join(home, ".ssh")); err == nil && fi.IsDir() {
+			dir = filepath.Join(home, ".ssh")
+		}
+	}
+	title := locales.ChooseKeyFile()
+	go func() {
+		path, err := a.plat.OpenFile(WindowImport, title, dir)
+		if err != nil || path == "" {
+			return
+		}
+		a.post(func() {
+			if a.imp != st {
+				return
+			}
+			st.keyFile, a.importKeyFile = path, path
+		})
+	}()
+}
+
 // chooseLabel is the label of the button choosing the source's file or
 // folder.
 func (st *importState) chooseLabel() string {
@@ -426,7 +491,11 @@ func (a *App) importTable(c *ui.Context, st *importState, statuses []importStatu
 				notes = append(notes, locales.ImportSameAs(s.above.Host.Title()))
 			}
 			if r.e.NeedsKey {
-				notes = append(notes, locales.ImportNeedsKey())
+				if st.keyFile != "" {
+					notes = append(notes, locales.ImportKeyUses(filepath.Base(st.keyFile)))
+				} else {
+					notes = append(notes, locales.ImportNeedsKey())
+				}
 			}
 			if j := r.e.Jump; j != nil {
 				if st.jumpImported(j, statuses, a.hosts) {
@@ -482,7 +551,7 @@ func (a *App) importProblems(c *ui.Context, st *importState) {
 		ui.Scroll(c).MaxHeight(78).Children(func() {
 			ui.Column(c).Gap(2).Padding(0, 0, 0, 19).Children(func() {
 				for _, p := range st.src.Problems {
-					widgets.Muted(c, locales.ProblemLine(p.File, importProblemText(p, st.source.name()))).FontSize(12).SingleLine().MinWidth(0).Tooltip(p.Detail)
+					widgets.Muted(c, locales.ProblemLine(p.File, importProblemText(p))).FontSize(12).SingleLine().MinWidth(0).Tooltip(p.Detail)
 				}
 			})
 		})
@@ -537,6 +606,15 @@ func (a *App) importChosen(st *importState, statuses []importStatus) {
 	for i, r := range st.rows {
 		if r.checked && !statuses[i].skipped() {
 			entries = append(entries, r.e)
+		}
+	}
+	// The key file chosen in the window is the key file of every host
+	// imported that needed one.
+	if st.keyFile != "" {
+		for _, e := range entries {
+			if e.NeedsKey {
+				e.KeyFile = st.keyFile
+			}
 		}
 	}
 	added := importer.Import(a.hosts, entries, time.Now())

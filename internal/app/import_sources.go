@@ -113,9 +113,9 @@ func allImportSources() []importSource {
 	return out
 }
 
-// importProblemText says why a file, or a line of it, of the source
-// named source was not imported from.
-func importProblemText(p importer.Problem, source string) string {
+// importProblemText says why a file, or a line of it, was not imported
+// from.
+func importProblemText(p importer.Problem) string {
 	switch p.Reason {
 	case importer.Broken:
 		return locales.ProblemBroken()
@@ -129,8 +129,6 @@ func importProblemText(p importer.Problem, source string) string {
 		return locales.ProblemNoHost()
 	case importer.NotSSH:
 		return locales.ProblemNotSSH()
-	case importer.DeletedThere:
-		return locales.ProblemDeleted(source)
 	case importer.SSHMatch:
 		return locales.ProblemSSHMatch()
 	case importer.SSHPatternsOnly:

@@ -234,7 +234,7 @@ func TestImportFinalShell(t *testing.T) {
 	for _, s := range []string{"web-1", "bastion", "pg-main", "树莓派", "192.0.2.10", "bastion.example.com:2222", "db.example.com:5022",
 		"deploy", "Production / Databases", "实验室 / Pi", tildePath(filepath.Join(sample, "conn"), home, runtime.GOOS), locales.ImportFrom(), locales.ChooseFolder(),
 		locales.ImportPresent("my pg"), locales.ImportSameAs("web-1"), locales.ImportPasswordsNote("FinalShell"),
-		locales.ImportChosen(4, 6), locales.ImportCount(4), locales.ImportProblems(3, 2),
+		locales.ImportChosen(4, 6), locales.ImportCount(4), locales.ImportProblems(3, 1),
 		locales.ProblemLine("1005_connect_config.json", locales.ProblemBroken()), locales.ProblemLine("1008_connect_config.json", locales.ProblemNoHost())} {
 		if !tt.HasText(s) {
 			t.Errorf("missing %q", s)
@@ -351,7 +351,7 @@ func TestImportFinalShell(t *testing.T) {
 	if got := shown(a); !slices.Contains(got, "    树莓派") || !slices.Contains(got, "  bastion") {
 		t.Errorf("rows %q", got)
 	}
-	result := locales.ImportResult(3, 5, 3) + " " + locales.ImportKeysNote(1)
+	result := locales.ImportResult(3, 4, 3) + " " + locales.ImportKeysNote(1)
 	if !manager.HasText(result) {
 		t.Errorf("no %q; texts %q", result, manager.Texts())
 	}
@@ -361,6 +361,69 @@ func TestImportFinalShell(t *testing.T) {
 	_, tt = openImport(t, a, p)
 	if !tt.HasText(locales.ImportCount(1)) || !tt.HasText(locales.ImportPresent("bastion")) {
 		t.Errorf("again: texts %q", tt.Texts())
+	}
+	a.closeWindow(WindowImport)
+}
+
+// One key file can be chosen for all the connections that log in with a
+// key the source keeps in a store of its own: the import sets it as the
+// key file of each of them, and the window after this one has it too.
+func TestImportKeyFile(t *testing.T) {
+	a, p := testApp(t)
+	findFinalShell(a, func() string { return finalShellSample(t, "finalshell") })
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	if err := os.MkdirAll(filepath.Join(home, ".ssh"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	key := filepath.Join(home, ".ssh", "id_ed25519")
+	_, tt := openImport(t, a, p)
+	// bastion is the one connection with a key, which FinalShell keeps
+	// in its own store.
+	if !tt.HasText(locales.ImportKeyNote(1, locales.ImportSourceFinalShell())) || !tt.HasText(locales.ImportNeedsKey()) {
+		t.Fatalf("texts %q", tt.Texts())
+	}
+	p.pick(key)
+	if err := tt.Click(locales.ImportChooseKey()); err != nil {
+		t.Fatalf("%v; texts %q", err, tt.Texts())
+	}
+	p.until(t, "the key file chosen", func() bool { return a.imp.keyFile == key })
+	if asked := p.pickers(); len(asked) != 1 || asked[0] != (filePick{WindowImport, locales.ChooseKeyFile(), filepath.Join(home, ".ssh")}) {
+		t.Errorf("asked %+v", asked)
+	}
+	tt.Frame()
+	if tt.HasText(locales.ImportKeyNote(1, locales.ImportSourceFinalShell())) || tt.HasText(locales.ImportNeedsKey()) ||
+		!tt.HasText(locales.ImportKeyUses("id_ed25519")) || !tt.HasText(key) {
+		t.Errorf("texts %q", tt.Texts())
+	}
+	saveShot(t, tt, "import-key-en.png")
+
+	// web-1 again is the same target as web-1, which Import skips.
+	if err := tt.Click(locales.ImportCount(5)); err != nil {
+		t.Fatalf("%v; texts %q", err, tt.Texts())
+	}
+	var bastion *config.Host
+	for _, h := range a.hosts.Live() {
+		if h.Name == "bastion" {
+			bastion = h
+		}
+	}
+	// The key is the key file of the host imported with one, and the
+	// password hosts have none.
+	if bastion == nil || bastion.Auth != config.AuthKey || bastion.KeyPath != key {
+		t.Fatalf("bastion %+v", bastion)
+	}
+	for _, h := range a.hosts.Live() {
+		if h != bastion && h.KeyPath != "" {
+			t.Errorf("%s has a key file: %+v", h.Title(), h)
+		}
+	}
+
+	// The window opened again has the same key file, and nothing to choose.
+	_, tt = openImport(t, a, p)
+	if a.imp.keyFile != key || !tt.HasText(locales.ImportKeyUses("id_ed25519")) || tt.HasText(locales.ImportNeedsKey()) {
+		t.Errorf("key %q; texts %q", a.imp.keyFile, tt.Texts())
 	}
 	a.closeWindow(WindowImport)
 }
