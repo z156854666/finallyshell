@@ -234,7 +234,7 @@ func TestImportFinalShell(t *testing.T) {
 	for _, s := range []string{"web-1", "bastion", "pg-main", "树莓派", "192.0.2.10", "bastion.example.com:2222", "db.example.com:5022",
 		"deploy", "Production / Databases", "实验室 / Pi", tildePath(filepath.Join(sample, "conn"), home, runtime.GOOS), locales.ImportFrom(), locales.ChooseFolder(),
 		locales.ImportPresent("my pg"), locales.ImportSameAs("web-1"), locales.ImportPasswordsNote("FinalShell"),
-		locales.ImportChosen(4, 6), locales.ImportCount(4), locales.ImportProblems(3, 1),
+		locales.ImportChosen(5, 7), locales.ImportCount(5), locales.ImportProblems(3, 0),
 		locales.ProblemLine("1005_connect_config.json", locales.ProblemBroken()), locales.ProblemLine("1008_connect_config.json", locales.ProblemNoHost())} {
 		if !tt.HasText(s) {
 			t.Errorf("missing %q", s)
@@ -243,7 +243,7 @@ func TestImportFinalShell(t *testing.T) {
 	if !tt.HasText(locales.ImportNeedsKey()+locales.ListSeparator()+locales.ImportNoProxy()) || tt.HasText("c2FtcGxl") {
 		t.Errorf("texts %q", tt.Texts())
 	}
-	for name, want := range map[string]bool{"web-1": true, "bastion": true, "树莓派": true, "192.0.2.40": true, "pg-main": false, "web-1 again": false} {
+	for name, want := range map[string]bool{"web-1": true, "desktop": true, "bastion": true, "树莓派": true, "192.0.2.40": true, "pg-main": false, "web-1 again": false} {
 		box := importBox(t, tt, name)
 		if box.Checked != want || box.Disabled == want {
 			t.Errorf("%s: %+v", name, box)
@@ -253,7 +253,7 @@ func TestImportFinalShell(t *testing.T) {
 	sourcesShot(t, tt, "import-sources-en.png")
 	p.SetLocale("zh-Hans")
 	tt.Frame()
-	for _, s := range []string{"导入连接", "导入来源", "全选", "全不选", "导入 4 个", "已选 4 / 6 个", "文件夹", "说明", "已存在：“my pg”", "导入后需要选择私钥文件", "代理没有导入", "选择文件夹…", "密码不导入（FinalShell 对密码做了加密），第一次连接时会询问密码。"} {
+	for _, s := range []string{"导入连接", "导入来源", "全选", "全不选", "导入 5 个", "已选 5 / 7 个", "文件夹", "说明", "已存在：“my pg”", "导入后需要选择私钥文件", "代理没有导入", "选择文件夹…", "密码不导入（FinalShell 对密码做了加密），第一次连接时会询问密码。"} {
 		if !tt.HasText(s) && spec.Title() != s {
 			t.Errorf("missing %q; texts %q", s, tt.Texts())
 		}
@@ -301,24 +301,24 @@ func TestImportFinalShell(t *testing.T) {
 	if err := tt.Click(locales.SelectAll()); err != nil {
 		t.Fatal(err)
 	}
-	if !tt.HasText(locales.ImportCount(4)) || importBox(t, tt, "pg-main").Checked {
+	if !tt.HasText(locales.ImportCount(5)) || importBox(t, tt, "pg-main").Checked {
 		t.Errorf("all: texts %q", tt.Texts())
 	}
 	// Unchecking a row leaves it out.
 	box := importBox(t, tt, "192.0.2.40")
 	tt.ClickAt(box.Bounds.X+box.Bounds.W/2, box.Bounds.Y+box.Bounds.H/2)
-	if importBox(t, tt, "192.0.2.40").Checked || !tt.HasText(locales.ImportCount(3)) {
+	if importBox(t, tt, "192.0.2.40").Checked || !tt.HasText(locales.ImportCount(4)) {
 		t.Fatalf("unchecked: texts %q", tt.Texts())
 	}
 
 	before := len(a.hosts.Hosts)
-	if err := tt.Click(locales.ImportCount(3)); err != nil {
+	if err := tt.Click(locales.ImportCount(4)); err != nil {
 		t.Fatal(err)
 	}
 	if a.windowOpen(WindowImport) || a.imp != nil {
 		t.Error("the window stays open")
 	}
-	if len(a.hosts.Hosts) != before+3 {
+	if len(a.hosts.Hosts) != before+4 {
 		t.Fatalf("%d hosts added", len(a.hosts.Hosts)-before)
 	}
 	added := a.hosts.Hosts[before:]
@@ -331,10 +331,10 @@ func TestImportFinalShell(t *testing.T) {
 		}
 	}
 	// Into the folder named Production the store had, and new ones.
-	if want := []string{"|web-1", "Production|bastion", "实验室 / Pi|树莓派"}; !slices.Equal(names, want) || added[1].Folder != "prod" {
+	if want := []string{"|desktop", "|web-1", "Production|bastion", "实验室 / Pi|树莓派"}; !slices.Equal(names, want) || added[2].Folder != "prod" {
 		t.Errorf("added %q, want %q", names, want)
 	}
-	if h := added[1]; h.Auth != config.AuthKey || h.KeyPath != "" || h.Port != 2222 || h.Proxy != nil {
+	if h := added[2]; h.Auth != config.AuthKey || h.KeyPath != "" || h.Port != 2222 || h.Proxy != nil {
 		t.Errorf("bastion %+v", h)
 	}
 	if strings.Contains(string(*saved), "c2FtcGxl") || !strings.Contains(string(*saved), "bastion.example.com") {
@@ -351,7 +351,7 @@ func TestImportFinalShell(t *testing.T) {
 	if got := shown(a); !slices.Contains(got, "    树莓派") || !slices.Contains(got, "  bastion") {
 		t.Errorf("rows %q", got)
 	}
-	result := locales.ImportResult(3, 4, 3) + " " + locales.ImportKeysNote(1)
+	result := locales.ImportResult(4, 3, 3) + " " + locales.ImportKeysNote(1)
 	if !manager.HasText(result) {
 		t.Errorf("no %q; texts %q", result, manager.Texts())
 	}
@@ -400,7 +400,7 @@ func TestImportKeyFile(t *testing.T) {
 	saveShot(t, tt, "import-key-en.png")
 
 	// web-1 again is the same target as web-1, which Import skips.
-	if err := tt.Click(locales.ImportCount(5)); err != nil {
+	if err := tt.Click(locales.ImportCount(6)); err != nil {
 		t.Fatalf("%v; texts %q", err, tt.Texts())
 	}
 	var bastion *config.Host

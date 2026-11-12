@@ -271,8 +271,8 @@ func (a *App) networkPanel(c *ui.Context) {
 	if s == nil || s.isNewTab() {
 		return
 	}
-	if s.isLocal() {
-		localUnavailable(c)
+	if s.isLocal() || s.isRDP() {
+		localUnavailable(c, s)
 		return
 	}
 	a.pollNetwork(s)

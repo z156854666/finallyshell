@@ -68,6 +68,8 @@ Linux 上托盘图标需要 `libayatana-appindicator3`，记住密码需要 Secr
 
 macOS 上按 <kbd>Cmd</kbd>+<kbd>O</kbd>，其他系统按 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd> 打开连接管理器。和 FinalShell 一样，主机按文件夹组织成树：可以拖到别的文件夹，按名称、地址、用户名、备注搜索，复制连接；删除的连接先进“显示已删除”，还能恢复。
 
+新建连接先问新建哪种：SSH 连接（Linux）还是远程桌面连接（Windows），两种连接各有自己的编辑窗口。远程桌面在系统的 RDP 客户端里打开（Windows 上是远程桌面连接，其他系统上是 FreeRDP 或 Microsoft Remote Desktop），密码、域和屏幕设置都跟着它保存。
+
 同一棵树也一直留在主窗口里：服务器状态下面的面板可以在会话和“连接”之间切换，在“连接”页双击就打开会话，已经打开的主机后面有绿点。<kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd>（<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd>）在两页之间切换。
 
 <p align="center">
@@ -202,7 +204,7 @@ locale 不是 UTF-8 的服务器也能用：终端可以转换 GBK、GB18030、B
 
 **监控面板一直是空的。** 监控读 `/proc`，只支持 Linux 服务器。有些跳板机不允许它额外开的通道，可以在这个主机的设置里关掉“启用 exec 通道（服务器监控）”。
 
-**支持 Telnet、RDP 或串口吗？** 不支持，只有 SSH 和 SFTP。
+**支持 Telnet、RDP 或串口吗？** RDP 支持：新建连接时用“Windows 远程桌面”这一页，桌面在系统的 RDP 客户端里打开。Telnet 和串口不支持；SSH 和 SFTP 是程序自己实现的。
 
 ## 从源码构建
 

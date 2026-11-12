@@ -203,11 +203,10 @@ func TestEditorProxyErrors(t *testing.T) {
 	}
 
 	// With no other host, there is nothing to choose.
-	a.newConnection()
+	tt = newConnection(t, a, p)
 	b := a.hosts
 	a.hosts = config.NewStore()
 	a.editor.proxy.hosts = a.hosts
-	tt = editorWindow(t, a, p)
 	tt.Type("solo.example.com")
 	tt.Click(locales.EditorPageProxy())
 	choose(t, tt, locales.FieldProxyType(), locales.ProxyJumpHost())

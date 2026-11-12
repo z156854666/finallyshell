@@ -67,7 +67,7 @@ func (a *App) panelRowOf(s *Session) *Session {
 // openPanelTab selects s's panel row, adding it right below s first,
 // showing tab, when s has none.
 func (a *App) openPanelTab(s *Session, tab int) {
-	if s.isLocal() {
+	if s.isLocal() || s.isRDP() {
 		return // no panel row: see panelCornerButton
 	}
 	p := a.panelRowOf(s)
@@ -105,7 +105,7 @@ func (a *App) panelCornerButton(c *ui.Context, tab int) {
 		if widgets.IconButton(c, "minimize-2", locales.BackToTerminal()).Clicked() {
 			a.backToTerminal(s)
 		}
-	case s == nil || s.isNewTab() || s.isLocal():
+	case s == nil || s.isNewTab() || s.isLocal() || s.isRDP():
 	default:
 		if widgets.IconButton(c, "maximize-2", locales.OpenPanelTab()).Clicked() {
 			a.openPanelTab(s, tab)

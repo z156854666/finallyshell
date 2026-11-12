@@ -197,6 +197,8 @@ func fullHost() *Host {
 		NoRememberPassword: true,
 		CreatedAt:          time.Date(2026, 10, 1, 8, 0, 0, 0, time.UTC),
 		MonitorIfaces:      []string{"eth0", "wg0"},
+		Type:               KindRDP,
+		RDP:                &RDPConfig{Domain: "WORKGROUP", Width: 1920, Height: 1080, Depth: 24, NoClipboard: true, NoDrives: true},
 	}
 }
 

@@ -128,7 +128,7 @@ func (a *App) showManager(newHost bool) {
 	}
 	a.openWindow(managerSpec, a.managerView)
 	if newHost && len(a.hosts.Live()) == 0 {
-		a.openEditor(nil, WindowManager)
+		a.chooseConnection(WindowManager, "", nil)
 	}
 }
 
@@ -701,7 +701,7 @@ func (a *App) managerTable(c *ui.Context, later *[]func()) {
 			}
 			switch col {
 			case 0:
-				icon := "server"
+				icon := hostIcon(h)
 				if h.Deleted() {
 					icon = "trash-2"
 				}
@@ -711,7 +711,7 @@ func (a *App) managerTable(c *ui.Context, later *[]func()) {
 				text(h.Addr)
 			case 2:
 				ui.Spacer(c)
-				text(strconv.Itoa(h.PortOr22()))
+				text(strconv.Itoa(h.ProtocolPort()))
 			case 3:
 				text(h.User)
 			case 4:
@@ -968,11 +968,7 @@ func (a *App) connectFrom(m *managerState, h *config.Host) {
 // the manager, or a child of the main window from the Connections page.
 // Saving shows the host in that tree.
 func (a *App) editFrom(m *managerState, h *config.Host) {
-	open := a.windowOpen(WindowEditor)
-	a.openEditor(h, m.win)
-	if !open && a.editor != nil {
-		a.editor.tree = a.editorTree(m)
-	}
+	a.openEditorAs(h, h.Kind(), m.win, "", a.editorTree(m))
 }
 
 // editorTree is m as the editor's tree: nil for the manager's, its
@@ -999,14 +995,11 @@ func (a *App) connectFromManager(h *config.Host) {
 	a.redraw()
 }
 
-// newConnectionIn opens the editor for a new host in folder, from the
-// tree of m: modal to the manager, or a child of the main window.
+// newConnectionIn asks what kind of connection to add in folder, from the
+// tree of m, then opens its editor: modal to the manager, or a child of
+// the main window.
 func (a *App) newConnectionIn(m *managerState, folder string) {
-	open := a.windowOpen(WindowEditor)
-	a.openEditor(nil, m.win)
-	if !open && a.editor != nil {
-		a.editor.folder, a.editor.tree = folder, a.editorTree(m)
-	}
+	a.chooseConnection(m.win, folder, a.editorTree(m))
 }
 
 // newFolderIn asks for the name of a folder to make in parent, in the

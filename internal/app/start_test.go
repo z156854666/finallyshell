@@ -216,8 +216,7 @@ func TestStartPageListsRecentAndClears(t *testing.T) {
 func TestStartPageShowsNewHost(t *testing.T) {
 	a, p, tt, hosts := startApp(t)
 	savedHosts(a)
-	a.newConnection()
-	ed := editorWindow(t, a, p)
+	ed := newConnection(t, a, p)
 	typeInto(t, ed, locales.FieldName(), "just-added")
 	typeInto(t, ed, locales.FieldHost(), "fresh.example.com")
 	typeInto(t, ed, locales.FieldPassword(), "pw")
@@ -495,6 +494,12 @@ func TestStartPageWithoutHosts(t *testing.T) {
 	if err := tt.Click(locales.NewConnection()); err != nil {
 		t.Fatal(err)
 	}
+	if !a.windowOpen(WindowNewConnection) {
+		t.Fatalf("the kinds of connection not asked: %v", a.windows)
+	}
+	if err := p.show(t, WindowNewConnection).Click(locales.NewSSHConnection()); err != nil {
+		t.Fatal(err)
+	}
 	if !a.windowOpen(WindowEditor) || a.editor == nil || a.editor.id != "" {
 		t.Fatalf("the editor for a new host not open: %v", a.windows)
 	}
@@ -518,8 +523,8 @@ func TestStartPageWithoutHostsOpensManager(t *testing.T) {
 	if !a.windowOpen(WindowManager) {
 		t.Fatal("the connection manager button did not open the manager")
 	}
-	if a.windowOpen(WindowEditor) {
-		t.Error("the editor for a new host opened in front of the manager")
+	if a.windowOpen(WindowEditor) || a.windowOpen(WindowNewConnection) {
+		t.Error("a new connection opened in front of the manager")
 	}
 }
 

@@ -234,8 +234,8 @@ func (a *App) processPanel(c *ui.Context) {
 	if s == nil || s.isNewTab() {
 		return
 	}
-	if s.isLocal() {
-		localUnavailable(c)
+	if s.isLocal() || s.isRDP() {
+		localUnavailable(c, s)
 		return
 	}
 	ps := &s.procs

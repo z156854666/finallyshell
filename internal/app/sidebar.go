@@ -25,6 +25,10 @@ func (a *App) monitorPanel(c *ui.Context) {
 			localMonitor(c)
 			return
 		}
+		if s.isRDP() {
+			rdpMonitor(c)
+			return
+		}
 		a.serverView(c, s)
 	})
 }

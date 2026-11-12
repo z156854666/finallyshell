@@ -131,6 +131,14 @@ func proxyNeed(x, h *config.Host) *secretNeed {
 // logs in with an SSH agent takes none of its own; a jump host that is
 // missing or loops takes none: connecting says so.
 func (a *App) chainSecrets(h *config.Host) []*secretNeed {
+	if h.IsRDP() {
+		// A remote desktop is opened by a client of this computer: no
+		// jump host and no proxy comes into it, only its own password.
+		if h.Auth == config.AuthAgent {
+			return nil
+		}
+		return []*secretNeed{loginNeed(h, h)}
+	}
 	hosts := []*config.Host{h}
 	if jumps, err := a.hosts.JumpHosts(h); err == nil {
 		hosts = append(hosts, jumps...)

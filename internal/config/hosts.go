@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -31,6 +32,22 @@ const (
 	// of Settings.SSHAgent: no key file, no secret. A version without it
 	// shows such a host as one with a password.
 	AuthAgent AuthKind = "agent"
+)
+
+// Kind is what a saved connection opens: an SSH connection, or a remote
+// desktop (RDP) one. As FinalShell has both in one list, a host of either
+// kind is a Host; Type tells them apart.
+type Kind string
+
+const (
+	// KindSSH is an SSH connection: a shell, SFTP, the monitor and the
+	// tunnels. A host without a type is one, as every host saved before
+	// RDP was supported.
+	KindSSH Kind = "ssh"
+	// KindRDP is a remote desktop connection, opened in the system's RDP
+	// client (see internal/rdp). It has no shell, so no SFTP, monitor or
+	// tunnels.
+	KindRDP Kind = "rdp"
 )
 
 // Host is a saved connection. Passwords are never saved here: the app
@@ -109,7 +126,82 @@ type Host struct {
 	// server's, so they sync with the host.
 	MonitorIfaces []string `json:"monitorIfaces,omitempty"`
 
+	// Type is what the host opens: KindRDP for a remote desktop
+	// connection, "" for an SSH one, which every host saved before RDP
+	// was supported is. Read it with Kind and IsRDP.
+	Type Kind `json:"type,omitempty"`
+
+	// RDP is what a remote desktop connection takes besides the address,
+	// the user and the password: nil for the defaults. Read it with
+	// RDPOf.
+	RDP *RDPConfig `json:"rdp,omitempty"`
+
 	extra extras
+}
+
+// RDPConfig is the part of a remote desktop connection that an SSH
+// connection has no use for. Its zero value is what connecting as
+// FinalShell does by default: a window whose size the client chooses, 32
+// bits of color, the clipboard and the local drives shared.
+type RDPConfig struct {
+	// Domain is the Windows domain or workgroup the user logs in to, ""
+	// for the server's own.
+	Domain string `json:"domain,omitempty"`
+	// Width and Height are the desktop's size in pixels; 0 for the
+	// client's own, which is full screen on Windows.
+	Width  int `json:"width,omitempty"`
+	Height int `json:"height,omitempty"`
+	// Depth is the color depth in bits: 16, 24 or 32; 0 for 32.
+	Depth int `json:"depth,omitempty"`
+	// NoClipboard keeps the remote desktop from sharing the clipboard
+	// with this computer, the inverse of the default so that a host
+	// without the key shares it.
+	NoClipboard bool `json:"noClipboard,omitempty"`
+	// NoDrives keeps the remote desktop from seeing this computer's
+	// drives, the inverse of the default as NoClipboard is.
+	NoDrives bool `json:"noDrives,omitempty"`
+
+	extra extras
+}
+
+type rdpJSON RDPConfig
+
+var rdpKeys = knownKeys(reflect.TypeFor[rdpJSON]())
+
+func (r RDPConfig) MarshalJSON() ([]byte, error) { return encodeObject(rdpJSON(r), r.extra) }
+
+func (r *RDPConfig) UnmarshalJSON(data []byte) error {
+	var v rdpJSON
+	ex, err := decodeObject(data, &v, rdpKeys)
+	if err != nil {
+		return err
+	}
+	*r = RDPConfig(v)
+	r.extra = ex
+	return nil
+}
+
+// Kind is the kind of the host: KindRDP for a remote desktop connection,
+// KindSSH for everything else.
+func (h *Host) Kind() Kind {
+	if h.Type == KindRDP {
+		return KindRDP
+	}
+	return KindSSH
+}
+
+// IsRDP tells whether the host opens a remote desktop, rather than a
+// shell over SSH.
+func (h *Host) IsRDP() bool { return h.Type == KindRDP }
+
+// RDPOf is what the host's remote desktop takes: the zero value, the
+// defaults, when the host has none, as every host saved before RDP was
+// supported.
+func (h *Host) RDPOf() RDPConfig {
+	if h.RDP == nil {
+		return RDPConfig{}
+	}
+	return *h.RDP
 }
 
 // DefaultTermType is the terminal type of a host that names none: what
@@ -124,6 +216,24 @@ func (h *Host) PortOr22() int {
 	return h.Port
 }
 
+// PortOr3389 is the host's port, 3389 when unset: the port a remote
+// desktop listens on. A host that opens a shell uses PortOr22.
+func (h *Host) PortOr3389() int {
+	if h.Port == 0 {
+		return 3389
+	}
+	return h.Port
+}
+
+// ProtocolPort is the port connecting to the host takes when it names
+// none: 3389 for a remote desktop, 22 for a shell.
+func (h *Host) ProtocolPort() int {
+	if h.IsRDP() {
+		return h.PortOr3389()
+	}
+	return h.PortOr22()
+}
+
 // Title is the host's name, else its address.
 func (h *Host) Title() string {
 	if h.Name != "" {
@@ -132,11 +242,16 @@ func (h *Host) Title() string {
 	return h.Addr
 }
 
-// Target is user@addr, with the port when it is not 22.
+// Target is user@addr, with the port when it is not the protocol's own:
+// 22 for SSH, 3389 for a remote desktop.
 func (h *Host) Target() string {
+	def := 22
+	if h.IsRDP() {
+		def = 3389
+	}
 	s := h.User + "@" + h.Addr
-	if h.PortOr22() != 22 {
-		s += ":" + strconv.Itoa(h.PortOr22())
+	if port := h.ProtocolPort(); port != def {
+		s += ":" + strconv.Itoa(port)
 	}
 	return s
 }
@@ -169,6 +284,11 @@ func (h *Host) Clone() *Host {
 		p.extra = maps.Clone(h.Proxy.extra)
 		c.Proxy = &p
 	}
+	if h.RDP != nil {
+		r := *h.RDP
+		r.extra = maps.Clone(h.RDP.extra)
+		c.RDP = &r
+	}
 	c.Tunnels = slices.Clone(h.Tunnels)
 	c.MonitorIfaces = slices.Clone(h.MonitorIfaces)
 	for i := range c.Tunnels {
@@ -198,7 +318,26 @@ func (h *Host) UnmarshalJSON(data []byte) error {
 }
 
 // NewHostID returns an ID for a new host.
-func NewHostID() string { return fmt.Sprintf("h%d", time.Now().UnixNano()) }
+func NewHostID() string { return fmt.Sprintf("h%d", newID()) }
+
+// newID is the time in nanoseconds, raised by one over the last ID when
+// the clock has not moved since: two hosts, or folders, added in the same
+// tick, as on Windows whose clock is coarse, would otherwise share an ID.
+func newID() int64 {
+	n := time.Now().UnixNano()
+	for {
+		last := lastID.Load()
+		if n <= last {
+			n = last + 1
+		}
+		if lastID.CompareAndSwap(last, n) {
+			return n
+		}
+	}
+}
+
+// lastID is the newest ID NewHostID or NewFolderID returned.
+var lastID atomic.Int64
 
 // Folder groups hosts. Folders nest by Parent.
 type Folder struct {
@@ -228,7 +367,7 @@ func (f *Folder) UnmarshalJSON(data []byte) error {
 }
 
 // NewFolderID returns an ID for a new folder.
-func NewFolderID() string { return fmt.Sprintf("f%d", time.Now().UnixNano()) }
+func NewFolderID() string { return fmt.Sprintf("f%d", newID()) }
 
 // Store is the content of hosts.json: the saved hosts, deleted ones
 // included, and their folders, both in the order the user keeps them.

@@ -202,8 +202,14 @@ func TestConnectionManager(t *testing.T) {
 	tt := ui.NewTester(a.View, 1280, 820)
 	p.tt = tt
 	tt.Key(ui.Ctrl|ui.Shift, ui.KeyO) // with no hosts, on a new one
-	if !a.windowOpen(WindowManager) || !a.windowOpen(WindowEditor) {
-		t.Fatalf("manager %v editor %v", a.windowOpen(WindowManager), a.windowOpen(WindowEditor))
+	if !a.windowOpen(WindowManager) || !a.windowOpen(WindowNewConnection) {
+		t.Fatalf("manager %v chooser %v", a.windowOpen(WindowManager), a.windowOpen(WindowNewConnection))
+	}
+	if err := p.show(t, WindowNewConnection).Click(locales.NewSSHConnection()); err != nil {
+		t.Fatal(err)
+	}
+	if !a.windowOpen(WindowEditor) {
+		t.Fatal("the editor did not open")
 	}
 	editor := p.show(t, WindowEditor)
 	editor.Type("example.com")

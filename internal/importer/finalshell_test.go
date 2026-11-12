@@ -42,7 +42,7 @@ func TestReadFinalShell(t *testing.T) {
 		got = append(got, e.FolderLabel()+"|"+e.Host.Title())
 	}
 	// In folder order, then by name; the top level first.
-	want := []string{"|192.0.2.40", "|web-1", "|web-1 again", "Production|bastion", "Production / Databases|pg-main", "实验室 / Pi|树莓派"}
+	want := []string{"|192.0.2.40", "|desktop", "|web-1", "|web-1 again", "Production|bastion", "Production / Databases|pg-main", "实验室 / Pi|树莓派"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("entries %q, want %q", got, want)
 	}
@@ -72,6 +72,13 @@ func TestReadFinalShell(t *testing.T) {
 	bare := byName(t, src, "")
 	if h := bare.Host; h.Addr != "192.0.2.40" || h.PortOr22() != 22 || h.User != "" || h.Auth != config.AuthPassword || bare.Folder != nil {
 		t.Errorf("bare %+v %+v", bare, h)
+	}
+	// A Windows remote desktop: its kind, the port it opens, and nothing of
+	// a shell's login.
+	desk := byName(t, src, "desktop")
+	if h := desk.Host; !h.IsRDP() || h.Port != 0 || h.ProtocolPort() != 3389 || h.User != "" ||
+		h.Auth != config.AuthPassword || h.NoMonitor || desk.NeedsKey || desk.Note != "" {
+		t.Errorf("desktop %+v %+v", desk, h)
 	}
 
 	// Deleted in FinalShell are filtered out, not even listed as skipped:
@@ -106,7 +113,6 @@ func TestReadFinalShell(t *testing.T) {
 	}
 	wantProblems := map[string]Reason{
 		"1005_connect_config.json": Broken,
-		"1006_connect_config.json": NotSSH,
 		"1008_connect_config.json": NoHost,
 		"1011_connect_config.json": Broken,
 	}
@@ -144,7 +150,7 @@ func maps(a, b map[string]Reason) bool {
 // The conn folder itself, and a folder FinalShell exported, read too.
 func TestReadConnAndExport(t *testing.T) {
 	src, err := ReadFinalShell(filepath.Join("testdata", "finalshell", "conn"))
-	if err != nil || len(src.Entries) != 6 {
+	if err != nil || len(src.Entries) != 7 {
 		t.Fatalf("conn: %v, %v", src, err)
 	}
 	src, err = ReadFinalShell(filepath.Join("testdata", "export"))
@@ -277,26 +283,30 @@ func TestImport(t *testing.T) {
 		t.Error("a host there before has a creation time")
 	}
 	// pg-main was there, and web-1 again is web-1.
-	if want := []string{"192.0.2.40", "web-1", "bastion", "树莓派"}; !slices.Equal(names, want) || len(s.Hosts) != before+4 {
+	if want := []string{"192.0.2.40", "desktop", "web-1", "bastion", "树莓派"}; !slices.Equal(names, want) || len(s.Hosts) != before+5 {
 		t.Fatalf("added %q, want %q", names, want)
 	}
 	// The entries are not the hosts added.
 	if src.Entries[1].Host == added[1] || src.Entries[1].Host.ID != "" {
 		t.Error("the entry's host was added")
 	}
-	folderOf := func(name string) string {
+	addedHost := func(name string) *config.Host {
 		for _, h := range added {
 			if h.Title() == name {
-				var path []string
-				for _, f := range s.FolderPath(h.Folder) {
-					path = append(path, f.Name)
-				}
-				return strings.Join(path, "/")
+				return h
 			}
 		}
-		return "?"
+		t.Fatalf("no added host %q", name)
+		return nil
 	}
-	if folderOf("bastion") != "Production" || s.Host(added[2].ID).Folder != prod.ID {
+	folderOf := func(name string) string {
+		var path []string
+		for _, f := range s.FolderPath(addedHost(name).Folder) {
+			path = append(path, f.Name)
+		}
+		return strings.Join(path, "/")
+	}
+	if folderOf("bastion") != "Production" || s.Host(addedHost("bastion").ID).Folder != prod.ID {
 		t.Errorf("bastion in %q", folderOf("bastion"))
 	}
 	if folderOf("树莓派") != "实验室/Pi" || folderOf("web-1") != "" {
@@ -332,5 +342,15 @@ func TestSameTarget(t *testing.T) {
 		if SameTarget(a, &c.b) != c.same {
 			t.Errorf("%+v: %v", c.b, !c.same)
 		}
+	}
+	// The same address and port, one a shell and one a desktop, are two
+	// connections.
+	shell := &config.Host{Addr: "host.example.com", Port: 3389, User: "root"}
+	desk := &config.Host{Addr: "host.example.com", Port: 3389, User: "root", Type: config.KindRDP}
+	if SameTarget(shell, desk) || SameTarget(desk, shell) {
+		t.Error("a shell and a desktop are the same target")
+	}
+	if !SameTarget(desk, &config.Host{Addr: "HOST.example.com", User: "root", Type: config.KindRDP}) {
+		t.Error("two desktops, one at the port of its kind")
 	}
 }

@@ -68,6 +68,8 @@ After that, Finallyshell updates itself, except the `.deb`, which you update by 
 
 Open the connection manager with <kbd>Cmd</kbd>+<kbd>O</kbd> on macOS or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd> elsewhere. Hosts live in a tree of folders, as in FinalShell: drag them between folders, search by name, address, user or notes, duplicate a host, or delete it to a "Show deleted" list from which it can be restored.
 
+New connection asks first what to add, an SSH connection (Linux) or a remote desktop connection (Windows), and each kind has its editor window. A desktop opens in the system's RDP client — Remote Desktop Connection on Windows, FreeRDP or Microsoft Remote Desktop elsewhere — with the password, domain and screen settings saved with it.
+
 The same tree stays in the main window too: the panel under the server stats switches between your sessions and Connections, where a double click opens a session and a green dot marks the hosts you have open. <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd> (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd>) switches between them.
 
 <p align="center">
@@ -202,7 +204,7 @@ The defaults follow FinalShell; the panes' follow Ghostty on macOS and Windows T
 
 **The monitor panel stays empty.** It reads `/proc` and works only with Linux servers. Some jump hosts refuse the extra channel it opens: turn off "Enable exec channel (server monitor)" for that host.
 
-**Does it support Telnet, RDP or serial ports?** No, only SSH and SFTP.
+**Does it support Telnet, RDP or serial ports?** RDP, as a Windows remote desktop connection: the desktop opens in the system's RDP client. Telnet and serial ports are not supported; the app speaks SSH and SFTP itself.
 
 ## Build from source
 

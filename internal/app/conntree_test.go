@@ -471,9 +471,12 @@ func TestConnectionPageMenus(t *testing.T) {
 	}
 	a.closeWindow(WindowEditor)
 	// A new connection, with the folder chosen, goes in it and is chosen
-	// on the page.
+	// on the page: the kind first, then the editor.
 	tt.ClickAt(connRow(t, tt, "Lab"))
 	if err := tt.Click(locales.NewConnection()); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.show(t, WindowNewConnection).Click(locales.NewSSHConnection()); err != nil {
 		t.Fatal(err)
 	}
 	ed := editorWindow(t, a, p)

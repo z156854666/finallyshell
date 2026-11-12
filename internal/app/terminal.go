@@ -14,6 +14,10 @@ func (a *App) terminalArea(c *ui.Context) {
 		a.startPage(c, s)
 		return
 	}
+	if s.isRDP() {
+		a.rdpArea(c, s)
+		return
+	}
 	colors := a.termColors()
 	termText := colors.Foreground
 	area := ui.Column(c.Key(s.ID)).Fill().Background(colors.Background)

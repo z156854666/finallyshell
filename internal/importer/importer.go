@@ -172,7 +172,8 @@ const (
 	TooLarge Reason = "too-large"
 	// NoHost is a connection without an address.
 	NoHost Reason = "no-host"
-	// NotSSH is a connection of another kind: RDP, VNC, Telnet and such.
+	// NotSSH is a connection of a kind the importer does not read: VNC,
+	// Telnet and such.
 	NotSSH Reason = "not-ssh"
 )
 
@@ -312,11 +313,14 @@ func sortSource(src *Source) {
 
 func compareFold(a, b string) int { return strings.Compare(strings.ToLower(a), strings.ToLower(b)) }
 
-// SameTarget tells whether a and b reach the same account: the same
-// address, regardless of case, port and user.
+// SameTarget tells whether a and b reach the same account: the same kind
+// of connection, address regardless of case, port and user. An SSH
+// connection and a remote desktop to one address are not the same: they
+// open different things.
 func SameTarget(a, b *config.Host) bool {
-	return strings.EqualFold(strings.TrimSpace(a.Addr), strings.TrimSpace(b.Addr)) &&
-		a.PortOr22() == b.PortOr22() && a.User == b.User
+	return a.Kind() == b.Kind() &&
+		strings.EqualFold(strings.TrimSpace(a.Addr), strings.TrimSpace(b.Addr)) &&
+		a.ProtocolPort() == b.ProtocolPort() && a.User == b.User
 }
 
 // Present is the host of s, not deleted, that h is the same target as:

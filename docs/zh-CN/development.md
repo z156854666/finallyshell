@@ -175,6 +175,7 @@ internal/
   termenc/           终端的连接在服务器的编码（GBK、Big5……）和终端读的 UTF-8 之间转换
   sshtest/           测试用的进程内 SSH 服务器：密码登录、记下读到内容的空 shell、端口转发、MaxSessions 限制，StartSFTP 还提供 SFTP（本机文件系统）
   monitor/           服务器状态采集和解析；net.go 是每个网卡的网速和历史，以及选中网卡的合计；netstat.go 是网络页的 socket（ss，或 /proc/net 和 /proc/<pid>/fd）、速度和行；trace.go 是通过 exec 通道的路由追踪（NextTrace 的 RAW 输出、traceroute、tracepath）；shelldir.go 从 /proc 读连接上的一个 shell（连接上有几个时，读哪个由 ShellPick 指定）：它的目录和前台程序；agents.go 判断程序是哪个编程智能体
+  rdp/               在系统的客户端里打开远程桌面：命令行和 Windows 凭据管理器里的密码，macOS 用的 .rdp 文件，FreeRDP 的参数，以及客户端进程
   geo/               IP 归属地：通过官方 Go 绑定读取 ip2region 数据（xdb.go），从 GitHub 或 jsDelivr 按校验和下载数据（download.go），ip-api.com 和 ip.sb 的在线查询（online.go）及其缓存（cache.go）；geotest/ 为测试生成小的 .xdb 文件
   remotefs/          SFTP 列目录、上传、下载（带进度和取消），重命名、新建、删除（ops.go）；textfile.go 是编辑器的读取（认出二进制文件）和安全保存；archive.go 是打包传输：打包和安全解包 tar.gz 数据流，在 exec 通道上运行 tar
   icons/             内嵌的 SVG 图标（Lucide，ISC 协议）；agents/ 是编程智能体的图标（LobeHub Icons，MIT 协议）
@@ -183,6 +184,7 @@ internal/
   app/               界面和状态
     app.go           App 状态、整体布局、打开/关闭会话
     session.go       一个会话：连接、终端、监控、SFTP；错误信息的翻译
+    rdp.go           远程桌面会话：启动系统的客户端，写着在哪里打开的标签页，监控面板的位置和行的图标
     sidebar.go       左侧：监控面板、竖向会话列表
     conntree.go      左侧面板的“连接”页：两页之间的切换、连接管理器的树（只有一列）、记住展开的文件夹
     paneltab.go      面板行：会话的底部面板单独成列表里的一行，共用会话的连接（connSession）
@@ -238,6 +240,8 @@ internal/
     options_font.go、options_colors.go、options_background.go
                      “终端 › 字体”“配色”“背景图片”三页和它们的预览
     editor.go        连接编辑器窗口：a.newConnection()、a.editConnection(h)，校验和保存
+    newconn.go       “新建连接”先打开的选择：SSH 连接还是 Windows 远程桌面
+    editor_rdp.go    连接编辑器的“远程桌面”页
     editor_proxy.go  连接编辑器的“代理”页
     editor_tunnels.go 连接编辑器的“隧道”页：表格和添加/编辑对话框
     proxy.go         经过代理和跳板机连接：拨号用的选项、连接前要问的密码、各跳错误的翻译

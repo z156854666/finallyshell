@@ -10,6 +10,7 @@ import (
 
 	"finallyshell/internal/config"
 	"finallyshell/internal/monitor"
+	"finallyshell/internal/rdp"
 	"finallyshell/internal/remotefs"
 	"finallyshell/internal/sshx"
 	"finallyshell/internal/termenc"
@@ -35,7 +36,9 @@ var nextSessionID atomic.Int64
 // Session is one open tab: a connection to a host, its shell, the
 // server's stats and its files. A new tab has no Host yet: it shows the
 // start page (see start.go). A local terminal has none either: it runs a
-// program on this computer (local.go).
+// program on this computer (local.go). A host of kind RDP opens a remote
+// desktop in the system's client instead of a shell, so its session has
+// no terminal, no SFTP and no monitor (rdp.go).
 type Session struct {
 	ID     int64
 	Host   *config.Host // nil for a new tab and a local terminal
@@ -62,6 +65,10 @@ type Session struct {
 
 	start startState // the start page, while it is a new tab
 	bar   cmdBar     // the command bar under the terminal (commandbar.go)
+
+	// desk is the remote desktop a session of an RDP host opened, in a
+	// window of the system's client (rdp.go): nil for a shell.
+	desk *rdp.Session
 
 	// name is the tab's name for this run, "" for the host's title: never
 	// saved (rename.go).
@@ -111,6 +118,10 @@ func (s *Session) label() string {
 // credential store when the app has not read it yet. A password the
 // server refuses opens the prompt (loginFailed).
 func (a *App) connect(s *Session, secret string) {
+	if s.isRDP() { // a desktop of the system's client, not a shell
+		a.connectRDP(s, secret)
+		return
+	}
 	if s.cancel != nil {
 		s.cancel()
 	}
@@ -362,6 +373,12 @@ func (s *Session) disconnect() {
 		s.hostKeyQ = nil
 	}
 	s.stopTunnels()
+	if s.desk != nil {
+		// The desktop is a window of the system's client: closing the
+		// tab closes it, as closing a shell's tab ends its shell.
+		s.desk.Close()
+		s.desk = nil
+	}
 	if s.sftp != nil {
 		s.sftp.Close()
 		s.sftp = nil
@@ -453,6 +470,8 @@ func describeError(err error) string {
 			return locales.ErrTerminal(step.err.Error())
 		}
 		return locales.ErrOpenShell(step.err.Error())
+	case errors.Is(err, rdp.ErrNoClient):
+		return locales.ErrNoRDPClient()
 	}
 	switch sshx.Classify(err) {
 	case "auth":

@@ -68,6 +68,24 @@ func editorWindow(t *testing.T, a *App, p *fakePlatform) *ui.Tester {
 	return tt
 }
 
+// newConnection opens the chooser New connection opens, chooses an SSH
+// connection, and returns the editor's window.
+func newConnection(t *testing.T, a *App, p *fakePlatform) *ui.Tester {
+	t.Helper()
+	a.newConnection()
+	q := p.show(t, WindowNewConnection)
+	if !q.HasText(locales.NewSSHConnection()) || !q.HasText(locales.NewRDPConnection()) {
+		t.Fatalf("no chooser of the kinds; texts %q", q.Texts())
+	}
+	if err := q.Click(locales.NewSSHConnection()); err != nil {
+		t.Fatal(err)
+	}
+	if a.windowOpen(WindowNewConnection) || !a.windowOpen(WindowEditor) {
+		t.Fatalf("chooser %v, editor %v", a.windowOpen(WindowNewConnection), a.windowOpen(WindowEditor))
+	}
+	return editorWindow(t, a, p)
+}
+
 // fieldValue is the text of the text field labeled label.
 func fieldValue(t *testing.T, tt *ui.Tester, label string) string {
 	t.Helper()
@@ -118,10 +136,13 @@ func TestEditorNewFromManager(t *testing.T) {
 	saved := savedHosts(a)
 	mainWin := ui.NewTester(a.View, 1280, 820)
 	p.tt = mainWin
-	// With no hosts, the manager opens on a new one.
+	// With no hosts, the manager asks what kind of connection to add.
 	mainWin.Key(ui.Ctrl|ui.Shift, ui.KeyO)
-	if !a.windowOpen(WindowManager) {
-		t.Fatal("manager not open")
+	if !a.windowOpen(WindowManager) || !a.windowOpen(WindowNewConnection) {
+		t.Fatalf("manager %v, chooser %v", a.windowOpen(WindowManager), a.windowOpen(WindowNewConnection))
+	}
+	if err := p.show(t, WindowNewConnection).Click(locales.NewSSHConnection()); err != nil {
+		t.Fatal(err)
 	}
 	// Modal to the manager, which it was opened from.
 	spec := p.windows[WindowEditor].spec
@@ -198,8 +219,14 @@ func TestEditorNewFromManager(t *testing.T) {
 		t.Errorf("manager does not list it (chosen %v); texts %q", it, manager.Texts())
 	}
 
-	// New from the manager opens an empty editor again.
+	// New from the manager asks the kind again, then opens an empty editor.
 	if err := manager.Click(locales.NewConnection()); err != nil {
+		t.Fatal(err)
+	}
+	if !a.windowOpen(WindowNewConnection) {
+		t.Fatal("no chooser")
+	}
+	if err := p.show(t, WindowNewConnection).Click(locales.NewSSHConnection()); err != nil {
 		t.Fatal(err)
 	}
 	if tt := editorWindow(t, a, p); a.editor.id != "" || a.editor.port != "22" || fieldValue(t, tt, locales.FieldHost()) != "" {
@@ -238,7 +265,7 @@ func TestEditorEditKeepsFields(t *testing.T) {
 	}
 	tt := editorWindow(t, a, p)
 	ed := a.editor
-	want := connEditor{id: "h1", name: "web", addr: "10.0.0.1", port: "2200", notes: "main box\nrack 4",
+	want := connEditor{id: "h1", kind: config.KindSSH, name: "web", addr: "10.0.0.1", port: "2200", notes: "main box\nrack 4",
 		auth: config.AuthKey, user: "root", keyPath: "~/.ssh/id_rsa", passphrase: "phrase",
 		remember: true, monitor: false, termType: "vt220", backspace: config.BackspaceCtrlH,
 		proxy:   proxyFields{kind: config.ProxySOCKS5, addr: "10.0.0.9", port: "1081", user: "alice", password: "pp", saved: h.Proxy, hosts: a.hosts},
@@ -412,8 +439,7 @@ func TestEditorCancelAndEscape(t *testing.T) {
 	}
 
 	// A new host canceled is not added.
-	a.newConnection()
-	tt = editorWindow(t, a, p)
+	tt = newConnection(t, a, p)
 	tt.Type("new.example.com")
 	tt.Key(0, ui.KeyEscape)
 	if len(a.hosts.Hosts) != 1 || saves != 0 {
@@ -423,8 +449,7 @@ func TestEditorCancelAndEscape(t *testing.T) {
 
 func TestEditorEnterSaves(t *testing.T) {
 	a, p := testApp(t)
-	a.newConnection()
-	tt := editorWindow(t, a, p)
+	tt := newConnection(t, a, p)
 	tt.Type("example.com") // the host has the focus
 	tt.Key(0, ui.KeyEnter)
 	if a.windowOpen(WindowEditor) || len(a.hosts.Hosts) != 1 || a.hosts.Hosts[0].Addr != "example.com" || a.hosts.Hosts[0].User != "root" {
@@ -432,8 +457,7 @@ func TestEditorEnterSaves(t *testing.T) {
 	}
 
 	// Enter with an error shows it, and saves nothing.
-	a.newConnection()
-	tt = editorWindow(t, a, p)
+	tt = newConnection(t, a, p)
 	tt.Key(0, ui.KeyEnter)
 	if !a.windowOpen(WindowEditor) || len(a.hosts.Hosts) != 1 || !tt.HasText(locales.ErrHostRequired()) {
 		t.Errorf("Enter on an empty host: open %v, hosts %v", a.windowOpen(WindowEditor), a.hosts.Hosts)
@@ -442,8 +466,7 @@ func TestEditorEnterSaves(t *testing.T) {
 
 func TestEditorErrorOnAnotherPage(t *testing.T) {
 	a, p := testApp(t)
-	a.newConnection()
-	tt := editorWindow(t, a, p)
+	tt := newConnection(t, a, p)
 	tt.Type("example.com")
 	if err := tt.Click(locales.EditorPageTerminal()); err != nil {
 		t.Fatal(err)
@@ -480,8 +503,7 @@ func TestEditorKeyFile(t *testing.T) {
 	t.Setenv("HOME", home)
 	t.Setenv("USERPROFILE", home)
 	os.MkdirAll(filepath.Join(home, ".ssh"), 0o700)
-	a.newConnection()
-	tt := editorWindow(t, a, p)
+	tt := newConnection(t, a, p)
 	tt.Type("example.com")
 	if err := tt.Click(locales.AuthPassword()); err != nil {
 		t.Fatal(err)
@@ -597,8 +619,7 @@ func TestEditorHostDeleted(t *testing.T) {
 func TestEditorSaveFails(t *testing.T) {
 	a, p := testApp(t)
 	a.saveHosts = func(*config.Store) error { return errors.New("disk full") }
-	a.newConnection()
-	tt := editorWindow(t, a, p)
+	tt := newConnection(t, a, p)
 	tt.Type("example.com")
 	tt.Key(0, ui.KeyEnter)
 	if !a.windowOpen(WindowEditor) || !tt.HasText(locales.ErrSaveFailed("disk full")) {
@@ -658,6 +679,7 @@ func TestEditorPages(t *testing.T) {
 					}
 				}
 			}
+
 		})
 	}
 }

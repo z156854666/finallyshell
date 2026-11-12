@@ -2,12 +2,10 @@ package app
 
 import (
 	"errors"
-	"net"
 	"os"
 	"path/filepath"
 	"runtime"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -465,15 +463,11 @@ func (a *App) importTable(c *ui.Context, st *importState, statuses []importStatu
 			}
 		case "name":
 			ui.Row(c).Gap(6).AlignItems(ui.Center).MinWidth(0).Children(func() {
-				ui.Icon(c, icons.Get("server")).FontSize(14).TextColor(color.Alpha(0.75))
+				ui.Icon(c, icons.Get(hostIcon(h))).FontSize(14).TextColor(color.Alpha(0.75))
 				text(h.Title())
 			})
 		case "host":
-			addr := h.Addr
-			if h.PortOr22() != 22 {
-				addr = net.JoinHostPort(addr, strconv.Itoa(h.PortOr22())) // [2001:db8::1]:2200
-			}
-			text(addr)
+			text(hostAddr(h)) // [2001:db8::1]:2200
 		case "user":
 			text(h.User)
 		case "password": // never the password itself

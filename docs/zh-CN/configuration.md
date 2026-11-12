@@ -93,6 +93,19 @@ Finallyshell 把主机和设置存在普通的 JSON 文件里。密码从不写�
 
 没有 `proxy` 就是直接连接。代理密码也不写进文件，和主机密码一样存在凭据存储里（见[密码存在哪里](#密码存在哪里)）。
 
+### 远程桌面 (RDP)
+
+`"type": "rdp"` 的主机打开远程桌面，而不是 shell，见[远程桌面](features.md#remote-desktop)。没有写 `port` 时端口是 3389，`rdp` 里是那一页的设置：
+
+- `domain`：Windows 域或工作组，服务器自己的就不写。
+- `width`、`height`：桌面的像素大小；都不写时由客户端决定，Windows 上是全屏。
+- `depth`：颜色深度，`16`、`24` 或 `32`；不写是 `32`。
+- `noClipboard`、`noDrives`：不把剪贴板或本机的磁盘共享给远程桌面；不写时都共享。
+
+后三项只对 macOS 和 Linux 的客户端有效：Windows 上客户端只用命令行启动，命令行只带地址和屏幕大小，颜色深度、剪贴板和磁盘是客户端自己的设置。
+
+没有 `type` 的主机，也就是支持 RDP 之前保存的每个主机，是 SSH 连接；`type` 是这个版本不认识的类型（比如 `vnc`）时也是 SSH 连接，并且这个键原样保留。
+
 ### 文件夹、已删除的主机和其他字段
 
 - `auth` 是主机的登录方式：`password`（密码）、`key`（私钥，私钥文件在 `keyPath`）或 `agent`：用 [settings.json](#settingsjson) 里 `sshAgent` 地址上的 SSH Agent 里的私钥登录，不保存密码或私钥密码。不支持 SSH Agent 的旧版本把 `agent` 当作 `password`：同步到旧版本的主机在那里会要求输入密码，在那里保存后就变成密码主机。

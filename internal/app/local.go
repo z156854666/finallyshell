@@ -157,7 +157,15 @@ func (s *Session) target() string {
 // its thin lines would not show in the dot's on the accent; the line
 // under the name says the state.
 func sessionMark(c *ui.Context, s *Session, active bool) {
-	if !s.isLocal() {
+	icon := ""
+	switch {
+	case s.isLocal():
+		icon = "laptop"
+	case s.isRDP():
+		// A screen, as the session opens a desktop rather than a shell.
+		icon = "monitor"
+	}
+	if icon == "" {
 		widgets.StatusDot(c, s.statusColor(theme))
 		return
 	}
@@ -166,15 +174,20 @@ func sessionMark(c *ui.Context, s *Session, active bool) {
 		color = theme.AccentText
 	}
 	ui.Box(c).Size(8, 8).Center().Shrink(0).Children(func() {
-		ui.Icon(c, icons.Get("laptop")).FontSize(13).TextColor(color)
+		ui.Icon(c, icons.Get(icon)).FontSize(13).TextColor(color)
 	})
 }
 
 // localUnavailable is what a page of the bottom panel that reads a
-// server shows for a local terminal.
-func localUnavailable(c *ui.Context) {
+// server shows for a local terminal, or for a remote desktop, which has
+// no shell to read.
+func localUnavailable(c *ui.Context, s *Session) {
+	msg := locales.LocalNotAvailable()
+	if s.isRDP() {
+		msg = locales.RdpNoShell()
+	}
 	ui.Column(c.Key("local-unavailable")).Grow(1).Children(func() {
-		widgets.Muted(c, locales.LocalNotAvailable()).Padding(12)
+		widgets.Muted(c, msg).Padding(12)
 	})
 }
 

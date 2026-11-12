@@ -128,7 +128,7 @@ func TestWindowOpensOncePerKind(t *testing.T) {
 }
 
 // windowSpecs are the windows the app opens: a new kind goes here too.
-var windowSpecs = []WindowSpec{optionsWindow, editorSpec(true), managerSpec}
+var windowSpecs = []WindowSpec{optionsWindow, editorSpec(true, config.KindSSH), managerSpec}
 
 func TestWindowSpecsFitTheirLeastSize(t *testing.T) {
 	kinds := map[WindowKind]bool{}

@@ -32,8 +32,7 @@ func testAgent(t *testing.T, a *App) (*sshtest.Agent, ssh.PublicKey) {
 func TestAgentEditor(t *testing.T) {
 	a, p := testApp(t)
 	ag, _ := testAgent(t, a)
-	a.newConnection()
-	tt := editorWindow(t, a, p)
+	tt := newConnection(t, a, p)
 	typeInto(t, tt, locales.FieldName(), "web-1")
 	typeInto(t, tt, locales.FieldHost(), "45.56.78.90")
 	if err := tt.Click(locales.AuthPassword()); err != nil {

@@ -315,9 +315,10 @@ connecting.
   connections, which the page does not list, and which "Show deleted" in
   the connection manager lists to restore.
 - The "+" in the header is New connection while the page is shown: in
-  the selected folder, or the folder of the selected connection. The
-  editor it opens, and Edit, belong to the main window (not modal); once
-  saved, the page selects the connection.
+  the selected folder, or the folder of the selected connection. It asks
+  which kind of connection to add, then opens its editor. The editor, and
+  Edit, belong to the main window (not modal); once saved, the page
+  selects the connection.
 - Both places read the same connections, so a rename, move or delete in
   either shows in the other at once.
 - The key "Switch sessions / connections" (Cmd+Shift+E on macOS,
@@ -549,21 +550,23 @@ is read, its path is shown at the top (the home folder as `~`, except on
 Windows), next to "Choose file…" or "Choose folder…", which reads
 another at any time.
 
-The window lists every SSH connection read (Name, Host, User, Folder,
-Note), each with a checkbox. All are checked by default. "Select all" and
-"Select none" change them all, and Enter, double-click or Space toggles
-the selected row.
+The window lists every connection read (Name, Host, User, Folder, Note),
+each with a checkbox: SSH connections, and the remote desktops of the
+sources that keep them (FinalShell's, so far). A remote desktop's row has
+a screen in place of the server. All are checked by default. "Select all"
+and "Select none" change them all, and Enter, double-click or Space
+toggles the selected row.
 
-- A connection with the same host address (ignoring case), port and user
-  as an existing host is shown in grey as "Already present as ...". It
-  cannot be checked and is not imported. Of two identical connections in
-  the source, only the first is imported.
+- A connection that reaches the same account as an existing host (the
+  same kind, address ignoring case, port and user) is shown in grey as
+  "Already present as ...". It cannot be checked and is not imported. Of
+  two identical connections in the source, only the first is imported.
 - Files, or lines of a file, that cannot be read (not in the source's
   format, too large, a read error, no host address) count as failed;
-  connections of other kinds (RDP, VNC and such) count as skipped. Both
-  are listed below the table, each with its file, or its file and line
-  (`file:line`). Connections deleted in the other client are not listed,
-  nor imported.
+  connections of other kinds, as a VNC or a Telnet one, count as skipped.
+  Both are listed below the table, each with its file, or its file and
+  line (`file:line`). Connections deleted in the other client are not
+  listed, nor imported.
 - The Note column says what is not imported of a connection, such as a
   proxy, or that its key file must be chosen after importing (the file's
   name once one is chosen above), and the jump host it will connect
@@ -616,9 +619,16 @@ You can choose the data folder, its `conn` folder, or a folder exported
 from FinalShell.
 
 Fields that are imported: name, host, port, user, notes (`description`),
-folder, authentication method, and whether the exec channel is enabled (a
-connection with it turned off is imported with the server monitor turned
-off). The time added is not FinalShell's `create_time`.
+folder, and for an SSH connection the authentication method and whether
+the exec channel is enabled (a connection with it turned off is imported
+with the server monitor turned off). The time added is not FinalShell's
+`create_time`.
+
+A Windows remote desktop (`conection_type` 101) is imported as one, with
+its address, its port (3389, unless FinalShell names another) and its
+user. Its screen size, colors and what it shares stay at the defaults of
+the connection's Remote desktop page: what FinalShell keeps for them is
+not known.
 
 - Passwords are not imported. FinalShell stores them encrypted in its
   files; Finallyshell does not decrypt them and does not read that field.
@@ -892,8 +902,14 @@ cells.
 
 ## Connection editor
 
-New connection and Edit connection open a separate window, with its pages
-on the left and OK and Cancel at the bottom.
+New connection asks first which kind to add, an SSH connection or a
+Windows remote desktop, in a window of two buttons. Edit connection opens
+the window of the connection's kind.
+
+An SSH connection's editor is a separate window, with its pages on the
+left and OK and Cancel at the bottom. A remote desktop's editor is a
+window of its own, with its page alone (see
+[Remote desktop](#remote-desktop)).
 
 ### SSH connection
 
@@ -927,6 +943,59 @@ settings" button that opens Options › General: no agent at the address
 keys, the server refused every key in the agent, or the agent did not
 sign (the user denied it). No password prompt opens. Agent forwarding
 (`ssh -A`) is not supported.
+
+<a id="remote-desktop"></a>
+
+### Remote desktop
+
+New connection asks first what to add, as FinalShell does, in a small
+window of two: **SSH connection (Linux)** and **Remote desktop connection
+(Windows)**. An SSH connection opens the editor of the pages above; a
+remote desktop opens an editor of its own, one window per kind, with its
+page alone: a desktop has no shell, so it has no terminal, proxy or
+tunnels pages. Edit connection opens the window of the kind of the
+connection edited.
+
+A remote desktop is FinalShell's RDP link: it opens in the system's RDP
+client rather than in a terminal of this app.
+
+- Name, Host, Port (3389), Notes.
+- User, Password, "Remember password", and Domain: the Windows domain or
+  workgroup, empty for the server's own.
+- Screen: Screen size (the client's own, which is full screen on Windows,
+  or 1920 × 1080, 1600 × 900, 1366 × 768, 1280 × 800, 1280 × 720 or
+  1024 × 768), Color depth (32, 24 or 16 bits), Share the clipboard and
+  Share local drives, the last two on by default.
+
+Its tab has no file panel and no command bar either.
+
+Connecting starts the system's client: Remote Desktop Connection (mstsc)
+on Windows, FreeRDP's `xfreerdp` where it is installed (Linux, and macOS
+with `brew install freerdp`), else Microsoft Remote Desktop on macOS.
+
+On Windows the client is opened with the address and the screen size on
+its command line, and the password is put where the client reads it, in
+the Windows credential store under `TERMSRV/<address>`, as its own
+"Remember me" box does; it is removed when the desktop closes. No
+connection file is passed to it: since Windows' April 2026 security
+update the client warns of every connection file it opens, signed or not,
+so a desktop opened from one would ask every time. A command line cannot
+say the color depth, the clipboard or the drives, so those are the
+client's own settings there, and the connection editor shows them on the
+other systems alone. On macOS the client opens an `.rdp` file, which
+says nothing of the password: it asks for it.
+
+Its window is not part of this app.
+
+The tab says where the desktop opened, with "Open again" and "Edit
+connection", and its row shows a screen rather than a status dot. Closing
+the tab, or quitting, closes the desktop, as ending a shell's tab ends its
+shell. The desktop's window is the system client's, not part of this app.
+
+When the computer has no RDP client, the tab says so, with Reconnect to
+try again once one is installed. In `hosts.json` a remote desktop is
+`"type": "rdp"`, with its settings under `rdp` (see
+[configuration.md](configuration.md#remote-desktop-rdp)).
 
 <a id="terminal-page"></a>
 

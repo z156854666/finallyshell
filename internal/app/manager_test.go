@@ -185,12 +185,22 @@ func TestManagerWindow(t *testing.T) {
 	saveShot(t, tt, "manager-zh.png")
 }
 
-// With nothing to list, the manager opens the editor for a new host, modal
-// to it; with a new host saved in a folder chosen, it goes in the folder.
+// With nothing to list, the manager asks what kind of connection to add,
+// then opens its editor, modal to it; with a new host saved in a folder
+// chosen, it goes in the folder.
 func TestManagerEditorModal(t *testing.T) {
 	a, p := testApp(t)
 	a.hosts.Add(&config.Host{ID: "gone", Name: "gone-host", Addr: "10.0.0.9", User: "root", Auth: config.AuthPassword, DeletedAt: time.Now()})
 	a.openManager()
+	if !a.windowOpen(WindowNewConnection) || !a.windowOpen(WindowManager) {
+		t.Fatalf("chooser %v, manager %v", a.windowOpen(WindowNewConnection), a.windowOpen(WindowManager))
+	}
+	if q := p.windows[WindowNewConnection].spec; q.Parent != WindowManager || q.Modal {
+		t.Errorf("chooser %+v", q)
+	}
+	if err := p.show(t, WindowNewConnection).Click(locales.NewSSHConnection()); err != nil {
+		t.Fatal(err)
+	}
 	if !a.windowOpen(WindowEditor) || a.editor.id != "" {
 		t.Fatalf("editor %v", a.windowOpen(WindowEditor))
 	}
@@ -205,6 +215,12 @@ func TestManagerEditorModal(t *testing.T) {
 	// Opened from the main window, it is the main window's, and does not
 	// block it, the manager open or not.
 	a.newConnection()
+	if q := p.windows[WindowNewConnection].spec; q.Parent != WindowMain || q.Modal {
+		t.Errorf("chooser from the main window %+v", q)
+	}
+	if err := p.show(t, WindowNewConnection).Click(locales.NewSSHConnection()); err != nil {
+		t.Fatal(err)
+	}
 	if spec := p.windows[WindowEditor].spec; spec.Parent != WindowMain || spec.Modal {
 		t.Errorf("editor from the main window %+v", spec)
 	}
@@ -218,6 +234,9 @@ func TestManagerEditorModal(t *testing.T) {
 	tt.Frame()
 	tt.ClickAt(rowCenter(t, tt, "Lab"))
 	if err := tt.Click(locales.NewConnection()); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.show(t, WindowNewConnection).Click(locales.NewSSHConnection()); err != nil {
 		t.Fatal(err)
 	}
 	ed := editorWindow(t, a, p)

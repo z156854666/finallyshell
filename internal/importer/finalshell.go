@@ -46,7 +46,8 @@ import (
 //	id                   its id, also in the file's name
 //	name, host, port     port a number, or a string in some versions
 //	user_name
-//	conection_type       sic: 100 is SSH; others are RDP, VNC and such
+//	conection_type       sic: 100 is SSH, 101 a Windows remote desktop;
+//	                     VNC, Telnet and the others are not imported
 //	authentication_type  1 password, 2 public key
 //	secret_key_id        the key, in FinalShell's own key store
 //	parent_id            the folder's id
@@ -57,6 +58,11 @@ import (
 //	                     as for a folder: what is deleted there is not
 //	                     imported, nor listed as a problem
 //	password             encrypted by FinalShell: never read here
+//
+// A connection of type 101 is a Windows remote desktop, and is imported as
+// one: its address, its port (3389 unless the file names another) and its
+// user. What FinalShell keeps of its screen is not read, so the desktop
+// gets the defaults of the Remote desktop page.
 //
 // Others (terminal_encoding, port_forwarding_list, backspace_key_sequence,
 // window sizes, times) are not imported. The password is encrypted with a
@@ -448,9 +454,18 @@ func (r *fsReader) add(c *fsConn) {
 	if number(c.DeleteTime) != 0 || r.deleted[connID(c)] || r.deletedFolder(parent) || r.deletedFolder(folder) {
 		return
 	}
-	if t, ok := numberOK(c.Type); ok && t != 100 {
-		bad(NotSSH)
-		return
+	// 100 is an SSH connection, 101 a Windows remote desktop; a VNC or a
+	// Telnet connection, and any type this does not know, is not kept.
+	kind := config.KindSSH
+	if t, ok := numberOK(c.Type); ok {
+		switch t {
+		case 100:
+		case 101:
+			kind = config.KindRDP
+		default:
+			bad(NotSSH)
+			return
+		}
 	}
 	addr := text(c.Host)
 	if addr == "" {
@@ -464,15 +479,22 @@ func (r *fsReader) add(c *fsConn) {
 		Auth:  config.AuthPassword,
 		Notes: strings.TrimSpace(textRaw(c.Description)),
 	}
-	if p := number(c.Port); p > 0 && p <= 65535 && p != 22 {
+	if kind == config.KindRDP {
+		h.Type = config.KindRDP
+	}
+	def := int64((&config.Host{Type: kind}).ProtocolPort()) // 22, or 3389
+	if p := number(c.Port); p > 0 && p <= 65535 && p != def {
 		h.Port = int(p)
 	}
-	// 2 is a key; with no type, or one this does not know, a key's id is.
-	if auth := number(c.Auth); auth == 2 || auth != 1 && text(c.SecretKeyID) != "" {
-		h.Auth = config.AuthKey
-	}
-	if on, ok := boolean(c.ExecChannel); ok && !on {
-		h.NoMonitor = true
+	// A desktop logs in with its password alone: no key, no exec channel.
+	if kind == config.KindSSH {
+		// 2 is a key; with no type, or one this does not know, a key's id is.
+		if auth := number(c.Auth); auth == 2 || auth != 1 && text(c.SecretKeyID) != "" {
+			h.Auth = config.AuthKey
+		}
+		if on, ok := boolean(c.ExecChannel); ok && !on {
+			h.NoMonitor = true
+		}
 	}
 	e := &Entry{
 		File:     c.file,

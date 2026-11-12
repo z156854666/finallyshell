@@ -12,6 +12,7 @@ import (
 	"finallyshell/internal/cloudsync"
 	"finallyshell/internal/config"
 	"finallyshell/internal/importer"
+	"finallyshell/internal/rdp"
 	"finallyshell/internal/widgets"
 	"finallyshell/locales"
 
@@ -196,8 +197,11 @@ type App struct {
 	left     leftPanel
 	connTree managerState
 
-	// The connection editor's fields, while its window is open.
-	editor *connEditor
+	// The connection editor's fields, while its window is open, and what
+	// the chooser of the kinds of connection holds while its window is
+	// (newconn.go).
+	editor  *connEditor
+	newConn *newConnChoice
 
 	// The import window's state (import.go); its sources,
 	// allImportSources() unless tests replace them, the kind of the one
@@ -260,6 +264,10 @@ type App struct {
 	// tests replace.
 	sync      syncState
 	newRemote func(config.SyncSettings, string) (cloudsync.Remote, error)
+
+	// launchRDP opens a remote desktop in the system's client (rdp.go):
+	// nil for rdp.Launch, which tests replace.
+	launchRDP func(rdp.Config) (rdp.Session, error)
 
 	// The command bar's history of each host (commandbar_data.go).
 	history cmdHistories
@@ -380,6 +388,12 @@ func (a *App) mainArea(c *ui.Context) {
 	terminal := func() { a.terminalArea(c) }
 	if s := a.current(); s.isPanelTab() {
 		a.withRightColumn(c, func() { a.panelArea(c, s) }, monitor, nil)
+		return
+	}
+	// A remote desktop has no bottom panel: its area is the terminal
+	// area's place, the monitor beside it when it is on the right.
+	if s := a.current(); s.isRDP() {
+		a.withRightColumn(c, func() { a.rdpArea(c, s) }, monitor, nil)
 		return
 	}
 	if a.panelOnRight() {

@@ -542,6 +542,46 @@ func (msgs Messages) NewConnection() string {
 	return Catalog.Format(msgs.locale, "newConnection", nil)
 }
 
+// NewSSHConnection says "SSH connection (Linux)"
+// in the language the app shows.
+func NewSSHConnection() string { return In(i18n.Locale()).NewSSHConnection() }
+
+// NewSSHConnection says "SSH connection (Linux)"
+// in the language of msgs.
+func (msgs Messages) NewSSHConnection() string {
+	return Catalog.Format(msgs.locale, "newSSHConnection", nil)
+}
+
+// NewRDPConnection says "Remote desktop connection (Windows)"
+// in the language the app shows.
+func NewRDPConnection() string { return In(i18n.Locale()).NewRDPConnection() }
+
+// NewRDPConnection says "Remote desktop connection (Windows)"
+// in the language of msgs.
+func (msgs Messages) NewRDPConnection() string {
+	return Catalog.Format(msgs.locale, "newRDPConnection", nil)
+}
+
+// NewRemoteDesktop says "New remote desktop"
+// in the language the app shows.
+func NewRemoteDesktop() string { return In(i18n.Locale()).NewRemoteDesktop() }
+
+// NewRemoteDesktop says "New remote desktop"
+// in the language of msgs.
+func (msgs Messages) NewRemoteDesktop() string {
+	return Catalog.Format(msgs.locale, "newRemoteDesktop", nil)
+}
+
+// EditRemoteDesktop says "Edit remote desktop"
+// in the language the app shows.
+func EditRemoteDesktop() string { return In(i18n.Locale()).EditRemoteDesktop() }
+
+// EditRemoteDesktop says "Edit remote desktop"
+// in the language of msgs.
+func (msgs Messages) EditRemoteDesktop() string {
+	return Catalog.Format(msgs.locale, "editRemoteDesktop", nil)
+}
+
 // NoSessions says "No open sessions"
 // in the language the app shows.
 func NoSessions() string { return In(i18n.Locale()).NoSessions() }
@@ -1824,6 +1864,196 @@ func EditorPageTunnels() string { return In(i18n.Locale()).EditorPageTunnels() }
 // in the language of msgs.
 func (msgs Messages) EditorPageTunnels() string {
 	return Catalog.Format(msgs.locale, "editorPageTunnels", nil)
+}
+
+// FieldDomain says "Domain"
+// in the language the app shows.
+func FieldDomain() string { return In(i18n.Locale()).FieldDomain() }
+
+// FieldDomain says "Domain"
+// in the language of msgs.
+func (msgs Messages) FieldDomain() string {
+	return Catalog.Format(msgs.locale, "fieldDomain", nil)
+}
+
+// DomainPlaceholder says "Optional, e.g. WORKGROUP"
+// in the language the app shows.
+func DomainPlaceholder() string { return In(i18n.Locale()).DomainPlaceholder() }
+
+// DomainPlaceholder says "Optional, e.g. WORKGROUP"
+// in the language of msgs.
+func (msgs Messages) DomainPlaceholder() string {
+	return Catalog.Format(msgs.locale, "domainPlaceholder", nil)
+}
+
+// DomainHint says "The Windows domain or workgroup the user logs in to."
+// in the language the app shows.
+func DomainHint() string { return In(i18n.Locale()).DomainHint() }
+
+// DomainHint says "The Windows domain or workgroup the user logs in to."
+// in the language of msgs.
+func (msgs Messages) DomainHint() string {
+	return Catalog.Format(msgs.locale, "domainHint", nil)
+}
+
+// RemoteDesktop says "Remote desktop"
+// in the language the app shows.
+func RemoteDesktop() string { return In(i18n.Locale()).RemoteDesktop() }
+
+// RemoteDesktop says "Remote desktop"
+// in the language of msgs.
+func (msgs Messages) RemoteDesktop() string {
+	return Catalog.Format(msgs.locale, "remoteDesktop", nil)
+}
+
+// SectionScreen says "Screen"
+// in the language the app shows.
+func SectionScreen() string { return In(i18n.Locale()).SectionScreen() }
+
+// SectionScreen says "Screen"
+// in the language of msgs.
+func (msgs Messages) SectionScreen() string {
+	return Catalog.Format(msgs.locale, "sectionScreen", nil)
+}
+
+// FieldRDPSize says "Screen size"
+// in the language the app shows.
+func FieldRDPSize() string { return In(i18n.Locale()).FieldRDPSize() }
+
+// FieldRDPSize says "Screen size"
+// in the language of msgs.
+func (msgs Messages) FieldRDPSize() string {
+	return Catalog.Format(msgs.locale, "fieldRDPSize", nil)
+}
+
+// FieldRDPSizeHint says "The desktop's size in pixels, or the client's own, which is full screen on Windows."
+// in the language the app shows.
+func FieldRDPSizeHint() string { return In(i18n.Locale()).FieldRDPSizeHint() }
+
+// FieldRDPSizeHint says "The desktop's size in pixels, or the client's own, which is full screen on Windows."
+// in the language of msgs.
+func (msgs Messages) FieldRDPSizeHint() string {
+	return Catalog.Format(msgs.locale, "fieldRDPSizeHint", nil)
+}
+
+// RdpClientSize says "The client's own"
+// in the language the app shows.
+func RdpClientSize() string { return In(i18n.Locale()).RdpClientSize() }
+
+// RdpClientSize says "The client's own"
+// in the language of msgs.
+func (msgs Messages) RdpClientSize() string {
+	return Catalog.Format(msgs.locale, "rdpClientSize", nil)
+}
+
+// FieldRDPDepth says "Color depth"
+// in the language the app shows.
+func FieldRDPDepth() string { return In(i18n.Locale()).FieldRDPDepth() }
+
+// FieldRDPDepth says "Color depth"
+// in the language of msgs.
+func (msgs Messages) FieldRDPDepth() string {
+	return Catalog.Format(msgs.locale, "fieldRDPDepth", nil)
+}
+
+// FieldClipboard says "Share the clipboard"
+// in the language the app shows.
+func FieldClipboard() string { return In(i18n.Locale()).FieldClipboard() }
+
+// FieldClipboard says "Share the clipboard"
+// in the language of msgs.
+func (msgs Messages) FieldClipboard() string {
+	return Catalog.Format(msgs.locale, "fieldClipboard", nil)
+}
+
+// FieldDrives says "Share local drives"
+// in the language the app shows.
+func FieldDrives() string { return In(i18n.Locale()).FieldDrives() }
+
+// FieldDrives says "Share local drives"
+// in the language of msgs.
+func (msgs Messages) FieldDrives() string {
+	return Catalog.Format(msgs.locale, "fieldDrives", nil)
+}
+
+// RdpShareHint says "What the remote desktop may use of this computer."
+// in the language the app shows.
+func RdpShareHint() string { return In(i18n.Locale()).RdpShareHint() }
+
+// RdpShareHint says "What the remote desktop may use of this computer."
+// in the language of msgs.
+func (msgs Messages) RdpShareHint() string {
+	return Catalog.Format(msgs.locale, "rdpShareHint", nil)
+}
+
+// RdpClientNote says "The desktop opens in this computer's RDP client: Remote Desktop Connection on Windows, FreeRDP or Microsoft Remote De…"
+// in the language the app shows.
+func RdpClientNote() string { return In(i18n.Locale()).RdpClientNote() }
+
+// RdpClientNote says "The desktop opens in this computer's RDP client: Remote Desktop Connection on Windows, FreeRDP or Microsoft Remote De…"
+// in the language of msgs.
+func (msgs Messages) RdpClientNote() string {
+	return Catalog.Format(msgs.locale, "rdpClientNote", nil)
+}
+
+// RdpWindowsNote says "Opened in Remote Desktop Connection, with the address and the screen size on its command line: since Windows' April 2…"
+// in the language the app shows.
+func RdpWindowsNote() string { return In(i18n.Locale()).RdpWindowsNote() }
+
+// RdpWindowsNote says "Opened in Remote Desktop Connection, with the address and the screen size on its command line: since Windows' April 2…"
+// in the language of msgs.
+func (msgs Messages) RdpWindowsNote() string {
+	return Catalog.Format(msgs.locale, "rdpWindowsNote", nil)
+}
+
+// RdpOpenedIn says "Opened in {client}."
+// in the language the app shows.
+func RdpOpenedIn(client string) string { return In(i18n.Locale()).RdpOpenedIn(client) }
+
+// RdpOpenedIn says "Opened in {client}."
+// in the language of msgs.
+func (msgs Messages) RdpOpenedIn(client string) string {
+	return Catalog.Format(msgs.locale, "rdpOpenedIn", map[string]any{"client": client})
+}
+
+// RdpTabNote says "Closing this tab closes the desktop."
+// in the language the app shows.
+func RdpTabNote() string { return In(i18n.Locale()).RdpTabNote() }
+
+// RdpTabNote says "Closing this tab closes the desktop."
+// in the language of msgs.
+func (msgs Messages) RdpTabNote() string {
+	return Catalog.Format(msgs.locale, "rdpTabNote", nil)
+}
+
+// RdpOpenAgain says "Open again"
+// in the language the app shows.
+func RdpOpenAgain() string { return In(i18n.Locale()).RdpOpenAgain() }
+
+// RdpOpenAgain says "Open again"
+// in the language of msgs.
+func (msgs Messages) RdpOpenAgain() string {
+	return Catalog.Format(msgs.locale, "rdpOpenAgain", nil)
+}
+
+// RdpNoShell says "A remote desktop has no shell: no files, monitor, processes or tunnels."
+// in the language the app shows.
+func RdpNoShell() string { return In(i18n.Locale()).RdpNoShell() }
+
+// RdpNoShell says "A remote desktop has no shell: no files, monitor, processes or tunnels."
+// in the language of msgs.
+func (msgs Messages) RdpNoShell() string {
+	return Catalog.Format(msgs.locale, "rdpNoShell", nil)
+}
+
+// ErrNoRDPClient says "No RDP client on this computer: install one, as FreeRDP or Microsoft Remote Desktop."
+// in the language the app shows.
+func ErrNoRDPClient() string { return In(i18n.Locale()).ErrNoRDPClient() }
+
+// ErrNoRDPClient says "No RDP client on this computer: install one, as FreeRDP or Microsoft Remote Desktop."
+// in the language of msgs.
+func (msgs Messages) ErrNoRDPClient() string {
+	return Catalog.Format(msgs.locale, "errNoRDPClient", nil)
 }
 
 // SectionGeneral says "General"

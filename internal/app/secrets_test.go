@@ -139,8 +139,7 @@ func TestRememberedPasswordSurvivesRestart(t *testing.T) {
 	srv := startFakeSSH(t)
 	a, p := testApp(t)
 	a.saveHosts = config.SaveHosts
-	a.newConnection()
-	tt := editorWindow(t, a, p)
+	tt := newConnection(t, a, p)
 	typeInto(t, tt, locales.FieldHost(), srv.host)
 	typeInto(t, tt, locales.FieldPort(), strconv.Itoa(srv.port))
 	typeInto(t, tt, locales.FieldUser(), "u")
@@ -413,8 +412,7 @@ func TestSecretsUnavailable(t *testing.T) {
 	a, p := testApp(t)
 	t.Cleanup(a.CloseAll)
 	p.down = true
-	a.newConnection()
-	tt := editorWindow(t, a, p)
+	tt := newConnection(t, a, p)
 	p.until(t, "the store checked", a.secretsUnavailable)
 	tt.Frame()
 	note := locales.SecretsUnavailable(storeName())

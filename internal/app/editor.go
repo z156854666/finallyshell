@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"finallyshell/internal/config"
+	"finallyshell/internal/rdp"
 	"finallyshell/internal/sshx"
 	"finallyshell/internal/widgets"
 	"finallyshell/locales"
@@ -18,26 +19,30 @@ import (
 )
 
 // WindowEditor is the connection editor, FinalShell's "New connection"
-// window: one at a time, for a new host or an existing one.
+// window: one at a time, for a new host or an existing one. A remote
+// desktop has a window of its own, its page alone: the editor's pages are
+// those of a shell, and a desktop has none of them.
 const WindowEditor WindowKind = "editor"
 
 // editorSpec is how the connection editor opens, for a new host or, with
-// editing, one saved. Opened from the main window, it belongs to it and
-// does not block it: a modal window would be a sheet covering the main
-// window on macOS, and would block every window of the app on Linux (see
-// docs/en/development.md). Opened from the connection manager, openEditor makes it modal
-// to the manager, as FinalShell's is.
-func editorSpec(editing bool) WindowSpec {
-	title := locales.NewConnection
-	if editing {
-		title = locales.EditConnection
+// editing, one saved, of kind. Opened from the main window, it belongs to
+// it and does not block it: a modal window would be a sheet covering the
+// main window on macOS, and would block every window of the app on Linux
+// (see docs/en/development.md). Opened from the connection manager,
+// openEditorAs makes it modal to the manager, as FinalShell's is.
+func editorSpec(editing bool, kind config.Kind) WindowSpec {
+	spec := WindowSpec{Kind: WindowEditor, Width: 680, Height: 600, MinWidth: 600, MinHeight: 440}
+	switch {
+	case kind == config.KindRDP && editing:
+		spec.Title, spec.Width, spec.Height, spec.MinWidth, spec.MinHeight = locales.EditRemoteDesktop, 520, 680, 440, 420
+	case kind == config.KindRDP:
+		spec.Title, spec.Width, spec.Height, spec.MinWidth, spec.MinHeight = locales.NewRemoteDesktop, 520, 680, 440, 420
+	case editing:
+		spec.Title = locales.EditConnection
+	default:
+		spec.Title = locales.NewConnection
 	}
-	return WindowSpec{
-		Kind:  WindowEditor,
-		Title: title,
-		Width: 680, Height: 600,
-		MinWidth: 600, MinHeight: 440,
-	}
+	return spec
 }
 
 // The editor's pages.
@@ -46,6 +51,7 @@ const (
 	editorTerminal = "terminal"
 	editorProxy    = "proxy"
 	editorTunnels  = "tunnels"
+	editorRDP      = "rdp"
 )
 
 // editorField names a field of the editor that can be wrong.
@@ -59,13 +65,16 @@ const (
 	fieldTermType
 )
 
-// page is the editor's page that shows f.
-func (f editorField) page() string {
+// pageOf is the editor's page that shows f: the connection's, where its
+// address and its login are, or the terminal's or the proxy's.
+func (ed *connEditor) pageOf(f editorField) string {
 	switch {
 	case f == fieldTermType:
 		return editorTerminal
 	case slices.Contains(proxyFieldOrder, f):
 		return editorProxy
+	case ed.kind == config.KindRDP:
+		return editorRDP
 	}
 	return editorSSH
 }
@@ -75,6 +84,11 @@ func (f editorField) page() string {
 type connEditor struct {
 	id  string           // the host edited; "" for a new one
 	nav widgets.NavState // the page shown
+
+	// kind is what the host opens, an SSH connection or a remote
+	// desktop (RDP); rdp are the latter's own fields, of its page.
+	kind config.Kind
+	rdp  config.RDPConfig
 
 	name, addr, port, notes string
 	auth                    config.AuthKind
@@ -110,34 +124,38 @@ type connEditor struct {
 	saveErr func() string
 }
 
-// newConnection opens the connection editor for a new host, or brings
-// the open editor to the front. OK adds the host to the saved ones.
-func (a *App) newConnection() {
-	a.openEditor(nil, WindowMain)
-}
-
 // editConnection opens the connection editor on h, a saved host, or
 // brings the open editor to the front, whichever host it edits: there is
 // one editor at a time, and what it holds is not thrown away. OK saves
 // the changes into h, which sessions open to it use the next time they
 // connect.
 func (a *App) editConnection(h *config.Host) {
-	a.openEditor(h, WindowMain)
+	a.openEditorAs(h, h.Kind(), WindowMain, "", nil)
 }
 
-// openEditor opens the editor on h, nil for a new host, from the window of
-// kind from: modal to the connection manager when from is it.
-func (a *App) openEditor(h *config.Host, from WindowKind) {
+// openEditorAs opens the editor on h, nil for a new host of kind, from the
+// window of kind from: modal to the connection manager when from is it.
+// folder is the new host's, and tree the tree that shows it once saved
+// (see newConnectionIn).
+func (a *App) openEditorAs(h *config.Host, kind config.Kind, from WindowKind, folder string, tree *managerState) {
 	if a.windowOpen(WindowEditor) {
 		a.plat.FocusWindow(WindowEditor)
 		return
 	}
-	ed := &connEditor{port: "22", user: "root", auth: config.AuthPassword, remember: true, monitor: true}
+	ed := &connEditor{kind: kind, port: "22", user: "root", auth: config.AuthPassword, remember: true, monitor: true}
+	if kind == config.KindRDP {
+		// A Windows account, and the port of RDP.
+		ed.port, ed.user = strconv.Itoa(rdp.DefaultPort), "Administrator"
+	}
 	if h != nil {
 		ed.id = h.ID
 		ed.name, ed.addr, ed.notes = h.Name, h.Addr, h.Notes
-		ed.port = strconv.Itoa(h.PortOr22())
+		ed.kind, ed.rdp = kind, h.RDPOf()
+		ed.port = strconv.Itoa(h.ProtocolPort())
 		ed.auth, ed.user, ed.keyPath = h.Auth, h.User, h.KeyPath
+		if ed.kind == config.KindRDP {
+			ed.auth = config.AuthPassword // a remote desktop logs in with a password
+		}
 		switch ed.auth {
 		case config.AuthAgent:
 		case config.AuthKey:
@@ -152,9 +170,10 @@ func (a *App) openEditor(h *config.Host, from WindowKind) {
 	}
 	ed.proxy = a.proxyFieldsOf(h)
 	ed.tunnels = newTunnelEditor(h)
+	ed.folder, ed.tree = folder, tree
 	a.editor = ed
 	a.readEditorSecret(ed, h)
-	spec := editorSpec(h != nil)
+	spec := editorSpec(h != nil, kind)
 	if from == WindowManager && a.windowOpen(WindowManager) {
 		// A sheet of the manager on macOS, showing its title inside;
 		// on Linux GTK blocks the main window too while it is open, as
@@ -162,6 +181,13 @@ func (a *App) openEditor(h *config.Host, from WindowKind) {
 		spec.Parent, spec.Modal = WindowManager, true
 	}
 	a.openWindow(spec, a.editorView)
+}
+
+// emptyRDP tells whether o is what a remote desktop has by default, 32
+// bits of color included, so that hosts.json keeps no key for it.
+func emptyRDP(o config.RDPConfig) bool {
+	return o.Domain == "" && o.Width <= 0 && o.Height <= 0 && (o.Depth == 0 || o.Depth == 32) &&
+		!o.NoClipboard && !o.NoDrives
 }
 
 // validTermType tells whether s can be a terminal type, a terminfo
@@ -187,10 +213,13 @@ func (ed *connEditor) problems() map[editorField]string {
 	if ed.auth == config.AuthKey && strings.TrimSpace(ed.keyPath) == "" {
 		errs[fieldKeyPath] = locales.ErrKeyFileRequired()
 	}
-	if !validTermType(strings.TrimSpace(ed.termType)) {
-		errs[fieldTermType] = locales.ErrTermTypeInvalid()
+	// A remote desktop has no shell, no terminal type and no proxies.
+	if ed.kind != config.KindRDP {
+		if !validTermType(strings.TrimSpace(ed.termType)) {
+			errs[fieldTermType] = locales.ErrTermTypeInvalid()
+		}
+		ed.proxyProblems(errs)
 	}
-	ed.proxyProblems(errs)
 	return errs
 }
 
@@ -204,8 +233,8 @@ func (a *App) saveEditor() {
 		first, here := "", false
 		for _, f := range append([]editorField{fieldAddr, fieldPort, fieldUser, fieldKeyPath, fieldTermType}, proxyFieldOrder...) {
 			if errs[f] != "" {
-				first = cmp.Or(first, f.page())
-				here = here || f.page() == ed.nav.Page
+				first = cmp.Or(first, ed.pageOf(f))
+				here = here || ed.pageOf(f) == ed.nav.Page
 			}
 		}
 		if !here {
@@ -228,19 +257,37 @@ func (a *App) saveEditor() {
 	port, _ := strconv.Atoi(strings.TrimSpace(ed.port))
 	h.Name, h.Addr, h.Port, h.Notes = strings.TrimSpace(ed.name), strings.TrimSpace(ed.addr), port, ed.notes
 	h.User, h.Auth = strings.TrimSpace(ed.user), ed.auth
+	// "" is an SSH connection, as every host saved before RDP was.
+	h.Type = ""
+	if ed.kind == config.KindRDP {
+		h.Type = config.KindRDP
+	}
+	h.RDP = nil
+	if ed.kind == config.KindRDP && !emptyRDP(ed.rdp) {
+		o := ed.rdp
+		h.RDP = &o
+	}
 	secret := ed.password
-	h.KeyPath = ""
-	switch ed.auth {
-	case config.AuthKey:
-		h.KeyPath, secret = strings.TrimSpace(ed.keyPath), ed.passphrase
-	case config.AuthAgent:
-		secret = ""
+	if ed.kind != config.KindRDP {
+		// A remote desktop logs in with a password alone; a key the host
+		// had stays for the day it is an SSH connection again.
+		h.KeyPath = ""
+		switch ed.auth {
+		case config.AuthKey:
+			h.KeyPath, secret = strings.TrimSpace(ed.keyPath), ed.passphrase
+		case config.AuthAgent:
+			secret = ""
+		}
 	}
 	a.keepLogin(h, secret, ed.remember, ed.readingSecret)
-	h.NoMonitor = !ed.monitor
-	h.TermType, h.Backspace, h.Delete, h.Encoding = strings.TrimSpace(ed.termType), ed.backspace, ed.delete, ed.encoding
-	if h.TermType == config.DefaultTermType {
-		h.TermType = ""
+	if ed.kind != config.KindRDP {
+		// A remote desktop has none of these, and keeps those the host
+		// had, for the day it is an SSH connection again.
+		h.NoMonitor = !ed.monitor
+		h.TermType, h.Backspace, h.Delete, h.Encoding = strings.TrimSpace(ed.termType), ed.backspace, ed.delete, ed.encoding
+		if h.TermType == config.DefaultTermType {
+			h.TermType = ""
+		}
 	}
 	a.saveProxy(h, &ed.proxy)
 	h.Tunnels = ed.tunnels.result()
@@ -290,8 +337,9 @@ func (a *App) browseKey() {
 var termTypes = []string{"xterm-256color", "xterm", "xterm-color", "vt100", "vt220", "linux", "screen-256color", "tmux-256color", "ansi"}
 
 // editorView is the connection editor's window: the pages on the left,
-// OK and Cancel below. Enter is OK, but in the notes, where it breaks
-// the line, and Escape is Cancel.
+// OK and Cancel below, or for a remote desktop its page alone, which is
+// the window. Enter is OK, but in the notes, where it breaks the line,
+// and Escape is Cancel.
 func (a *App) editorView(c *ui.Context) {
 	ed := a.editor
 	if ed == nil {
@@ -308,14 +356,24 @@ func (a *App) editorView(c *ui.Context) {
 	if ed.checked {
 		errs = ed.problems()
 	}
-	pages := []widgets.NavPage{
-		{ID: editorSSH, Title: locales.EditorPageSSH, View: func(c *ui.Context) { a.sshPage(c, ed, errs, input) }},
-		{ID: editorTerminal, Title: locales.EditorPageTerminal, View: func(c *ui.Context) { a.terminalPage(c, ed, errs, input) }},
-		{ID: editorProxy, Title: locales.EditorPageProxy, View: func(c *ui.Context) { a.proxyPage(c, ed, errs, input) }},
-		{ID: editorTunnels, Title: locales.EditorPageTunnels, View: func(c *ui.Context) { a.tunnelsPage(c, ed) }},
-	}
 	ui.Column(c).Fill().Children(func() {
-		widgets.NavPages(c, &ed.nav, pages).Grow(1).MinHeight(0)
+		if ed.kind == config.KindRDP {
+			// A desktop's window is its page: no tree of pages, which a
+			// shell has, and the form scrolls on its own.
+			ui.Scroll(c).Grow(1).MinHeight(0).Children(func() {
+				ui.Column(c).Padding(16, 18, 14, 18).Gap(10).Children(func() {
+					a.rdpPage(c, ed, errs, input)
+				})
+			})
+		} else {
+			pages := []widgets.NavPage{
+				{ID: editorSSH, Title: locales.EditorPageSSH, View: func(c *ui.Context) { a.sshPage(c, ed, errs, input) }},
+				{ID: editorTerminal, Title: locales.EditorPageTerminal, View: func(c *ui.Context) { a.terminalPage(c, ed, errs, input) }},
+				{ID: editorProxy, Title: locales.EditorPageProxy, View: func(c *ui.Context) { a.proxyPage(c, ed, errs, input) }},
+				{ID: editorTunnels, Title: locales.EditorPageTunnels, View: func(c *ui.Context) { a.tunnelsPage(c, ed) }},
+			}
+			widgets.NavPages(c, &ed.nav, pages).Grow(1).MinHeight(0)
+		}
 		ui.Row(c).Gap(8).Padding(10, 16).AlignItems(ui.Center).BorderWidth(1, 0, 0, 0).BorderColor(theme.Border).Children(func() {
 			if ed.saveErr != nil {
 				ui.Text(c, ed.saveErr()).TextColor(theme.Danger).Grow(1).MinWidth(0)
@@ -335,25 +393,32 @@ func (a *App) editorView(c *ui.Context) {
 	}
 }
 
-// sshPage is the editor's first page: the address, how to log in, and
-// whether to monitor the server. input marks a text input whose Enter is
-// OK.
+// connectionFields are what every connection has, on the page of its
+// kind: its name, its address, its port and its notes. input marks a text
+// input whose Enter is OK.
+func (a *App) connectionFields(c *ui.Context, ed *connEditor, errs map[editorField]string, input func(ui.Element) ui.Element) {
+	ui.Fieldset(c, locales.SectionGeneral(), func() {
+		ui.Field(c, locales.FieldName(), func() {
+			input(ui.TextInput(c, &ed.name).Placeholder(locales.FieldNamePlaceholder()))
+		})
+		ui.Field(c, locales.FieldHost(), func() {
+			input(ui.TextInput(c, &ed.addr).Placeholder(locales.FieldHostPlaceholder()).AutoFocus())
+		}).Error(errs[fieldAddr])
+		ui.Field(c, locales.FieldPort(), func() {
+			input(ui.TextInput(c, &ed.port).Width(90))
+		}).Error(errs[fieldPort])
+		ui.Field(c, locales.FieldNotes(), func() {
+			ui.TextArea(c, &ed.notes).Lines(2, 4)
+		})
+	})
+}
+
+// sshPage is the editor's SSH connection page: the address, how to log
+// in, and whether to monitor the server. input marks a text input whose
+// Enter is OK.
 func (a *App) sshPage(c *ui.Context, ed *connEditor, errs map[editorField]string, input func(ui.Element) ui.Element) {
 	ui.Form(c, func() {
-		ui.Fieldset(c, locales.SectionGeneral(), func() {
-			ui.Field(c, locales.FieldName(), func() {
-				input(ui.TextInput(c, &ed.name).Placeholder(locales.FieldNamePlaceholder()))
-			})
-			ui.Field(c, locales.FieldHost(), func() {
-				input(ui.TextInput(c, &ed.addr).Placeholder(locales.FieldHostPlaceholder()).AutoFocus())
-			}).Error(errs[fieldAddr])
-			ui.Field(c, locales.FieldPort(), func() {
-				input(ui.TextInput(c, &ed.port).Width(90))
-			}).Error(errs[fieldPort])
-			ui.Field(c, locales.FieldNotes(), func() {
-				ui.TextArea(c, &ed.notes).Lines(2, 4)
-			})
-		})
+		a.connectionFields(c, ed, errs, input)
 		ui.Fieldset(c, locales.SectionAuth(), func() {
 			ui.Field(c, locales.FieldAuth(), func() {
 				kinds := []config.AuthKind{config.AuthPassword, config.AuthKey, config.AuthAgent}

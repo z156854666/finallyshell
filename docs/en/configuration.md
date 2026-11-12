@@ -112,6 +112,29 @@ Without `proxy`, the host is connected directly. Proxy passwords are not
 written to the file either; like host passwords, they are kept in the
 credential store (see [Where passwords are stored](#where-passwords-are-stored)).
 
+### Remote desktop (RDP)
+
+A host with `"type": "rdp"` opens a remote desktop in the system's RDP
+client, as [Remote desktop](features.md#remote-desktop) says, rather than
+a shell. Its `port` is 3389 when the host names none, and `rdp` holds what
+that page sets:
+
+- `domain`: the Windows domain or workgroup, absent for the server's own.
+- `width` and `height`: the desktop's size in pixels; both absent for the
+  client's own, which is full screen on Windows.
+- `depth`: the color depth, `16`, `24` or `32`; `32` when absent.
+- `noClipboard` and `noDrives`: keep the clipboard, or this computer's
+  drives, from the desktop; absent, both are shared.
+
+The last three are for the clients of macOS and Linux: on Windows the
+client is opened with a command line, which carries the address and the
+screen size alone, and its color depth, clipboard and drives are its own
+settings.
+
+A host without `type`, as every host saved before RDP was supported, is an
+SSH connection, and so is one whose type this build does not know, such as
+`vnc`: the key is then kept as it was written.
+
 ### Folders, deleted hosts and other fields
 
 - `auth` is how the host logs in: `password`, `key` (with the private key

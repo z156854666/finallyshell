@@ -96,6 +96,10 @@
     }
   },
   "newConnection": "New connection",
+  "newSSHConnection": "SSH connection (Linux)",
+  "newRDPConnection": "Remote desktop connection (Windows)",
+  "newRemoteDesktop": "New remote desktop",
+  "editRemoteDesktop": "Edit remote desktop",
   "noSessions": "No open sessions",
   "leftPanelPages": "Sessions or connections",
   "connectionsPage": "Connections",
@@ -279,6 +283,33 @@
   "editorPageTerminal": "Terminal",
   "editorPageProxy": "Proxy",
   "editorPageTunnels": "Tunnels",
+
+  "fieldDomain": "Domain",
+  "domainPlaceholder": "Optional, e.g. WORKGROUP",
+  "domainHint": "The Windows domain or workgroup the user logs in to.",
+  "remoteDesktop": "Remote desktop",
+  "sectionScreen": "Screen",
+  "fieldRDPSize": "Screen size",
+  "fieldRDPSizeHint": "The desktop's size in pixels, or the client's own, which is full screen on Windows.",
+  "rdpClientSize": "The client's own",
+  "fieldRDPDepth": "Color depth",
+  "fieldClipboard": "Share the clipboard",
+  "fieldDrives": "Share local drives",
+  "rdpShareHint": "What the remote desktop may use of this computer.",
+  "rdpClientNote": "The desktop opens in this computer's RDP client: Remote Desktop Connection on Windows, FreeRDP or Microsoft Remote Desktop elsewhere. Its window is not part of this app.",
+  "rdpWindowsNote": "Opened in Remote Desktop Connection, with the address and the screen size on its command line: since Windows' April 2026 update it warns of every connection file it opens. Its window is not part of this app, and its color depth, clipboard and drives are its own settings.",
+  "rdpOpenedIn": "Opened in {client}.",
+  "@rdpOpenedIn": {
+    "placeholders": {
+      "client": {
+        "type": "String"
+      }
+    }
+  },
+  "rdpTabNote": "Closing this tab closes the desktop.",
+  "rdpOpenAgain": "Open again",
+  "rdpNoShell": "A remote desktop has no shell: no files, monitor, processes or tunnels.",
+  "errNoRDPClient": "No RDP client on this computer: install one, as FreeRDP or Microsoft Remote Desktop.",
   "sectionGeneral": "General",
   "sectionAuth": "Authentication",
   "sectionAdvanced": "Advanced",
