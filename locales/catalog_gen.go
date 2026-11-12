@@ -5990,6 +5990,86 @@ func (msgs Messages) ConnectAllBody(folder string) string {
 	return Catalog.Format(msgs.locale, "connectAllBody", map[string]any{"folder": folder})
 }
 
+// ConnectSelected says "{count, plural, one {Connect} other {Connect # servers}}"
+// in the language the app shows.
+func ConnectSelected(count int) string { return In(i18n.Locale()).ConnectSelected(count) }
+
+// ConnectSelected says "{count, plural, one {Connect} other {Connect # servers}}"
+// in the language of msgs.
+func (msgs Messages) ConnectSelected(count int) string {
+	return Catalog.Format(msgs.locale, "connectSelected", map[string]any{"count": count})
+}
+
+// ConnectSelectedBody says "Each connection opens in a tab of its own."
+// in the language the app shows.
+func ConnectSelectedBody() string { return In(i18n.Locale()).ConnectSelectedBody() }
+
+// ConnectSelectedBody says "Each connection opens in a tab of its own."
+// in the language of msgs.
+func (msgs Messages) ConnectSelectedBody() string {
+	return Catalog.Format(msgs.locale, "connectSelectedBody", nil)
+}
+
+// SelectedCount says "{count, plural, one {# selected} other {# selected}}"
+// in the language the app shows.
+func SelectedCount(count int) string { return In(i18n.Locale()).SelectedCount(count) }
+
+// SelectedCount says "{count, plural, one {# selected} other {# selected}}"
+// in the language of msgs.
+func (msgs Messages) SelectedCount(count int) string {
+	return Catalog.Format(msgs.locale, "selectedCount", map[string]any{"count": count})
+}
+
+// DeleteItemsTitle says "{count, plural, one {Delete # item?} other {Delete # items?}}"
+// in the language the app shows.
+func DeleteItemsTitle(count int) string { return In(i18n.Locale()).DeleteItemsTitle(count) }
+
+// DeleteItemsTitle says "{count, plural, one {Delete # item?} other {Delete # items?}}"
+// in the language of msgs.
+func (msgs Messages) DeleteItemsTitle(count int) string {
+	return Catalog.Format(msgs.locale, "deleteItemsTitle", map[string]any{"count": count})
+}
+
+// DeleteItemsFolders says "{count, plural, one {# folder is deleted, its connections and subfolders moving to the folder it is in.} other {# fol…"
+// in the language the app shows.
+func DeleteItemsFolders(count int) string { return In(i18n.Locale()).DeleteItemsFolders(count) }
+
+// DeleteItemsFolders says "{count, plural, one {# folder is deleted, its connections and subfolders moving to the folder it is in.} other {# fol…"
+// in the language of msgs.
+func (msgs Messages) DeleteItemsFolders(count int) string {
+	return Catalog.Format(msgs.locale, "deleteItemsFolders", map[string]any{"count": count})
+}
+
+// DeleteItemsHosts says "{count, plural, one {# connection moves to the deleted connections.} other {# connections move to the deleted connect…"
+// in the language the app shows.
+func DeleteItemsHosts(count int) string { return In(i18n.Locale()).DeleteItemsHosts(count) }
+
+// DeleteItemsHosts says "{count, plural, one {# connection moves to the deleted connections.} other {# connections move to the deleted connect…"
+// in the language of msgs.
+func (msgs Messages) DeleteItemsHosts(count int) string {
+	return Catalog.Format(msgs.locale, "deleteItemsHosts", map[string]any{"count": count})
+}
+
+// DeleteItemsHostsPage says "{count, plural, one {# connection is deleted.} other {# connections are deleted.}}"
+// in the language the app shows.
+func DeleteItemsHostsPage(count int) string { return In(i18n.Locale()).DeleteItemsHostsPage(count) }
+
+// DeleteItemsHostsPage says "{count, plural, one {# connection is deleted.} other {# connections are deleted.}}"
+// in the language of msgs.
+func (msgs Messages) DeleteItemsHostsPage(count int) string {
+	return Catalog.Format(msgs.locale, "deleteItemsHostsPage", map[string]any{"count": count})
+}
+
+// DeleteItemsForever says "{count, plural, one {# connection is deleted for good, and cannot be restored.} other {# connections are deleted for …"
+// in the language the app shows.
+func DeleteItemsForever(count int) string { return In(i18n.Locale()).DeleteItemsForever(count) }
+
+// DeleteItemsForever says "{count, plural, one {# connection is deleted for good, and cannot be restored.} other {# connections are deleted for …"
+// in the language of msgs.
+func (msgs Messages) DeleteItemsForever(count int) string {
+	return Catalog.Format(msgs.locale, "deleteItemsForever", map[string]any{"count": count})
+}
+
 // DeleteForeverTitle says "Delete “{name}” permanently?"
 // in the language the app shows.
 func DeleteForeverTitle(name string) string { return In(i18n.Locale()).DeleteForeverTitle(name) }

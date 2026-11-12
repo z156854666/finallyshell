@@ -502,6 +502,51 @@ func TestConnectionPageMenus(t *testing.T) {
 	}
 }
 
+// The Connections page chooses several rows as the manager does, and the
+// menus and the Delete key act on them all: it asks before moving the
+// hosts to the deleted ones, as it lists none.
+func TestConnectionPageMultiSelect(t *testing.T) {
+	a, _, tt := connPageApp(t, "en")
+	saves := 0
+	a.saveHosts = func(*config.Store) error { saves++; return nil }
+	cmd := func(name string) {
+		x, y := connRow(t, tt, name)
+		tt.ClickAtWith(ui.Cmd, x, y)
+	}
+
+	tt.ClickAt(connRow(t, tt, "web-1"))
+	cmd("web-2")
+	if m := &a.connTree; m.sel.Len() != 2 {
+		t.Fatalf("chosen %v", m.selectedItems())
+	}
+	tt.RightClickAt(connRow(t, tt, "web-2"))
+	for _, s := range []string{locales.ConnectSelected(2), locales.MoveToFolder(), locales.CopyHost(), locales.Delete()} {
+		if !slices.Contains(tt.Menu(), s) {
+			t.Errorf("menu without %q: %q", s, tt.Menu())
+		}
+	}
+	if err := tt.ChooseMenuItem(locales.CopyHost()); err != nil {
+		t.Fatalf("%v; menu %q", err, tt.Menu())
+	}
+	if got, want := tt.Clipboard(), "203.0.113.10\n203.0.113.11"; got != want {
+		t.Errorf("copied %q, want %q", got, want)
+	}
+
+	tt.Frame()
+	tt.ClickAt(connRow(t, tt, "web-1"))
+	cmd("web-2")
+	tt.Key(0, ui.KeyDelete)
+	if !tt.HasText(locales.DeleteItemsTitle(2)) || !tt.HasText(locales.DeleteItemsHostsPage(2)) {
+		t.Fatalf("no question; texts %q", tt.Texts())
+	}
+	if err := tt.Click(locales.Delete()); err != nil {
+		t.Fatal(err)
+	}
+	if !a.hosts.Host("web-1").Deleted() || !a.hosts.Host("web-2").Deleted() || saves != 1 {
+		t.Fatalf("deleted %v %v, %d saves", a.hosts.Host("web-1").DeletedAt, a.hosts.Host("web-2").DeletedAt, saves)
+	}
+}
+
 // The shortcut switches the pages: to the connections with the keyboard
 // in the search, and back.
 func TestConnectionPageShortcut(t *testing.T) {

@@ -306,7 +306,9 @@ connecting.
   Duplicate, Rename (F2), Move to folder, Copy host and Delete on a
   connection; Connect all, New connection, New subfolder, Rename, Move
   to folder and Delete on a folder; New connection and New folder on the empty space
-  under the rows. F2 and Delete work on the selected row. Rows are
+  under the rows. F2 works on the selected row. Cmd-click (Ctrl-click) and
+  Shift-click choose several rows, and the menus and the Delete key then
+  act on them all, as in the connection manager. Rows are
   dragged onto a folder, or onto a connection for its folder, to move
   them, as in the connection manager.
 - Deleting asks first, for a connection too: it moves to the deleted
@@ -461,6 +463,19 @@ Double-clicking a connection, or pressing Enter, opens a session in the
 main window (in the selected tab if the main window has a new tab
 selected), brings the main window to the front, and closes the connection
 manager if "Close window after connecting" is checked.
+
+Clicking a row chooses it. Cmd-click (Ctrl-click on Windows and Linux) adds
+a row to the choice or takes it out, Shift-click chooses the rows from the
+one last chosen to it, and Cmd+A (Ctrl+A) chooses every row shown. The
+context menus then act on every row chosen: Connect (N servers), Copy host,
+Move to folder, Delete, and Restore or Delete permanently for deleted
+connections. Edit, Duplicate and Rename act on the row clicked alone.
+
+The Delete key deletes the rows chosen, asking once: connections move to the
+deleted ones, folders go with what they hold moved to the folder they are
+in, and deleted connections are deleted for good. The question says what
+each does, and which connections lose their jump host. Dragging one of the
+rows chosen drags them all, and the bottom of the window counts them.
 
 The context menu of a connection has:
 

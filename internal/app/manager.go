@@ -19,7 +19,9 @@ import (
 // with the saved hosts in a tree of folders, searched as the user types.
 // Connecting from it opens a session in the main window, as the start
 // page does; deleting moves a host to the deleted ones, which "Show
-// deleted" lists to restore or to delete for good.
+// deleted" lists to restore or to delete for good. Rows are chosen one by
+// one, or several at once with Cmd-click (Ctrl-click) and Shift-click,
+// which the menus, Delete and dragging act on.
 
 // WindowManager is the connection manager's window.
 const WindowManager WindowKind = "manager"
@@ -52,8 +54,13 @@ type managerState struct {
 	// the Connections page. The editor it opens is a child of it.
 	win WindowKind
 
+	// The rows: the tree, the row last chosen, -1 for none, where the keys
+	// move from, and the rows chosen — that one, or several, as Cmd-click
+	// (Ctrl-click) and Shift-click choose them. The menus, Delete and
+	// dragging act on them all.
 	tree        ui.OutlineState[managerItem]
-	row         int // the row chosen, -1 for none
+	row         int
+	sel         ui.Selection[managerItem]
 	sort        ui.SortOrder
 	query       string
 	filter      string // the folder shown, "" for all
@@ -90,8 +97,8 @@ type managerQuestion struct {
 	yes             func()
 }
 
-// reveal chooses it in the manager the next time it draws, opening the
-// folders it is in.
+// reveal chooses it in the manager the next time it draws, alone, opening
+// the folders it is in.
 func (m *managerState) reveal(it managerItem) { m.pick = &it }
 
 // openManager opens the connection manager, or brings it to the front,
@@ -308,6 +315,9 @@ func (a *App) managerView(c *ui.Context) {
 				a.changeSettings(func() { a.settings.KeepManagerOpen = !closeAfter })
 			}
 			ui.Spacer(c)
+			if n := m.sel.Len(); n > 1 {
+				ui.Text(c, locales.SelectedCount(n)).TextColor(theme.TextMuted).SingleLine()
+			}
 			if m.saveErr != nil {
 				ui.Text(c, m.saveErr()).TextColor(theme.Danger).SingleLine().MinWidth(0)
 			} else if m.notice != nil {
@@ -450,10 +460,67 @@ func (m *managerState) chosen() (managerItem, bool) {
 	return m.tree.Item(m.row), true
 }
 
-// isChosen tells whether it is the item of the row chosen.
-func (m *managerState) isChosen(it managerItem) bool {
-	ch, ok := m.chosen()
-	return ok && ch == it
+// isChosen tells whether it is one of the rows chosen: the row m.row is,
+// or another the user chose with Cmd-click (Ctrl-click) or Shift-click.
+func (m *managerState) isChosen(it managerItem) bool { return m.sel.Has(it) }
+
+// selectedItems are the rows chosen in the tree of m, in the order of its
+// rows: none when it has no row chosen.
+func (m *managerState) selectedItems() []managerItem {
+	if m.sel.Len() == 0 {
+		return nil
+	}
+	items := make([]managerItem, 0, m.sel.Len())
+	for i := range m.tree.Rows() {
+		if x := m.tree.Item(i); m.sel.Has(x) {
+			items = append(items, x)
+		}
+	}
+	return items
+}
+
+// menuItems are the items a menu opened on it acts on, in the order of the
+// rows: the rows chosen, when it is one of several, else it alone.
+func (m *managerState) menuItems(it managerItem) []managerItem {
+	if !m.sel.Has(it) {
+		return []managerItem{it}
+	}
+	if items := m.selectedItems(); len(items) > 1 {
+		return items
+	}
+	return []managerItem{it}
+}
+
+// deleteTargets are what the Delete key deletes of the tree of m: the rows
+// chosen, or, with none chosen, the row the keys are on.
+func (m *managerState) deleteTargets(it managerItem) []managerItem {
+	if items := m.selectedItems(); len(items) > 0 {
+		return items
+	}
+	return []managerItem{it}
+}
+
+// itemsByKind splits the items of the tree of m into the folders and the
+// hosts among them, the hosts once deleted apart from those not.
+func (a *App) itemsByKind(items []managerItem) (folders []*config.Folder, live, deleted []*config.Host) {
+	for _, it := range items {
+		if it.isHost() {
+			h := a.hosts.Host(it.host)
+			if h == nil {
+				continue
+			}
+			if h.Deleted() {
+				deleted = append(deleted, h)
+			} else {
+				live = append(live, h)
+			}
+			continue
+		}
+		if f := a.hosts.Folder(it.folder); f != nil {
+			folders = append(folders, f)
+		}
+	}
+	return folders, live, deleted
 }
 
 // rowOfItem is the row showing it in the last frame, -1 for none.
@@ -507,10 +574,13 @@ func (a *App) treeFrame(c *ui.Context, m *managerState, t *managerTree) (choose 
 			// the app chooses another row: none for this frame, then the
 			// row, so that its choice is the app's however the rows moved.
 			m.row, choose = -1, row
+			m.sel.Clear()
+			m.sel.Add(it)
 			c.Invalidate()
 		}
 	}
 	m.tree.List.Selected = &m.row
+	m.tree.List.Selection = &m.sel
 	m.tree.List.Label = func(row int) string { return a.managerTitle(m.tree.Item(row)) }
 	m.tree.List.DragRows = func(rows []int) any {
 		var items managerDrag
@@ -563,7 +633,7 @@ func (a *App) finishTree(c *ui.Context, m *managerState, tree ui.Element, choose
 			m.tree.Open.Add(it)
 		}
 	case m.tree.List.Shortcut(c, 0, ui.KeyDelete), m.tree.List.Shortcut(c, ui.Cmd, ui.KeyBackspace):
-		*later = append(*later, func() { a.deleteItem(m, it) })
+		*later = append(*later, func() { a.deleteItems(m, m.deleteTargets(it)) })
 	case m.tree.List.Shortcut(c, 0, ui.KeyF2):
 		*later = append(*later, func() { a.renameItem(m, it) })
 	}
@@ -690,8 +760,13 @@ func (a *App) managerTitle(it managerItem) string {
 	return ""
 }
 
-// managerItemMenu is the context menu of a row of the tree of m.
+// managerItemMenu is the context menu of a row of the tree of m: of the one
+// row, or of the rows chosen when it is one of several.
 func (a *App) managerItemMenu(c *ui.Context, m *managerState, menu *ui.Menu, it managerItem, later *[]func()) {
+	if items := m.menuItems(it); len(items) > 1 {
+		a.managerItemsMenu(c, m, menu, items, later)
+		return
+	}
 	do := func(fn func()) { *later = append(*later, fn) }
 	if !it.isHost() {
 		f := a.hosts.Folder(it.folder)
@@ -712,7 +787,7 @@ func (a *App) managerItemMenu(c *ui.Context, m *managerState, menu *ui.Menu, it 
 		if menu.Item(locales.Rename()).Shortcut(0, ui.KeyF2).Chosen() {
 			do(func() { a.renameItem(m, it) })
 		}
-		a.moveMenu(m, menu, it, do)
+		a.moveMenu(m, menu, managerDrag{it}, do)
 		menu.Separator()
 		if menu.Item(locales.Delete()).Shortcut(0, ui.KeyDelete).Chosen() {
 			do(func() { a.deleteItem(m, it) })
@@ -748,7 +823,7 @@ func (a *App) managerItemMenu(c *ui.Context, m *managerState, menu *ui.Menu, it 
 	if menu.Item(locales.Rename()).Shortcut(0, ui.KeyF2).Chosen() {
 		do(func() { a.renameItem(m, it) })
 	}
-	a.moveMenu(m, menu, it, do)
+	a.moveMenu(m, menu, managerDrag{it}, do)
 	menu.Separator()
 	if menu.Item(locales.CopyHost()).Chosen() {
 		c.WriteClipboard(h.Addr)
@@ -759,25 +834,101 @@ func (a *App) managerItemMenu(c *ui.Context, m *managerState, menu *ui.Menu, it 
 	}
 }
 
-// moveMenu is the submenu moving it to another folder, in the tree of m.
-func (a *App) moveMenu(m *managerState, menu *ui.Menu, it managerItem, do func(func())) {
-	here := ""
-	if h := a.hosts.Host(it.host); it.isHost() && h != nil {
-		here = a.folderOf(h)
-	} else if f := a.hosts.Folder(it.folder); f != nil {
-		here = f.Parent
-		if a.hosts.Folder(here) == nil {
-			here = ""
+// managerItemsMenu is the context menu of several rows of the tree of m:
+// each item does what it does on one row, to the rows chosen.
+func (a *App) managerItemsMenu(c *ui.Context, m *managerState, menu *ui.Menu, items []managerItem, later *[]func()) {
+	do := func(fn func()) { *later = append(*later, fn) }
+	folders, live, deleted := a.itemsByKind(items)
+	if len(deleted) == len(items) {
+		// Deleted hosts alone: as the menu of one of them.
+		if menu.Item(locales.Restore()).Chosen() {
+			do(func() { a.restoreHosts(m, deleted) })
+		}
+		if menu.Item(locales.DeleteForever()).Shortcut(0, ui.KeyDelete).Chosen() {
+			do(func() { a.deleteItems(m, items) })
+		}
+		menu.Separator()
+		if menu.Item(locales.CopyHost()).Chosen() {
+			c.WriteClipboard(hostAddrs(deleted))
+		}
+		return
+	}
+	if len(live) > 0 {
+		if menu.Item(locales.ConnectSelected(len(live))).Chosen() {
+			do(func() { a.connectSelected(m, live) })
 		}
 	}
+	if len(deleted) > 0 {
+		if menu.Item(locales.Restore()).Chosen() {
+			do(func() { a.restoreHosts(m, deleted) })
+		}
+	}
+	a.moveMenu(m, menu, managerDrag(items), do)
+	if len(live)+len(deleted) > 0 {
+		if menu.Item(locales.CopyHost()).Chosen() {
+			c.WriteClipboard(hostAddrs(a.hostsOf(items)))
+		}
+	}
+	menu.Separator()
+	if len(folders)+len(live) > 0 {
+		if menu.Item(locales.Delete()).Shortcut(0, ui.KeyDelete).Chosen() {
+			do(func() { a.deleteItems(m, items) })
+		}
+	}
+}
+
+// hostsOf are the hosts of items, in their order.
+func (a *App) hostsOf(items []managerItem) []*config.Host {
+	var out []*config.Host
+	for _, it := range items {
+		if h := a.hosts.Host(it.host); it.isHost() && h != nil {
+			out = append(out, h)
+		}
+	}
+	return out
+}
+
+// hostAddrs are the addresses of hosts, one per line, as Copy host copies
+// several.
+func hostAddrs(hosts []*config.Host) string {
+	addrs := make([]string, 0, len(hosts))
+	for _, h := range hosts {
+		addrs = append(addrs, h.Addr)
+	}
+	return strings.Join(addrs, "\n")
+}
+
+// moveMenu is the submenu moving items to another folder, in the tree of m:
+// the folder they are all in, and a folder among them or inside one, are
+// no place to move them to.
+func (a *App) moveMenu(m *managerState, menu *ui.Menu, items managerDrag, do func(func())) {
+	here := map[string]bool{}   // the folders the items are in
+	inside := map[string]bool{} // the folders moved, and those inside them
+	for _, it := range items {
+		folder := ""
+		if h := a.hosts.Host(it.host); it.isHost() && h != nil {
+			folder = a.folderOf(h)
+		} else if f := a.hosts.Folder(it.folder); f != nil {
+			folder = f.Parent
+			if a.hosts.Folder(folder) == nil {
+				folder = ""
+			}
+			for _, g := range a.hosts.FolderPath(f.ID) {
+				inside[g.ID] = true
+			}
+		}
+		here[folder] = true
+	}
+	// There, when one of them is somewhere else, they all move; when they
+	// are all there, they stay.
+	moves := func(folder string) bool { return len(here) > 1 || !here[folder] }
 	menu.Submenu(locales.MoveToFolder(), func(menu *ui.Menu) {
-		if menu.Item(locales.TopLevel()).ID("").Disabled(here == "").Chosen() {
-			do(func() { a.moveItems(m, managerDrag{it}, "") })
+		if menu.Item(locales.TopLevel()).ID("").Disabled(!moves("")).Chosen() {
+			do(func() { a.moveItems(m, items, "") })
 		}
 		for _, f := range a.allFolders() {
-			inside := !it.isHost() && slices.ContainsFunc(a.hosts.FolderPath(f.ID), func(g *config.Folder) bool { return g.ID == it.folder })
-			if menu.Item(a.folderLabel(f.ID)).ID(f.ID).Disabled(f.ID == here || inside).Chosen() {
-				do(func() { a.moveItems(m, managerDrag{it}, f.ID) })
+			if menu.Item(a.folderLabel(f.ID)).ID(f.ID).Disabled(!moves(f.ID) || inside[f.ID]).Chosen() {
+				do(func() { a.moveItems(m, items, f.ID) })
 			}
 		}
 	})
@@ -949,12 +1100,92 @@ func (a *App) deleteItem(m *managerState, it managerItem) {
 	}
 }
 
+// deleteItems deletes the items chosen in the tree of m, each as deleteItem
+// deletes one: folders go, moving what they hold to the folder they are in;
+// live hosts move to the deleted ones; and deleted hosts are deleted for
+// good. It asks once, in the window of the tree, saying what each part does.
+func (a *App) deleteItems(m *managerState, items []managerItem) {
+	if len(items) == 1 {
+		a.deleteItem(m, items[0])
+		return
+	}
+	folders, live, deleted := a.itemsByKind(items)
+	if len(folders)+len(live)+len(deleted) == 0 {
+		return
+	}
+	// The hosts the deleted ones are the jump host of cannot connect
+	// without them.
+	users, usersForever := a.jumpUsersIn(live), a.jumpUsersIn(deleted)
+	ok := locales.Delete
+	if len(folders)+len(live) == 0 {
+		ok = locales.DeleteForever
+	}
+	m.question = &managerQuestion{
+		title: func() string { return locales.DeleteItemsTitle(len(items)) },
+		body: func() string {
+			var parts []string
+			if n := len(folders); n > 0 {
+				parts = append(parts, locales.DeleteItemsFolders(n))
+			}
+			if n := len(live); n > 0 {
+				if m.win == WindowManager {
+					parts = append(parts, locales.DeleteItemsHosts(n))
+				} else {
+					parts = append(parts, locales.DeleteItemsHostsPage(n))
+				}
+			}
+			if n := len(deleted); n > 0 {
+				parts = append(parts, locales.DeleteItemsForever(n))
+			}
+			if len(users) > 0 {
+				parts = append(parts, locales.JumpHostInUse(a.hostTitles(users)))
+			}
+			if len(usersForever) > 0 {
+				parts = append(parts, locales.JumpHostInUseForever(a.hostTitles(usersForever)))
+			}
+			return strings.Join(parts, " ")
+		},
+		ok: ok,
+		yes: func() {
+			for _, f := range folders {
+				a.hosts.RemoveFolder(f.ID)
+			}
+			now := time.Now()
+			for _, h := range live {
+				a.hosts.SoftDelete(h.ID, now)
+			}
+			for _, h := range deleted {
+				a.forgetHost(h)
+			}
+			m.sel.Clear()
+			m.row = -1
+			a.saveFromTree(m)
+		},
+	}
+}
+
 // jumpUsers are the hosts, not deleted, whose jump host is h, as the
 // Proxy page of the editor sets it.
 func (a *App) jumpUsers(h *config.Host) []*config.Host {
 	var out []*config.Host
 	for _, x := range a.hosts.Live() {
 		if p := config.ProxyOf(x); x != h && p != nil && p.Kind == config.ProxyJump && p.JumpHost == h.ID {
+			out = append(out, x)
+		}
+	}
+	return out
+}
+
+// jumpUsersIn are the hosts, not deleted, whose jump host is one of hosts,
+// leaving out those deleted here: they cannot connect without it.
+func (a *App) jumpUsersIn(hosts []*config.Host) []*config.Host {
+	var out []*config.Host
+	for _, x := range a.hosts.Live() {
+		p := config.ProxyOf(x)
+		if p == nil || p.Kind != config.ProxyJump || slices.Contains(hosts, x) {
+			continue
+		}
+		if h := a.hosts.Host(p.JumpHost); h != nil && slices.Contains(hosts, h) {
 			out = append(out, x)
 		}
 	}
@@ -978,17 +1209,36 @@ func (a *App) restoreHost(m *managerState, h *config.Host) {
 	a.saveFromTree(m)
 }
 
+// restoreHosts brings deleted hosts back, and chooses the first of them in
+// the tree of m.
+func (a *App) restoreHosts(m *managerState, hosts []*config.Host) {
+	for _, h := range hosts {
+		a.hosts.Restore(h.ID)
+	}
+	if len(hosts) > 0 {
+		m.reveal(managerItem{host: hosts[0].ID})
+	}
+	a.saveFromTree(m)
+}
+
 // deleteHostForever deletes h for good, with what the app keeps for it:
-// every deletion for good goes through here, so that what is kept
-// elsewhere for the host, as its password in the system's keychain, goes
-// with it. Sessions open to h keep it until they close.
+// every deletion of one host for good goes through here, so that what is
+// kept elsewhere for the host, as its password in the system's keychain,
+// goes with it. Sessions open to h keep it until they close.
 func (a *App) deleteHostForever(h *config.Host) {
+	a.forgetHost(h)
+	a.saveFromManager()
+}
+
+// forgetHost deletes h for good, with what the app keeps for it, without
+// saving the hosts: deleteHostForever does that for one, and deleteItems
+// once for several.
+func (a *App) forgetHost(h *config.Host) {
 	a.hosts.Remove(h.ID)
 	delete(a.passwords, h.ID)
 	delete(a.passwords, proxySecretKey(h.ID))
 	a.deleteHostSecrets(h.ID)
 	a.deleteHostHistory(h.ID)
-	a.saveFromManager()
 }
 
 // duplicateHost adds a copy of h after it, with its proxy or jump host,
@@ -1015,8 +1265,9 @@ func (a *App) duplicateHost(m *managerState, h *config.Host) {
 }
 
 // moveItems moves hosts and folders into folder, "" for the top level,
-// showing them in the tree of m. A folder does not go into itself, or
-// into a folder inside it.
+// showing them in the tree of m: it chooses the one moved, and leaves
+// several chosen where they are, which the tree shows in the folder they
+// went to. A folder does not go into itself, or into a folder inside it.
 func (a *App) moveItems(m *managerState, items managerDrag, folder string) {
 	if folder != "" && a.hosts.Folder(folder) == nil {
 		return
@@ -1042,7 +1293,7 @@ func (a *App) moveItems(m *managerState, items managerDrag, folder string) {
 	if folder != "" {
 		m.tree.Open.Add(managerItem{folder: folder})
 	}
-	if len(items) > 0 {
+	if len(items) == 1 {
 		m.reveal(items[0])
 	}
 	a.saveFromTree(m)

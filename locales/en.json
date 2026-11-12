@@ -836,6 +836,63 @@
       }
     }
   },
+  "connectSelected": "{count, plural, one {Connect} other {Connect # servers}}",
+  "@connectSelected": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "connectSelectedBody": "Each connection opens in a tab of its own.",
+  "selectedCount": "{count, plural, one {# selected} other {# selected}}",
+  "@selectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteItemsTitle": "{count, plural, one {Delete # item?} other {Delete # items?}}",
+  "@deleteItemsTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteItemsFolders": "{count, plural, one {# folder is deleted, its connections and subfolders moving to the folder it is in.} other {# folders are deleted, their connections and subfolders moving to the folders they are in.}}",
+  "@deleteItemsFolders": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteItemsHosts": "{count, plural, one {# connection moves to the deleted connections.} other {# connections move to the deleted connections.}}",
+  "@deleteItemsHosts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteItemsHostsPage": "{count, plural, one {# connection is deleted.} other {# connections are deleted.}}",
+  "@deleteItemsHostsPage": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteItemsForever": "{count, plural, one {# connection is deleted for good, and cannot be restored.} other {# connections are deleted for good, and cannot be restored.}}",
+  "@deleteItemsForever": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "deleteForeverTitle": "Delete “{name}” permanently?",
   "@deleteForeverTitle": {
     "placeholders": {

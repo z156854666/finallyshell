@@ -8,7 +8,8 @@ import (
 // "Connect all" on a folder's context menu, in the connection manager
 // and on the Connections page, opens a session to every connection in
 // the folder and in its subfolders, one after another, each as a double
-// click opens it.
+// click opens it. "Connect" on several connections chosen opens a session
+// to each of them likewise.
 
 // connectAllAsk is how many connections "Connect all" opens without
 // asking first.
@@ -53,6 +54,26 @@ func (a *App) connectAll(m *managerState, folder string) {
 	m.question = &managerQuestion{
 		title: func() string { return locales.ConnectAllTitle(n) },
 		body:  func() string { return locales.ConnectAllBody(f.Name) },
+		ok:    locales.Connect,
+		yes:   func() { a.connectHostsFrom(m, hosts) },
+	}
+}
+
+// connectSelected opens a session to each of the connections chosen in the
+// tree of m, from the manager or the Connections page, asking first in its
+// window when there are more than connectAllAsk.
+func (a *App) connectSelected(m *managerState, hosts []*config.Host) {
+	if len(hosts) == 0 {
+		return
+	}
+	if len(hosts) <= connectAllAsk {
+		a.connectHostsFrom(m, hosts)
+		return
+	}
+	n := len(hosts)
+	m.question = &managerQuestion{
+		title: func() string { return locales.ConnectAllTitle(n) },
+		body:  locales.ConnectSelectedBody,
 		ok:    locales.Connect,
 		yes:   func() { a.connectHostsFrom(m, hosts) },
 	}

@@ -89,6 +89,22 @@ func dragTo(tt *ui.Tester, fromX, fromY, toX, toY float32) {
 	tt.Frame()
 }
 
+// cmdClickRow clicks the row named name with Cmd held (Ctrl on Windows and
+// Linux), which adds it to the rows chosen or takes it out.
+func cmdClickRow(t *testing.T, tt *ui.Tester, name string) {
+	t.Helper()
+	x, y := rowCenter(t, tt, name)
+	tt.ClickAtWith(ui.Cmd, x, y)
+}
+
+// shiftClickRow clicks the row named name with Shift held, which chooses
+// those from the row last chosen to it.
+func shiftClickRow(t *testing.T, tt *ui.Tester, name string) {
+	t.Helper()
+	x, y := rowCenter(t, tt, name)
+	tt.ClickAtWith(ui.Shift, x, y)
+}
+
 func TestManagerWindow(t *testing.T) {
 	a, p, tt := openTestManager(t)
 	spec := p.windows[WindowManager].spec
@@ -568,6 +584,184 @@ func TestManagerDuplicateRenameCopy(t *testing.T) {
 	rowMenu(t, tt, "pg-main", locales.CopyHost())
 	if got := tt.Clipboard(); got != "10.0.0.5" {
 		t.Errorf("copied %q", got)
+	}
+}
+
+// Several rows can be chosen: Cmd-click (Ctrl-click) adds to the choice and
+// Shift-click chooses those between; the menus and the Delete key act on
+// them all.
+func TestManagerMultiSelect(t *testing.T) {
+	a, p, tt := openTestManager(t)
+	saves := 0
+	a.saveHosts = func(*config.Store) error { saves++; return nil }
+	web1, web2, pg := managerItem{host: "web-1"}, managerItem{host: "web-2"}, managerItem{host: "pg"}
+
+	// Cmd-click adds a row to the choice, and the footer counts them.
+	tt.ClickAt(rowCenter(t, tt, "web-1"))
+	cmdClickRow(t, tt, "web-2")
+	if m := &a.manager; m.sel.Len() != 2 || !m.sel.Has(web1) || !m.sel.Has(web2) || !m.isChosen(web2) {
+		t.Fatalf("chosen %v", m.selectedItems())
+	}
+	if !tt.HasText(locales.SelectedCount(2)) {
+		t.Errorf("no count; texts %q", tt.Texts())
+	}
+	// Shift-click chooses those between it and the row last chosen.
+	shiftClickRow(t, tt, "pg-main")
+	if m := &a.manager; m.sel.Len() != 3 || !m.sel.Has(pg) || !m.sel.Has(web1) || !m.sel.Has(web2) {
+		t.Fatalf("extended %v", m.selectedItems())
+	}
+
+	// The menu acts on the rows chosen, and copies them in the order shown.
+	tt.RightClickAt(rowCenter(t, tt, "web-2"))
+	menu := tt.Menu()
+	for _, s := range []string{locales.ConnectSelected(3), locales.MoveToFolder(), locales.CopyHost(), locales.Delete()} {
+		if !slices.Contains(menu, s) {
+			t.Errorf("menu without %q: %q", s, menu)
+		}
+	}
+	for _, s := range []string{locales.Connect(), locales.Edit(), locales.Duplicate(), locales.Rename()} {
+		if slices.Contains(menu, s) {
+			t.Errorf("one row's item in the menu of several: %q", menu)
+		}
+	}
+	if err := tt.ChooseMenuItem(locales.CopyHost()); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := tt.Clipboard(), "10.0.0.5\n203.0.113.10\n203.0.113.11"; got != want {
+		t.Errorf("copied %q, want %q", got, want)
+	}
+
+	// A right-click on a row not chosen chooses it alone, as in Finder.
+	tt.Frame()
+	tt.RightClickAt(rowCenter(t, tt, "vps"))
+	menu = tt.Menu()
+	if !slices.Contains(menu, locales.Connect()) || slices.Contains(menu, locales.ConnectSelected(2)) {
+		t.Errorf("menu of one row: %q", menu)
+	}
+	tt.CloseMenu()
+	tt.Frame()
+	if m := &a.manager; m.sel.Len() != 1 || !m.sel.Has(managerItem{host: "vps"}) {
+		t.Errorf("chosen after a right-click: %v", m.selectedItems())
+	}
+
+	// The Delete key deletes them all, asking once, and names the hosts
+	// that cannot connect without a jump host left out of the choice.
+	a.hosts.Host("web-2").Proxy = &config.ProxyConfig{Kind: config.ProxyJump, JumpHost: "web-1"}
+	tt.ClickAt(rowCenter(t, tt, "web-1"))
+	cmdClickRow(t, tt, "pg-main")
+	tt.Key(0, ui.KeyDelete)
+	if !tt.HasText(locales.DeleteItemsTitle(2)) || !tt.HasText(locales.DeleteItemsHosts(2)) ||
+		!tt.HasText(locales.JumpHostInUse("“web-2”")) {
+		t.Fatalf("no question; texts %q", tt.Texts())
+	}
+	p.SetLocale("zh-Hans")
+	tt.Frame()
+	if !tt.HasText("删除 2 项？") || !tt.HasText("2 个连接会移到已删除的连接。") {
+		t.Errorf("not in Chinese; texts %q", tt.Texts())
+	}
+	saveShot(t, tt, "manager-delete-several-zh.png")
+	p.SetLocale("")
+	tt.Frame()
+	if err := tt.Click(locales.Delete()); err != nil {
+		t.Fatal(err)
+	}
+	if !a.hosts.Host("web-1").Deleted() || !a.hosts.Host("pg").Deleted() || saves != 1 {
+		t.Fatalf("deleted %v %v, %d saves", a.hosts.Host("web-1").DeletedAt, a.hosts.Host("pg").DeletedAt, saves)
+	}
+	if a.manager.sel.Len() != 0 {
+		t.Errorf("still chosen: %v", a.manager.selectedItems())
+	}
+}
+
+// Deleting several for good and restoring several, from the menu of the
+// rows chosen.
+func TestManagerMultiDeleted(t *testing.T) {
+	a, _, tt := openTestManager(t)
+	saves := 0
+	a.saveHosts = func(*config.Store) error { saves++; return nil }
+	a.hosts.SoftDelete("web-1", time.Now())
+	a.hosts.SoftDelete("pi", time.Now())
+	a.passwords["old"] = "pw"
+	a.manager.showDeleted = true
+	tt.Frame()
+	if got := shown(a); !slices.Contains(got, "  old-box") || !slices.Contains(got, "  web-1") {
+		t.Fatalf("rows %q", got)
+	}
+
+	// Restoring several, from the menu of deleted hosts.
+	tt.ClickAt(rowCenter(t, tt, "web-1"))
+	cmdClickRow(t, tt, "raspberry")
+	tt.RightClickAt(rowCenter(t, tt, "raspberry"))
+	menu := tt.Menu()
+	for _, s := range []string{locales.Restore(), locales.DeleteForever(), locales.CopyHost()} {
+		if !slices.Contains(menu, s) {
+			t.Errorf("menu without %q: %q", s, menu)
+		}
+	}
+	if err := tt.ChooseMenuItem(locales.Restore()); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.hosts.Host("web-1").Deleted() || a.hosts.Host("pi").Deleted() || saves != 1 {
+		t.Fatalf("restored %v %v, %d saves", a.hosts.Host("web-1").DeletedAt, a.hosts.Host("pi").DeletedAt, saves)
+	}
+	if it, _ := a.manager.chosen(); it.host != "web-1" {
+		t.Errorf("chosen %v", it)
+	}
+
+	// Deleting several for good, with what the app keeps for them.
+	a.hosts.SoftDelete("pi", time.Now())
+	tt.Frame()
+	tt.ClickAt(rowCenter(t, tt, "old-box"))
+	cmdClickRow(t, tt, "raspberry")
+	tt.Key(0, ui.KeyDelete)
+	if !tt.HasText(locales.DeleteItemsTitle(2)) || !tt.HasText(locales.DeleteItemsForever(2)) {
+		t.Fatalf("no question; texts %q", tt.Texts())
+	}
+	if err := tt.Click(locales.DeleteForever()); err != nil {
+		t.Fatalf("%v; texts %q", err, tt.Texts())
+	}
+	if a.hosts.Host("old") != nil || a.hosts.Host("pi") != nil || len(a.hosts.Hosts) != 4 {
+		t.Fatalf("hosts %v", a.hosts.Hosts)
+	}
+	if _, ok := a.passwords["old"]; ok {
+		t.Error("its password is kept")
+	}
+}
+
+// Dragging one of the rows chosen drags them all, and the menu moves them
+// all.
+func TestManagerMultiMove(t *testing.T) {
+	a, _, tt := openTestManager(t)
+	saves := 0
+	a.saveHosts = func(*config.Store) error { saves++; return nil }
+
+	// A host and a folder, dragged by one of them into another folder.
+	tt.ClickAt(rowCenter(t, tt, "vps"))
+	cmdClickRow(t, tt, "raspberry")
+	x, y := rowCenter(t, tt, "vps")
+	tx, ty := rowCenter(t, tt, "Databases")
+	dragTo(tt, x-200, y, tx-200, ty)
+	if h, pi := a.hosts.Host("vps"), a.hosts.Host("pi"); h.Folder != "db" || pi.Folder != "db" || saves != 1 {
+		t.Fatalf("vps in %q, pi in %q, %d saves", h.Folder, pi.Folder, saves)
+	}
+	if m := &a.manager; m.sel.Len() != 2 || !m.sel.Has(managerItem{host: "vps"}) || !m.sel.Has(managerItem{host: "pi"}) {
+		t.Errorf("chosen %v", m.selectedItems())
+	}
+
+	// Two hosts moved with the menu, to a folder they are not both in.
+	tt.ClickAt(rowCenter(t, tt, "web-1"))
+	cmdClickRow(t, tt, "web-2")
+	rowMenu(t, tt, "web-2", locales.MoveToFolder(), "Lab")
+	if h1, h2 := a.hosts.Host("web-1"), a.hosts.Host("web-2"); h1.Folder != "lab" || h2.Folder != "lab" {
+		t.Fatalf("web-1 in %q, web-2 in %q; rows %q", h1.Folder, h2.Folder, shown(a))
+	}
+	// A folder chosen with a host moves with it.
+	tt.ClickAt(rowCenter(t, tt, "Lab"))
+	cmdClickRow(t, tt, "vps")
+	rowMenu(t, tt, "Lab", locales.MoveToFolder(), "Production")
+	if f, h := a.hosts.Folder("lab"), a.hosts.Host("vps"); f.Parent != "prod" || h.Folder != "prod" {
+		t.Fatalf("Lab in %q, vps in %q; rows %q", f.Parent, h.Folder, shown(a))
 	}
 }
 
