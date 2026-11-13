@@ -96,8 +96,9 @@ type Platform interface {
 	// Redraw draws every open window again, the main one included.
 	Redraw()
 
-	// HideToTray hides the main window to an
-	// icon in the tray (the menu bar on macOS) whose menu shows it again
+	// HideToTray hides the main window behind the tray icon (the menu bar
+	// on macOS), which the platform keeps while the app runs, the window
+	// shown or hidden; its menu shows the window again, checks for updates
 	// or quits. It returns false, leaving the window as it is, when the
 	// system has no tray.
 	HideToTray() bool

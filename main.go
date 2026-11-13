@@ -22,7 +22,8 @@ import (
 type platform struct {
 	win     *mygo.Window // the main window
 	windows map[app.WindowKind]*childWindow
-	tray    *mygo.Tray // while the main window is hidden in the tray
+	tray    *mygo.Tray // while the app runs, where the system has a tray
+	hidden  bool       // the main window is hidden in the tray
 }
 
 // childWindow is an open secondary window.
@@ -114,12 +115,14 @@ func (p *platform) CloseWindow(kind app.WindowKind) {
 	}
 }
 
-// retitle sets the windows' titles again in the language shown now.
+// retitle sets the windows' titles again in the language shown now, and the
+// tray icon's tooltip and menu with them.
 func (p *platform) retitle() {
 	p.win.SetTitle(locales.AppTitle())
 	for _, w := range p.windows {
 		w.win.SetTitle(w.title())
 	}
+	p.retitleTray()
 }
 
 func (p *platform) OpenFiles(title string, folder bool) ([]string, error) {
@@ -295,6 +298,9 @@ func main() {
 				e.PreventDefault()
 			}
 		})
+		// The icon is there while the app runs, the window shown or hidden;
+		// without a tray (Linux without AppIndicator) the app just runs.
+		plat.startTray()
 		mygo.App.OnBeforeQuit(func(e *mygo.QuitEvent) {
 			if !a.QuitRequested() {
 				e.PreventDefault()

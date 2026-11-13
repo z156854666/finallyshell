@@ -337,11 +337,13 @@ var xshellReader = &Reader{
 
 “有会话打开”指已连接或正在连接。逻辑在 `closing.go`（`CloseRequested`、`QuitRequested`，用假的 Platform 测试），`main.go` 在主窗口的 `OnClose` 和 `App.OnBeforeQuit` 里调用它们。确认框是 `mygo.Dialog.Message`，在 goroutine 里等用户回答，答“退出”后再调 `mygo.App.Quit()`。
 
+托盘图标在建好主窗口后创建，程序运行期间一直在，主窗口显示或隐藏都一样；选项只决定关闭按钮做什么。菜单和提示文字跟着界面语言变。
+
 各平台的行为是读 MyGo v0.8.1 代码确认的，没有在真机上试过：
 
 - macOS：托盘图标在菜单栏，是模板图（随菜单栏变色），点击弹出菜单。Dock 图标一直在，点它（`OnActivate`）显示隐藏的窗口。确认框是主窗口的 sheet（窗口隐藏时是独立的框）。
 - Windows：左键单击图标显示窗口，右键弹出菜单，模板图在深色任务栏上画成白色。
-- Linux：用 AppIndicator，需要 `libayatana-appindicator3`。没有时 `NewTray` 报错，窗口不隐藏。GNOME 默认不显示 AppIndicator 图标（要装扩展），这时图标创建成功但看不见。再启动一次程序就能把窗口找回来（见下）。
+- Linux：用 AppIndicator，需要 `libayatana-appindicator3`。没有时启动时 `NewTray` 就报错，程序没有图标照样运行，选项按没开处理。GNOME 默认不显示 AppIndicator 图标（要装扩展），这时图标创建成功但看不见。再启动一次程序就能把窗口找回来（见下）。
 
 ## 单实例
 

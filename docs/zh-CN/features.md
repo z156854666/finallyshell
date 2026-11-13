@@ -850,7 +850,8 @@ SFTP 每个文件都要来回好几次，传大量小文件的文件夹很慢。
 - 界面语言：跟随系统、English 或简体中文。
 - 外观：跟随系统（默认）、浅色或深色。跟随系统时按系统的浅色或深色外观显示，应用运行中系统切换了也跟着变；浅色、深色则固定。所有窗口立刻切换，包括系统标题栏，下次启动也用保存的外观。终端在两种外观下都保持自己的配色。保存为 `appearance`。
 - 自动选中标签（默认开）：新连接打开后切换过去。关掉后新会话在后台打开，当前会话保持选中；没有选中的会话时仍然选中新的。
-- 关闭时最小化到托盘（默认关）：点主窗口的关闭按钮时隐藏到托盘图标（macOS 是菜单栏）。图标菜单里有“显示主窗口”“检查更新…”和“退出”。Windows 上左键单击图标也能显示窗口，macOS 上点 Dock 图标也能显示。系统没有托盘时（Linux 没装 `libayatana-appindicator3`）按没开这一项处理。
+- 托盘图标（macOS 是菜单栏）在程序运行期间一直在，主窗口显示或隐藏都一样。图标菜单里有“显示主窗口”“检查更新…”和“退出”。Windows 上左键单击图标显示窗口，macOS 上点 Dock 图标也能显示。
+- 关闭时最小化到托盘（默认关）：点主窗口的关闭按钮时隐藏到托盘图标，而不是退出。系统没有托盘时（Linux 没装 `libayatana-appindicator3`）按没开这一项处理。
 - 关闭窗口前确认（默认开）：有会话已连接或正在连接时，关闭主窗口或退出（托盘菜单、macOS 的 Cmd+Q）之前用系统的消息框问一次。同时开了托盘：关闭按钮直接隐藏，不问；“退出”才问。
 - 连接：“每隔 N 秒发送一次保活消息”，默认 30，设为 0 关闭保活，最大 3600。见[会话和标签](#会话和标签)。保存为 `keepAliveSeconds`。
 - 连接：“SSH Agent 地址”，用 [SSH Agent](#ssh-连接) 登录的主机用的 agent，带一个 **检测** 按钮列出里面的私钥。留空就用默认：macOS 和 Linux 读 `SSH_AUTH_SOCK`，Windows 用 `\\.\pipe\openssh-ssh-agent`。下面的表格列出常见的地址：Bitwarden `~/.bitwarden-ssh-agent.sock`，1Password `~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock`，Windows `\\.\pipe\openssh-ssh-agent`（Bitwarden 的 Windows agent 也用这个）。Unix socket 的路径可以用 `~` 开头。macOS 上从程序坞打开的应用读不到 `.zshrc` 里设置的变量，所以在那里设置的 agent 要在这里填一次。保存为 `sshAgent`，只对这台电脑生效，不同步。

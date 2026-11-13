@@ -2168,12 +2168,14 @@ file icon theme page under [File icon themes](#file-icon-themes).
   connection once it opens. When off, new sessions open in the background
   and the current session stays selected; if no session is selected, the
   new one is still selected.
+- The tray icon (the menu bar on macOS) is there while the app runs, the
+  main window shown or hidden. Its menu has "Show Finallyshell", "Check for
+  Updates…" and "Quit". On Windows, left-clicking the icon shows the
+  window; on macOS, so does clicking the Dock icon.
 - Minimize to tray when closed (off by default): the main window's close
-  button hides the window to a tray icon (the menu bar on macOS). The
-  icon's menu has "Show Finallyshell", "Check for Updates…" and "Quit". On Windows, left-clicking
-  the icon also shows the window; on macOS, so does clicking the Dock icon.
-  When the system has no tray (Linux without
-  `libayatana-appindicator3`), the option behaves as if it were off.
+  button hides the window to the tray icon rather than quitting. When the
+  system has no tray (Linux without `libayatana-appindicator3`), the option
+  behaves as if it were off.
 - Confirm before closing the window (on by default): while a session is
   connected or connecting, closing the main window or quitting (the tray
   menu, Cmd+Q on macOS) asks once first, with the system's message box.

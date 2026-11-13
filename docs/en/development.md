@@ -626,6 +626,10 @@ from `App.OnBeforeQuit`. The confirmation is `mygo.Dialog.Message`; a
 goroutine waits for the answer, and calls `mygo.App.Quit()` once the user
 answers Quit.
 
+The tray icon is created once the window is, and stays while the app runs,
+the main window shown or hidden; the option only decides what its close
+button does. Its menu and tooltip follow the language as it changes.
+
 Behavior per platform, confirmed by reading the MyGo v0.8.1 code and not
 tried on real machines:
 
@@ -637,10 +641,11 @@ tried on real machines:
 - Windows: left-clicking the icon shows the window, right-clicking opens
   the menu, and the template image is drawn white on a dark taskbar.
 - Linux: uses AppIndicator, which needs `libayatana-appindicator3`.
-  Without it, `NewTray` returns an error and the window is not hidden.
-  GNOME does not show AppIndicator icons by default (an extension is
-  needed); the icon is then created but invisible. Starting the app again
-  brings the window back (see below).
+  Without it, `NewTray` returns an error at startup and the app runs
+  without an icon; the option then behaves as if it were off. GNOME does
+  not show AppIndicator icons by default (an extension is needed); the
+  icon is then created but invisible. Starting the app again brings the
+  window back (see below).
 
 ## Single instance
 
