@@ -2590,7 +2590,9 @@ With the monitor on the right as well as the bottom panel, the divider
 between them sets the monitor's share of the column's height, 45% by
 default, leaving the monitor its IP line and the panel its tabs and a row
 of its table; a double click puts it back at 45%. It is saved with the
-other sizes. The column's width is the same whichever of them is in it.
+other sizes. The column's width is the same whichever of them is in it;
+with the monitor alone in it, as when the panel is at the bottom, the
+divider narrows it further, to 180 DIPs, what the monitor's tables need.
 
 The Commands tab's command editor has a divider of its own, beside the
 buttons or under them; it is saved with the other sizes (see

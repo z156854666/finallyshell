@@ -72,7 +72,9 @@ func (a *App) restoreLayout() {
 	if s.BottomPanelSide == config.PanelRight {
 		a.bottomSide = config.PanelRight
 	}
-	if s.RightPanelWidth >= rightLimits.first && s.RightPanelWidth <= maxSavedWidth {
+	// The column may have been dragged narrow with the monitor alone in
+	// it, which leaves less than the panel's least (rightLimits.first).
+	if s.RightPanelWidth >= monitorColumnLimits.first && s.RightPanelWidth <= maxSavedWidth {
 		a.rightWidth = s.RightPanelWidth
 	}
 	if s.MonitorSide == config.PanelRight {

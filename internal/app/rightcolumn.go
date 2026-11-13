@@ -34,6 +34,12 @@ const defaultRightWidth = 460
 // each, and the divider), and the terminal a few words of a line.
 var rightLimits = splitLimits{first: 410, second: 320}
 
+// monitorColumnLimits keep the right column, when the monitor is alone in
+// it, wide enough for the monitor's tables, as the sidebar's least does
+// (sidebarLimits), and the terminal a few words of a line. The panel's own
+// least, rightLimits.first, is more than the monitor needs.
+var monitorColumnLimits = splitLimits{first: 180, second: 320}
+
 // rightMonitorLimits keep the monitor its IP line above the panel, and
 // the panel its tabs, path bar and a row of the table.
 var rightMonitorLimits = splitLimits{first: 60, second: 120, vertical: true, percent: true}
@@ -59,14 +65,20 @@ func (a *App) setPanelOnRight(right bool) {
 // withRightColumn lays out main, the terminal, with the right column on
 // its right holding top and bottom, either of which may be nil: with
 // both, top is above bottom, divided at rightMonitorPct; with one, it
-// fills the column; with neither, main takes the whole width.
+// fills the column; with neither, main takes the whole width. The
+// divider's least width is the one of what is in the column: the panel's
+// panes need more than the monitor alone (monitorColumnLimits).
 func (a *App) withRightColumn(c *ui.Context, main, top, bottom func()) {
 	if top == nil && bottom == nil {
 		main()
 		return
 	}
+	limits := monitorColumnLimits
+	if bottom != nil {
+		limits = rightLimits
+	}
 	column := func() { a.rightColumn(c, top, bottom) }
-	a.endSplit(c, &a.rightWidth, defaultRightWidth, rightLimits, main, column).Fill()
+	a.endSplit(c, &a.rightWidth, defaultRightWidth, limits, main, column).Fill()
 }
 
 // rightColumn is the right column's content: top over bottom, or the one

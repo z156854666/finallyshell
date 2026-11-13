@@ -108,6 +108,38 @@ func TestMonitorOnRight(t *testing.T) {
 	a.setBottomPanelHidden(false)
 	tt.Frame()
 
+	// The monitor needs less than the panel: the divider narrows the
+	// column past the panel's least, and the width is saved.
+	dragRight := func(by float32) {
+		t.Helper()
+		x, _ := handleNear(t, tt, winW-a.rightWidth+20, 400, -0.5, 0, ui.CursorResizeEW)
+		tt.Press(x, 400)
+		for i := float32(1); i <= 4; i++ {
+			tt.Move(x+by*i/4, 400)
+		}
+		tt.Release(x+by, 400)
+		tt.Frame()
+	}
+	dragRight(2000)
+	if a.rightWidth != monitorColumnLimits.first {
+		t.Errorf("width %v with the monitor alone, want the least, %v", a.rightWidth, monitorColumnLimits.first)
+	}
+	tt.Advance(time.Second)
+	if got := config.LoadSettings().RightPanelWidth; got != a.rightWidth {
+		t.Errorf("saved %v, want %v", got, a.rightWidth)
+	}
+	if b := New(p); b.rightWidth != a.rightWidth {
+		t.Errorf("read back %v, want %v", b.rightWidth, a.rightWidth)
+	}
+	// A double click puts the default back, for what follows.
+	x, _ := handleNear(t, tt, winW-a.rightWidth+20, 400, -0.5, 0, ui.CursorResizeEW)
+	tt.ClickAt(x, 400)
+	tt.ClickAt(x, 400)
+	tt.Frame()
+	if a.rightWidth != defaultRightWidth {
+		t.Errorf("width %v after a double click, want %v", a.rightWidth, defaultRightWidth)
+	}
+
 	// Back to the left, at the size it had.
 	moveMonitor(t, tt, locales.MoveMonitorLeft(), locales.MoveMonitorRight())
 	if a.monitorOnRight() || config.LoadSettings().MonitorSide != "" {
