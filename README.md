@@ -66,7 +66,7 @@ After that, Finallyshell updates itself, except the `.deb`, which you update by 
 
 ### Connections
 
-Open the connection manager with <kbd>Cmd</kbd>+<kbd>O</kbd> on macOS or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd> elsewhere. Hosts live in a tree of folders, as in FinalShell: drag them between folders, search by name, address, user or notes, duplicate a host, or delete it to a "Show deleted" list from which it can be restored.
+Open the connection manager with <kbd>Cmd</kbd>+<kbd>O</kbd> on macOS or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd> elsewhere. Hosts live in a tree of folders, as in FinalShell: drag them between folders, search by name, address, user or notes, duplicate a host, or delete it to a "Show deleted" list from which it can be restored within 30 days.
 
 New connection asks first what to add, an SSH connection (Linux) or a remote desktop connection (Windows), and each kind has its editor window. A desktop opens in the system's RDP client — Remote Desktop Connection on Windows, FreeRDP or Microsoft Remote Desktop elsewhere — with the password, domain and screen settings saved with it.
 

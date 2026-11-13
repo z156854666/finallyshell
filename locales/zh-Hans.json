@@ -659,6 +659,7 @@
   "deleteForeverBody": "删除后无法恢复。",
   "managerEmpty": "还没有连接。点“新建连接”添加一个。",
   "deletedAt": "删除于 {when}",
+  "deletedPurged": "{count, plural, other {已彻底删除 # 个删除超过 30 天的连接}}",
   "deleteHostTitle": "删除“{name}”？",
   "jumpHostInUse": "它是 {hosts} 的跳板机，恢复之前这些连接都连不上。",
   "jumpHostInUseForever": "它是 {hosts} 的跳板机，删除后这些连接都连不上。",

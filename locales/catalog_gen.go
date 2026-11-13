@@ -6600,6 +6600,16 @@ func (msgs Messages) DeletedAt(when string) string {
 	return Catalog.Format(msgs.locale, "deletedAt", map[string]any{"when": when})
 }
 
+// DeletedPurged says "{count, plural, one {# connection deleted more than 30 days ago was deleted for good} other {# connections deleted mo…"
+// in the language the app shows.
+func DeletedPurged(count int) string { return In(i18n.Locale()).DeletedPurged(count) }
+
+// DeletedPurged says "{count, plural, one {# connection deleted more than 30 days ago was deleted for good} other {# connections deleted mo…"
+// in the language of msgs.
+func (msgs Messages) DeletedPurged(count int) string {
+	return Catalog.Format(msgs.locale, "deletedPurged", map[string]any{"count": count})
+}
+
 // DeleteHostTitle says "Delete “{name}”?"
 // in the language the app shows.
 func DeleteHostTitle(name string) string { return In(i18n.Locale()).DeleteHostTitle(name) }

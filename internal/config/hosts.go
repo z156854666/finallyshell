@@ -560,9 +560,24 @@ func (s *Store) Live() []*Host {
 	return slices.DeleteFunc(slices.Clone(s.Hosts), (*Host).Deleted)
 }
 
+// DeletedRetention is how long a host stays in the deleted hosts before the
+// app deletes it for good, counted from its DeletedAt: at every start, and
+// once a day while it runs, the app deletes the hosts past it, with the
+// passwords and the command history it keeps for them.
+const DeletedRetention = 30 * 24 * time.Hour
+
 // Deleted are the soft-deleted hosts, the last deleted first.
-func (s *Store) Deleted() []*Host {
-	hosts := slices.DeleteFunc(slices.Clone(s.Hosts), func(h *Host) bool { return !h.Deleted() })
+func (s *Store) Deleted() []*Host { return s.deleted(nil) }
+
+// DeletedBefore are the soft-deleted hosts deleted at or before cutoff, the
+// last deleted first, as Deleted has them: what the app deletes for good
+// once it is past DeletedRetention.
+func (s *Store) DeletedBefore(cutoff time.Time) []*Host { return s.deleted(&cutoff) }
+
+func (s *Store) deleted(cutoff *time.Time) []*Host {
+	hosts := slices.DeleteFunc(slices.Clone(s.Hosts), func(h *Host) bool {
+		return !h.Deleted() || cutoff != nil && h.DeletedAt.After(*cutoff)
+	})
 	slices.SortStableFunc(hosts, func(a, b *Host) int { return b.DeletedAt.Compare(a.DeletedAt) })
 	return hosts
 }

@@ -29,7 +29,7 @@ func managerHosts(a *App) {
 		{ID: "pg", Name: "pg-main", Addr: "10.0.0.5", User: "postgres", Folder: "db", Notes: "primary"},
 		{ID: "pi", Name: "raspberry", Addr: "192.168.1.20", User: "pi", Folder: "lab"},
 		{ID: "vps", Name: "vps", Addr: "vps.example.com", User: "admin"},
-		{ID: "old", Name: "old-box", Addr: "10.0.0.99", User: "root", Folder: "lab", DeletedAt: time.Date(2026, 11, 1, 9, 30, 0, 0, time.Local)},
+		{ID: "old", Name: "old-box", Addr: "10.0.0.99", User: "root", Folder: "lab", DeletedAt: time.Now().Add(-time.Hour)},
 	} {
 		h.Auth = config.AuthKey
 		s.Add(h)
@@ -494,7 +494,7 @@ func TestManagerSoftDeleteAndRestore(t *testing.T) {
 		t.Fatal("Delete deleted nothing")
 	}
 
-	// Shown greyed, with their own menu.
+	// Shown in red, with their own menu.
 	if err := tt.Click(locales.ShowDeleted()); err != nil {
 		t.Fatal(err)
 	}

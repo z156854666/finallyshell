@@ -165,7 +165,9 @@ SSH connection, and so is one whose type this build does not know, such as
 - `folder` is the ID of the folder the host is in; empty means the top
   level. Folders nest through `parent`.
 - A host with `deletedAt` (the time it was deleted) is deleted. It is
-  listed only when "Show deleted" is checked in the connection manager.
+  listed only when "Show deleted" is checked in the connection manager, and
+  the app deletes it for good, with its passwords and command history,
+  once it is 30 days old: at every start, and once a day while it runs.
 - `createdAt` is when the host was added. Quick connect sorts the hosts that
   were never connected by it. Hosts saved by older versions do not have it.
 - `lastConnectedAt` is when the host last connected, used for the "Recent"

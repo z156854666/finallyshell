@@ -968,6 +968,14 @@
       }
     }
   },
+  "deletedPurged": "{count, plural, one {# connection deleted more than 30 days ago was deleted for good} other {# connections deleted more than 30 days ago were deleted for good}}",
+  "@deletedPurged": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "deleteHostTitle": "Delete “{name}”?",
   "@deleteHostTitle": {
     "placeholders": {

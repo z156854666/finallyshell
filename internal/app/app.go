@@ -282,6 +282,10 @@ type App struct {
 	// The command bar's history of each host (commandbar_data.go).
 	history cmdHistories
 
+	// When the deleted connections past their retention (retention.go) are
+	// next looked at.
+	retention retentionState
+
 	// The polls of the bottom panel's tabs (polling.go), and the
 	// Processes and Network tabs' shared state (processes.go,
 	// network.go), with where IP addresses are (geo.go).
@@ -355,6 +359,7 @@ func (a *App) current() *Session {
 // View builds the window.
 func (a *App) View(c *ui.Context) {
 	defer a.stopUnseenPolls()
+	a.retentionTick(c)
 	useTheme(c)
 	a.showNotices(c)
 	a.shortcuts(c)

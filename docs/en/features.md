@@ -503,11 +503,16 @@ connection, and dropping it on empty space moves it to the top level. A
 folder cannot be dragged into itself or into one of its own subfolders.
 
 Deleting a connection only moves it to the deleted items (`deletedAt`).
-With "Show deleted" checked, deleted connections are shown in grey in
+With "Show deleted" checked, deleted connections are shown in red in
 their original folders, and their context menu has Restore and Delete
 permanently (which asks first). Every permanent delete goes through
 `deleteHostForever`, which also clears the passwords kept for the host,
 both in memory and in the credential store.
+
+A deleted connection is deleted for good 30 days after it was deleted
+(config.DeletedRetention): the app checks at every start, and once a day
+while it runs, so a deleted connection that is not restored within those
+30 days goes with the passwords and the command history kept for it.
 
 Deleting (or permanently deleting) a connection that other connections use
 as their jump host asks first, and the question lists the connections that

@@ -117,7 +117,7 @@ Finallyshell 把主机和设置存在普通的 JSON 文件里。密码从不写�
 
 - `auth` 是主机的登录方式：`password`（密码）、`key`（私钥，应用里保存的私钥在 `key`，否则是 `keyPath` 里的私钥文件，见 [keys.json](#keysjson)）或 `agent`：用 [settings.json](#settingsjson) 里 `sshAgent` 地址上的 SSH Agent 里的私钥登录，不保存密码或私钥密码。不支持 SSH Agent 的旧版本把 `agent` 当作 `password`：同步到旧版本的主机在那里会要求输入密码，在那里保存后就变成密码主机。
 - `folder` 是主机所在文件夹的 ID，空表示顶层。文件夹用 `parent` 嵌套。
-- 有 `deletedAt`（删除时间）的主机是已删除的，只在连接管理器勾选“显示已删除”时列出。
+- 有 `deletedAt`（删除时间）的主机是已删除的，只在连接管理器勾选“显示已删除”时列出。删除满 30 天后，程序会把它彻底删除，连同它的密码和命令历史：每次启动时检查，运行期间每天检查一次。
 - `createdAt` 是添加时间，快速连接按它排没连接过的主机。以前的版本保存的主机没有这个字段。
 - `lastConnectedAt` 是上次连接的时间，供快速连接的“最近连接”列表使用。
 

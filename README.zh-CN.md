@@ -66,7 +66,7 @@ Linux 上托盘图标需要 `libayatana-appindicator3`，记住密码需要 Secr
 
 ### 连接
 
-macOS 上按 <kbd>Cmd</kbd>+<kbd>O</kbd>，其他系统按 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd> 打开连接管理器。和 FinalShell 一样，主机按文件夹组织成树：可以拖到别的文件夹，按名称、地址、用户名、备注搜索，复制连接；删除的连接先进“显示已删除”，还能恢复。
+macOS 上按 <kbd>Cmd</kbd>+<kbd>O</kbd>，其他系统按 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd> 打开连接管理器。和 FinalShell 一样，主机按文件夹组织成树：可以拖到别的文件夹，按名称、地址、用户名、备注搜索，复制连接；删除的连接先进“显示已删除”，30 天内还能恢复。
 
 新建连接先问新建哪种：SSH 连接（Linux）还是远程桌面连接（Windows），两种连接各有自己的编辑窗口。远程桌面在系统的 RDP 客户端里打开（Windows 上是远程桌面连接，其他系统上是 FreeRDP 或 Microsoft Remote Desktop），密码、域和屏幕设置都跟着它保存。
 

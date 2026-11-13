@@ -688,9 +688,13 @@ func (a *App) managerTable(c *ui.Context, later *[]func()) {
 		dropZone(cell, it, a.folderOf(h))
 		color := theme.Text
 		if h.Deleted() {
-			color = theme.TextMuted
+			// Red, as a deleted host is not to be mistaken for one that
+			// connects; the row chosen is the accent's, where red does not
+			// read, so its text is AccentText with the trash icon to tell
+			// it apart.
+			color = theme.Danger
 			if chosen {
-				color = theme.AccentText.Alpha(0.75)
+				color = theme.AccentText
 			}
 		} else if chosen {
 			color = theme.AccentText

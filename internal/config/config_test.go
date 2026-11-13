@@ -394,6 +394,16 @@ func TestRecentAndDelete(t *testing.T) {
 	if got := hostIDs(s.Deleted()); !slices.Equal(got, []string{"d", "c"}) {
 		t.Errorf("deleted %v", got)
 	}
+	// Those deleted by a time: c at 10, d at 11, and the time itself counts.
+	if got := hostIDs(s.DeletedBefore(at(10))); !slices.Equal(got, []string{"c"}) {
+		t.Errorf("deleted before %v", got)
+	}
+	if got := hostIDs(s.DeletedBefore(at(9))); len(got) != 0 {
+		t.Errorf("deleted early %v", got)
+	}
+	if got := hostIDs(s.DeletedBefore(at(100))); !slices.Equal(got, []string{"d", "c"}) {
+		t.Errorf("deleted before the end %v", got)
+	}
 	if got := hostIDs(s.Recent(0)); !slices.Equal(got, []string{"b", "a"}) {
 		t.Errorf("recent without deleted %v", got)
 	}
