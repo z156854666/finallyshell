@@ -300,6 +300,56 @@ func TestSyncPasswords(t *testing.T) {
 	}
 }
 
+// The saved proxies travel with the hosts, so that a computer that did not
+// save them lists the ones both devices have, not only the copies its hosts
+// carry, and keeps the ones only it has.
+func TestSyncSavedProxies(t *testing.T) {
+	r := &memRemote{}
+	one := newDevice(t, r)
+	one.a.settings.Sync.Passwords = true
+	e := &config.ProxyEntry{ID: "p1", Name: "local", Kind: config.ProxySOCKS5, Addr: "proxy.example", Port: 1080, User: "me"}
+	one.a.hosts.Proxies = []*config.ProxyEntry{e}
+	h := one.addHost("h1", "web")
+	h.Proxy = e.Config()
+	one.a.saveHosts(one.a.hosts)
+	one.p.stored[proxySecretKey("p1")] = "pw"
+	one.sync(t)
+	if _, err := os.Stat(filepath.Join(one.dir, config.HostsBeforeSyncName)); err == nil {
+		t.Fatal("the first sync changed nothing here, yet copied hosts.json")
+	}
+
+	two := newDevice(t, r)
+	two.a.settings.Sync.Passwords = true
+	two.a.hosts.Proxies = []*config.ProxyEntry{{ID: "p2", Name: "mine", Kind: config.ProxyHTTP, Addr: "mine.example", Port: 8080}}
+	two.sync(t)
+	two.p.until(t, "the store", storeSettled(two.a, two.p))
+	if two.a.sync.err != nil {
+		t.Fatal(two.a.sync.err)
+	}
+	got := two.a.hosts.Proxies
+	if len(got) != 2 || got[0].ID != "p2" || got[1].ID != "p1" || got[1].Name != "local" || got[1].Port != 1080 {
+		t.Fatalf("proxies %+v", got)
+	}
+	if p := two.a.hosts.Host("h1").Proxy; p == nil || p.ID != "p1" || p.Addr != "proxy.example" {
+		t.Fatalf("host proxy %+v", p)
+	}
+	if stored := two.p.stored[proxySecretKey("p1")]; stored != "pw" || two.a.proxySecrets()[proxySecretKey("p1")] != "pw" {
+		t.Fatalf("proxy password %q, known %q", stored, two.a.proxySecrets()[proxySecretKey("p1")])
+	}
+	if loaded, _ := config.LoadHosts(); len(loaded.Proxies) != 2 {
+		t.Fatalf("hosts.json has %d proxies", len(loaded.Proxies))
+	}
+
+	// The proxy changed there reaches this computer's list.
+	got[1].Port = 1081
+	two.a.saveHosts(two.a.hosts)
+	two.sync(t)
+	one.sync(t)
+	if got := one.a.hosts.Proxies; len(got) != 2 || got[0].Port != 1081 || got[0].ID != "p1" {
+		t.Fatalf("proxies here %+v", got)
+	}
+}
+
 // The private keys saved in the app travel with the passwords: a device
 // without them receives those the file has, sends none of its own, and
 // keeps what it has; a key deleted on a device that sends them is deleted

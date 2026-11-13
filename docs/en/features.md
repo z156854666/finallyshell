@@ -2464,6 +2464,10 @@ What is synced:
 - Folders and connections, deleted ones included (so a delete reaches the
   other computers), but not each host's last connection time, which keeps
   the recent list of each computer its own.
+- The saved proxies: the SOCKS5 and HTTP proxies the connection editor's
+  Proxy page lists, with their names, kinds, addresses, ports and users.
+  Another computer's Proxy page therefore lists the same proxies, rather
+  than only the copy each connection carries.
 - Settings that mean the same on another computer: language, appearance,
   the General, Mouse, Shortcuts and Terminal pages, the font, the color
   scheme, the background's fit and opacity, and the file icon theme when
@@ -2471,24 +2475,24 @@ What is synced:
   download folder, the background image itself and icon themes installed
   from a VSIX stay on each computer.
 - With "Include saved passwords" checked, off by default, the passwords and
-  key passphrases of the hosts that remember theirs, and the private keys
-  saved in the app. A computer that has it off keeps the passwords and keys
-  already in the file as they are, and keeps the key files of its own: a
-  host that logs in with a file's path has that path, which is this
-  computer's.
+  key passphrases of the hosts that remember theirs, the passwords of the
+  saved proxies, and the private keys saved in the app. A computer that has
+  it off keeps the passwords and keys already in the file as they are, and
+  keeps the key files of its own: a host that logs in with a file's path has
+  that path, which is this computer's.
 
 Each sync merges three ways: this computer's data, the file's, and the
 data both had after the last sync, kept in `sync-state.json`, still
-encrypted. Each folder, host, setting, password and key is merged on its
-own. What changed on one side only is kept; what was deleted on one side and
-not changed on the other is deleted; what changed on both sides keeps this
-computer's version, and the status says how many there were. The first
-sync with a service (or after the sync password changed) deletes nothing:
-it keeps what either side has. When another computer writes the file
-during a sync, the sync reads it again and merges again (WebDAV and S3 send
-`If-Match`, for the servers that support it; a gist is checked just before
-writing). Before a sync changes
-local connections, `hosts.json` is copied to `hosts.before-sync.json`.
+encrypted. Each folder, host, saved proxy, setting, password and key is
+merged on its own. What changed on one side only is kept; what was deleted
+on one side and not changed on the other is deleted; what changed on both
+sides keeps this computer's version, and the status says how many there
+were. The first sync with a service (or after the sync password changed)
+deletes nothing: it keeps what either side has. When another computer
+writes the file during a sync, the sync reads it again and merges again
+(WebDAV and S3 send `If-Match`, for the servers that support it; a gist is
+checked just before writing). Before a sync changes local connections,
+`hosts.json` is copied to `hosts.before-sync.json`.
 Changes made while a sync is under way are merged on top of what it
 brought, and synced next; a password saved meanwhile is kept, not
 replaced by the one the sync brought. When the service or its fields

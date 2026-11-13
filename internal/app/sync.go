@@ -200,10 +200,11 @@ func (a *App) keepSyncSecret(key, v string) {
 	}
 }
 
-// localPayload is this device's payload, without secrets: its folders
-// and hosts, each without the time it last connected, which stays on this
-// device, the settings that are synced and, when the saved passwords
-// travel, the private keys saved in the app, which travel with them.
+// localPayload is this device's payload, without secrets: its folders,
+// hosts and saved proxies, each host without the time it last connected,
+// which stays on this device, the settings that are synced and, when the
+// saved passwords travel, the private keys saved in the app, which travel
+// with them.
 func (a *App) localPayload() *cloudsync.Payload {
 	p := &cloudsync.Payload{Schema: cloudsync.PayloadSchema, Settings: config.SyncedSettings(a.settings)}
 	if a.settings.Sync.Passwords {
@@ -212,6 +213,11 @@ func (a *App) localPayload() *cloudsync.Payload {
 	for _, f := range a.hosts.Folders {
 		if b, err := json.Marshal(f); err == nil {
 			p.Folders = append(p.Folders, b)
+		}
+	}
+	for _, e := range a.hosts.Proxies {
+		if b, err := json.Marshal(e); err == nil {
+			p.Proxies = append(p.Proxies, b)
 		}
 	}
 	for _, h := range a.hosts.Hosts {
@@ -283,7 +289,8 @@ func (a *App) applySyncedKeys(raw []json.RawMessage, all bool) {
 }
 
 // syncSecretKeys are the keys of the secrets of the hosts that remember
-// theirs.
+// theirs, and of the saved proxies that ask for a password: a proxy's is
+// the proxy's, not a host's, so it travels with the list.
 func (a *App) syncSecretKeys() []string {
 	var keys []string
 	for _, h := range a.hosts.Hosts {
@@ -291,6 +298,11 @@ func (a *App) syncSecretKeys() []string {
 			for _, name := range hostSecretNames {
 				keys = append(keys, hostSecretKey(h.ID, name))
 			}
+		}
+	}
+	for _, e := range a.hosts.Proxies {
+		if e.User != "" {
+			keys = append(keys, proxySecretKey(e.ID))
 		}
 	}
 	return keys
@@ -489,41 +501,52 @@ func (a *App) syncDone(res *cloudsync.Result, err error, run syncRun) {
 	}
 }
 
-// applyPayload makes this device's folders, hosts and synced settings
-// those of p. Hosts keep the time they last connected here, and their
-// Host values, which sessions point at. hosts.json is copied first.
+// applyPayload makes this device's folders, hosts, saved proxies and
+// synced settings those of p. Hosts keep the time they last connected
+// here, and their Host values, which sessions point at. hosts.json is
+// copied first.
 func (a *App) applyPayload(p *cloudsync.Payload) {
 	local := a.localPayload()
-	if !sameList(local.Folders, p.Folders) || !sameList(local.Hosts, p.Hosts) {
+	hostsChanged := !sameSet(local.Folders, p.Folders) || !sameSet(local.Hosts, p.Hosts)
+	proxiesChanged := !sameSet(local.Proxies, p.Proxies)
+	if hostsChanged || proxiesChanged {
 		config.BackupHostsBeforeSync(a.hosts)
-		var folders []*config.Folder
-		for _, raw := range p.Folders {
-			f := &config.Folder{}
-			if json.Unmarshal(raw, f) == nil && f.ID != "" {
-				folders = append(folders, f)
+		if hostsChanged {
+			var folders []*config.Folder
+			for _, raw := range p.Folders {
+				f := &config.Folder{}
+				if json.Unmarshal(raw, f) == nil && f.ID != "" {
+					folders = append(folders, f)
+				}
 			}
+			var hosts []*config.Host
+			kept := map[string]bool{}
+			for _, raw := range p.Hosts {
+				h := &config.Host{}
+				if json.Unmarshal(raw, h) != nil || h.ID == "" || kept[h.ID] {
+					continue
+				}
+				kept[h.ID] = true
+				if old := a.hosts.Host(h.ID); old != nil {
+					h.LastConnectedAt = old.LastConnectedAt
+					*old = *h
+					h = old
+				}
+				hosts = append(hosts, h)
+			}
+			for _, h := range a.hosts.Hosts {
+				if !kept[h.ID] {
+					a.deleteHostSecrets(h.ID) // deleted for good on another device
+				}
+			}
+			a.hosts.Folders, a.hosts.Hosts = folders, hosts
 		}
-		var hosts []*config.Host
-		kept := map[string]bool{}
-		for _, raw := range p.Hosts {
-			h := &config.Host{}
-			if json.Unmarshal(raw, h) != nil || h.ID == "" || kept[h.ID] {
-				continue
-			}
-			kept[h.ID] = true
-			if old := a.hosts.Host(h.ID); old != nil {
-				h.LastConnectedAt = old.LastConnectedAt
-				*old = *h
-				h = old
-			}
-			hosts = append(hosts, h)
+		if proxiesChanged {
+			a.hosts.Proxies = syncedProxies(p.Proxies)
 		}
-		for _, h := range a.hosts.Hosts {
-			if !kept[h.ID] {
-				a.deleteHostSecrets(h.ID) // deleted for good on another device
-			}
-		}
-		a.hosts.Folders, a.hosts.Hosts = folders, hosts
+		// Hosts connect through the saved proxies as they are now; one
+		// whose proxy the list lacks keeps the copy it has.
+		a.hosts.SyncProxies()
 		a.saveHosts(a.hosts)
 	}
 	if !cloudsync.Equal(&cloudsync.Payload{Settings: local.Settings}, &cloudsync.Payload{Settings: p.Settings}) {
@@ -541,9 +564,28 @@ func (a *App) applyPayload(p *cloudsync.Payload) {
 	}
 }
 
-// sameList says whether two lists hold the same objects in any order.
-func sameList(x, y []json.RawMessage) bool {
+// sameSet says whether two lists hold the same objects in any order.
+func sameSet(x, y []json.RawMessage) bool {
 	return cloudsync.Equal(&cloudsync.Payload{Hosts: x}, &cloudsync.Payload{Hosts: y})
+}
+
+// syncedProxies are the saved proxies of a merged payload, each once, in
+// its order: those without an ID are dropped, as they name nothing.
+func syncedProxies(raw []json.RawMessage) []*config.ProxyEntry {
+	if len(raw) == 0 {
+		return nil
+	}
+	var out []*config.ProxyEntry
+	taken := map[string]bool{}
+	for _, b := range raw {
+		e := &config.ProxyEntry{}
+		if json.Unmarshal(b, e) != nil || e.ID == "" || taken[e.ID] {
+			continue
+		}
+		taken[e.ID] = true
+		out = append(out, e)
+	}
+	return out
 }
 
 // applySyncedSecrets keeps in the credential store, and for this run,
@@ -615,23 +657,32 @@ func (a *App) applySyncedSecrets(before, after map[string]string) {
 // password in memory: only while what the app knows is still what the
 // store had before (from, or nothing), as one typed since is newer.
 func (a *App) rememberSynced(key, from string, hadFrom bool, v string, keep bool) {
-	rest, ok := strings.CutPrefix(key, "host/")
-	if !ok {
-		return
-	}
-	id, name, ok := strings.Cut(rest, "/")
-	h := a.hosts.Host(id)
-	if !ok || h == nil {
-		return
-	}
 	mem := ""
-	switch {
-	case name == secretProxyPassword:
-		mem = proxySecretKey(id)
-	case loginSecretKey(h) == key:
-		mem = id
-	default:
-		return
+	if id, ok := strings.CutPrefix(key, "proxy/"); ok {
+		// A proxy's password is kept under the proxy's key, as the store
+		// has it.
+		if !strings.HasSuffix(id, "/password") {
+			return
+		}
+		mem = key
+	} else {
+		rest, ok := strings.CutPrefix(key, "host/")
+		if !ok {
+			return
+		}
+		id, name, ok := strings.Cut(rest, "/")
+		h := a.hosts.Host(id)
+		if !ok || h == nil {
+			return
+		}
+		switch {
+		case name == secretProxyPassword:
+			mem = proxySecretKey(id)
+		case loginSecretKey(h) == key:
+			mem = id
+		default:
+			return
+		}
 	}
 	if cur, known := a.passwords[mem]; known && (!hadFrom || cur != from) {
 		return

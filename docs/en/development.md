@@ -422,7 +422,7 @@ internal/
     editor_tunnels.go the Tunnels page of the connection editor: the table and the add/edit dialog
     proxy.go         connecting through proxies and jump hosts: dial options, the passwords to ask for before connecting, translating each hop's errors
     hostroute.go     the way a host reaches its server, as the lists mark it and as the tooltip says it
-    sync.go          syncing: the payload of hosts and settings, reading the saved passwords on the secret queue, automatic sync from the main window's frames, applying what a sync brought (merging again what changed meanwhile)
+    sync.go          syncing: the payload of hosts, saved proxies and settings, reading the saved passwords and proxies' passwords on the secret queue, automatic sync from the main window's frames, applying what a sync brought (merging again what changed meanwhile)
     options_sync.go  the Sync page of the options
     secrets.go       remembering passwords: credential store keys, the background read/write queue, "Remember password", the password prompt, passwords on permanent delete and duplicate
     closing.go       what closing the main window and quitting do: hiding to the tray, asking first

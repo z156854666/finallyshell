@@ -10,13 +10,14 @@ import (
 
 // PayloadSchema is the version of the payload this build writes. A
 // remote file with a newer one is not merged, as this build would drop
-// what it does not know.
-const PayloadSchema = 1
+// what it does not know. Version 2 adds the saved proxies, which a build
+// before it would drop on the next sync.
+const PayloadSchema = 2
 
-// Payload is what the envelope encrypts: what is synced. Folders and
-// hosts are the objects of hosts.json, as JSON, each with its "id"; this
-// package does not need to know their other keys, and keeps the ones it
-// does not know.
+// Payload is what the envelope encrypts: what is synced. Folders, hosts
+// and proxies are the objects of hosts.json, as JSON, each with its "id";
+// this package does not need to know their other keys, and keeps the ones
+// it does not know.
 type Payload struct {
 	Schema    int       `json:"schema"`
 	Device    string    `json:"device,omitempty"` // the name of the device that wrote it
@@ -24,6 +25,11 @@ type Payload struct {
 
 	Folders []json.RawMessage `json:"folders"`
 	Hosts   []json.RawMessage `json:"hosts"`
+	// Proxies are the saved SOCKS5 and HTTP proxies, which hosts connect
+	// through by the ID in their proxy: a host keeps a copy of what its
+	// proxy says, so that one whose proxy the other device does not have
+	// yet still connects through it.
+	Proxies []json.RawMessage `json:"proxies,omitempty"`
 	// Settings are the settings that are synced, by their key in
 	// settings.json.
 	Settings map[string]json.RawMessage `json:"settings"`
@@ -41,24 +47,27 @@ func (p *Payload) Clone() *Payload {
 	c := *p
 	c.Folders = slices.Clone(p.Folders)
 	c.Hosts = slices.Clone(p.Hosts)
+	c.Proxies = slices.Clone(p.Proxies)
 	c.Settings = maps.Clone(p.Settings)
 	c.Secrets = maps.Clone(p.Secrets)
 	c.Keys = slices.Clone(p.Keys)
 	return &c
 }
 
-// Equal says whether a and b hold the same folders, hosts, settings,
-// secrets and keys. The order of folders and hosts, the device and the time
-// do not count.
+// Equal says whether a and b hold the same folders, hosts, proxies,
+// settings, secrets and keys. The order of folders, hosts and proxies, the
+// device and the time do not count.
 func Equal(a, b *Payload) bool {
 	return sameItems(a.Folders, b.Folders) && sameItems(a.Hosts, b.Hosts) &&
+		sameItems(a.Proxies, b.Proxies) &&
 		maps.EqualFunc(a.Settings, b.Settings, sameJSON) && maps.Equal(a.Secrets, b.Secrets) &&
 		sameItems(a.Keys, b.Keys)
 }
 
 // Merge merges local and remote three ways, against base, the payload
-// both last agreed on (nil when there is none). Each folder, host and saved
-// key (by its ID), each setting and each secret is merged on its own:
+// both last agreed on (nil when there is none). Each folder, host, saved
+// proxy and saved key (by its ID), each setting and each secret is merged
+// on its own:
 //
 //   - changed on one side only, that side's is kept;
 //   - deleted on one side and unchanged on the other, it is deleted;
@@ -78,6 +87,11 @@ func Merge(base, local, remote *Payload) (merged *Payload, conflicts int) {
 	conflicts += n
 	m.Hosts, n = mergeItems(base.Hosts, local.Hosts, remote.Hosts)
 	conflicts += n
+	m.Proxies, n = mergeItems(base.Proxies, local.Proxies, remote.Proxies)
+	conflicts += n
+	if len(m.Proxies) == 0 {
+		m.Proxies = nil
+	}
 	m.Settings, n = mergeMap(base.Settings, local.Settings, remote.Settings, sameJSON)
 	conflicts += n
 	m.Secrets, n = mergeMap(base.Secrets, local.Secrets, remote.Secrets, func(a, b string) bool { return a == b })

@@ -104,6 +104,28 @@ func TestMergeSettingsAndSecrets(t *testing.T) {
 	}
 }
 
+func TestMergeProxies(t *testing.T) {
+	proxy := func(id, addr string) json.RawMessage {
+		b, _ := json.Marshal(map[string]any{"id": id, "kind": "socks5", "addr": addr})
+		return b
+	}
+	base := &Payload{Proxies: []json.RawMessage{proxy("p1", "a"), proxy("p2", "b")}}
+	local := &Payload{Proxies: []json.RawMessage{proxy("p1", "a here")}} // p2 deleted here
+	remote := &Payload{Proxies: []json.RawMessage{proxy("p1", "a"), proxy("p2", "b"), proxy("p3", "c")}}
+	m, conflicts := Merge(base, local, remote)
+	if len(m.Proxies) != 2 || !sameJSON(m.Proxies[0], proxy("p1", "a here")) || !sameJSON(m.Proxies[1], proxy("p3", "c")) {
+		t.Fatalf("proxies = %s", m.Proxies)
+	}
+	if conflicts != 0 {
+		t.Errorf("conflicts = %d, want 0", conflicts)
+	}
+	// A first sync keeps what either side has.
+	m, _ = Merge(nil, local, remote)
+	if len(m.Proxies) != 3 {
+		t.Errorf("a first sync has %s", m.Proxies)
+	}
+}
+
 func TestEqualIgnoresOrder(t *testing.T) {
 	a := &Payload{Hosts: []json.RawMessage{host("a", "A"), host("b", "B")}, Device: "one"}
 	b := &Payload{Hosts: []json.RawMessage{json.RawMessage(`{"name":"B", "id":"b"}`), host("a", "A")}, Device: "two"}

@@ -87,10 +87,10 @@ func (a *App) proxyFieldsOf(h *config.Host) proxyFields {
 		case config.IsProxyServer(p.Kind):
 			pf.kind, pf.entry = p.Kind, p.ID
 			if p.ID != "" && pf.proxy(p.ID) == nil {
-				// A proxy the store does not have, as a hosts.json from
-				// another device, which does not carry the list, or a
-				// hand-edited file: the page shows it, rather than lose it
-				// on OK.
+				// A proxy the store does not have, as one from another
+				// device, whose list a build that did not sync it left
+				// behind, or a hand-edited file: the page shows it,
+				// rather than lose it on OK.
 				pf.proxies = append(pf.proxies, p.Entry())
 			}
 		}

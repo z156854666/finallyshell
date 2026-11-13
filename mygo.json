@@ -2,11 +2,11 @@
   "name": "Finallyshell",
   "identifier": "dev.finallyshell.app",
   "icon": "resources/icon.png",
-  "version": "0.2.0",
+  "version": "0.5.0",
   "out": "build",
   "i18n": { "dir": "locales", "source": "en" },
   "updates": {
     "publicKey": "fwcqse2POLiSdWytl0BHeURrztxcDObwmos+4IlTqHQ=",
-    "github": "TooonyChen/finallyshell"
+    "github": "z156854666/finallyshell"
   }
 }

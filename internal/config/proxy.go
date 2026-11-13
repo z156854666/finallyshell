@@ -209,8 +209,9 @@ func proxyKey(k ProxyKind, addr string, port int, user string) string {
 // SyncProxies makes each host connect through the saved proxy its proxy
 // names (ProxyConfig.ID), as that proxy is now: its kind, address, port
 // and user. A host whose saved proxy is not in the store keeps the copy it
-// has, so that a hosts.json from another device, which does not carry the
-// list, still connects through it. It reports whether it changed a host.
+// has, so that a hosts.json whose list lacks it, as a build that does not
+// sync the proxies writes, still connects through it. It reports whether
+// it changed a host.
 func (s *Store) SyncProxies() bool {
 	changed := false
 	for _, h := range s.Hosts {

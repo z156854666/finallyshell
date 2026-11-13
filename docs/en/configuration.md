@@ -117,9 +117,9 @@ authentication.
 
 - `id` is the saved proxy of `proxies` the host connects through. `kind`,
   `addr`, `port` and `user` repeat what that proxy says, so that a file
-  read without the `proxies` list, as another device's sync writes it,
-  still connects through it: they follow the saved proxy as the hosts are
-  saved (`config.Store.SyncProxies`).
+  read without the `proxies` list, as a build that does not sync it writes
+  it, still connects through it: they follow the saved proxy as the hosts
+  are saved (`config.Store.SyncProxies`).
 - or `kind` is `jump`, and `jumpHost` is the ID of the jump host.
 
 Without `proxy`, the host is connected directly. A host saved before the
@@ -355,13 +355,15 @@ Two more files belong to sync, next to `hosts.json`:
 The file on the service, `finallyshell-sync.json`, is JSON:
 `{"app": "finallyshell", "format": 1, "kdf": "argon2id", "salt": ..., "t": 3, "m": 65536, "p": 4, "cipher": "aes-256-gcm", "nonce": ..., "data": ...}`,
 the binary fields in base64. Decrypted, `data` is
-`{"schema": 1, "device": ..., "updatedAt": ..., "folders": [...], "hosts": [...], "settings": {...}, "secrets": {...}, "keys": [...]}`,
-where folders and hosts are those of `hosts.json`, settings the synced
-keys of `settings.json`, secrets the saved passwords by their key in
-the credential store, and keys the objects of `keys.json` with their
+`{"schema": 2, "device": ..., "updatedAt": ..., "folders": [...], "hosts": [...], "proxies": [...], "settings": {...}, "secrets": {...}, "keys": [...]}`,
+where folders, hosts and proxies are those of `hosts.json`, settings the
+synced keys of `settings.json`, secrets the saved passwords by their key
+in the credential store, and keys the objects of `keys.json` with their
 private keys' text. Secrets and keys come from the computers with
 "Include saved passwords" checked, and those without it keep the file's
-as they are.
+as they are. `schema` is the file's version: 2 has the `proxies`, and a
+build before it says to upgrade rather than merge a version 2 file, so
+that it does not drop the proxies it does not know.
 
 ## Command history
 
