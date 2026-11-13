@@ -156,3 +156,52 @@ func TestSyncBaseSecretsNotOwn(t *testing.T) {
 		t.Fatalf("passwords lost: %+v", res)
 	}
 }
+
+// Pull takes the file's data as it is: local's is not merged in, nothing is
+// written, and the file's secrets and keys are left out of what comes back
+// when they are not included.
+func TestSyncPull(t *testing.T) {
+	r := &memRemote{}
+	withPw := &Payload{
+		Hosts:   hosts(host("a", "A")).Hosts,
+		Secrets: map[string]string{"host/a/password": "s3cret"},
+		Keys:    hosts(host("k", "K")).Hosts,
+	}
+	syncOK(t, Request{Remote: r, Password: "pw", Local: withPw, Secrets: true, Keys: true, Device: "one"})
+	puts := r.puts
+
+	mine := &Payload{
+		Hosts:   hosts(host("b", "B")).Hosts,
+		Secrets: map[string]string{"host/b/password": "mine"},
+	}
+	res := syncOK(t, Request{Remote: r, Password: "pw", Local: mine, Pull: true})
+	if got := names(res.Merged.Hosts); !slices.Equal(got, []string{"a=A"}) {
+		t.Fatalf("pulled %v", got)
+	}
+	if !res.Pulled || !res.Changed || res.Uploaded || res.RemoteDevice != "one" {
+		t.Fatalf("result %+v", res)
+	}
+	if r.puts != puts {
+		t.Fatalf("the pull wrote the file %d times", r.puts-puts)
+	}
+	if res.Envelope == nil {
+		t.Error("no envelope for the next sync's base")
+	}
+	if len(res.Merged.Secrets) != 0 || len(res.Merged.Keys) != 0 {
+		t.Fatalf("secrets %v, keys %v", res.Merged.Secrets, res.Merged.Keys)
+	}
+
+	// Including them, the file's come back, and local's are replaced.
+	res = syncOK(t, Request{Remote: r, Password: "pw", Local: mine, Pull: true, Secrets: true, Keys: true})
+	if res.Merged.Secrets["host/a/password"] != "s3cret" || len(res.Merged.Keys) != 1 {
+		t.Fatalf("secrets %v, keys %v", res.Merged.Secrets, res.Merged.Keys)
+	}
+	if got := names(res.Merged.Keys); !slices.Equal(got, []string{"k=K"}) {
+		t.Fatalf("keys %v", got)
+	}
+
+	// A file that does not exist yet cannot be pulled.
+	if _, err := Sync(context.Background(), Request{Remote: &memRemote{}, Password: "pw", Local: mine, Pull: true}); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("err = %v", err)
+	}
+}

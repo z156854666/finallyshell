@@ -2489,18 +2489,23 @@ brought, and synced next; a password saved meanwhile is kept, not
 replaced by the one the sync brought. When the service or its fields
 change during a sync, what it brought is dropped.
 
-"Sync Now" syncs at once. "Sync automatically" syncs at start, a minute
-after changes here (they are looked for once a minute) and every 5, 15
-(the default), 30 or 60 minutes for changes made elsewhere. After an error
-it waits for the interval. The status line shows the last sync's time and
-what it did, or why it failed.
+"Merge and Sync" merges both sides at once. "Sync automatically" does the
+same merge at start, a minute after changes here (they are looked for once
+a minute) and every 5, 15 (the default), 30 or 60 minutes for changes made
+elsewhere. After an error it waits for the interval. The status line shows
+the last sync's time and what it did, or why it failed.
 
-"Replace the Remote with This Computer's Data…" asks first, then writes
-this computer's data to the file without merging, encrypted with the sync
-password entered: the way to start over, or to change the sync password
-(enter the new one, replace, then enter the new one on the other
-computers). Without "Include saved passwords", the file then has no
-passwords and no keys.
+"Push to the Remote…" asks first, then writes this computer's data to the
+file without merging, encrypted with the sync password entered: the way to
+start over, or to change the sync password (enter the new one, push, then
+enter the new one on the other computers). Without "Include saved
+passwords", the file then has no passwords and no keys.
+
+"Pull to This Computer…" asks first too, then takes the file's connections,
+settings, passwords and keys in place of this computer's, without merging,
+and writes nothing: the file has to exist already. What only this computer
+had is replaced, and `hosts.json` is copied first. When the file has no
+passwords or keys, this computer's are kept.
 
 The sync password and the service's token, password or secret key are kept
 in the system's credential store (see

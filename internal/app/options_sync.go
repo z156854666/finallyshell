@@ -43,7 +43,7 @@ func (a *App) syncPage(c *ui.Context) {
 			p := s.Provider
 			if choiceSelect(c, locales.SyncService(), &p, syncProviders, nil) {
 				a.changeSettings(func() { a.settings.Sync.Provider = p })
-				a.sync.err, a.sync.done, a.sync.confirmReplace = nil, nil, false
+				a.sync.err, a.sync.done, a.sync.confirm = nil, nil, syncMerge
 			}
 		})
 		if s.Provider == config.SyncOff {
@@ -116,25 +116,32 @@ func (a *App) syncPage(c *ui.Context) {
 		ui.Row(c).Gap(12).AlignItems(ui.Center).Children(func() {
 			ready := a.syncReady()
 			if ui.PrimaryButton(c, locales.SyncNow()).Disabled(!ready || a.sync.running).Clicked() {
-				a.startSync(false, c.Now())
+				a.startSync(syncMerge, c.Now())
 			}
 			a.syncStatus(c, ready)
 		})
-		if !a.sync.confirmReplace {
-			ui.Row(c).Children(func() {
-				if ui.Button(c, locales.SyncReplaceRemote()).Disabled(!a.syncReady() || a.sync.running).Clicked() {
-					a.sync.confirmReplace = true
+		if a.sync.confirm == syncMerge {
+			ui.Row(c).Gap(8).Children(func() {
+				if ui.Button(c, locales.SyncPush()).Disabled(!a.syncReady() || a.sync.running).Clicked() {
+					a.sync.confirm = syncPush
+				}
+				if ui.Button(c, locales.SyncPull()).Disabled(!a.syncReady() || a.sync.running).Clicked() {
+					a.sync.confirm = syncPull
 				}
 			})
 			return
 		}
-		widgets.Muted(c, locales.SyncReplaceRemoteConfirm())
+		text, yes := locales.SyncPushConfirm(), locales.SyncPushYes()
+		if a.sync.confirm == syncPull {
+			text, yes = locales.SyncPullConfirm(), locales.SyncPullYes()
+		}
+		widgets.Muted(c, text)
 		ui.Row(c).Gap(8).Children(func() {
-			if ui.Button(c, locales.SyncReplaceRemoteYes()).Clicked() {
-				a.startSync(true, c.Now())
+			if ui.Button(c, yes).Clicked() {
+				a.startSync(a.sync.confirm, c.Now())
 			}
 			if ui.Button(c, locales.Cancel()).Clicked() {
-				a.sync.confirmReplace = false
+				a.sync.confirm = syncMerge
 			}
 		})
 	})
@@ -168,6 +175,8 @@ func (a *App) syncDoneText() string {
 		switch {
 		case r.Created:
 			parts = append(parts, locales.SyncCreated())
+		case r.Pulled:
+			parts = append(parts, locales.SyncPulled())
 		case r.Changed && r.Uploaded:
 			parts = append(parts, locales.SyncMerged())
 		case r.Changed:

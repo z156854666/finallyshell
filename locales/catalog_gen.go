@@ -8236,11 +8236,11 @@ func (msgs Messages) SyncPassword() string {
 	return Catalog.Format(msgs.locale, "syncPassword", nil)
 }
 
-// SyncPasswordHint says "Encrypts what is synced. Use the same one on each computer. It cannot be recovered: if you forget it, replace the rem…"
+// SyncPasswordHint says "Encrypts what is synced. Use the same one on each computer. It cannot be recovered: if you forget it, push this compu…"
 // in the language the app shows.
 func SyncPasswordHint() string { return In(i18n.Locale()).SyncPasswordHint() }
 
-// SyncPasswordHint says "Encrypts what is synced. Use the same one on each computer. It cannot be recovered: if you forget it, replace the rem…"
+// SyncPasswordHint says "Encrypts what is synced. Use the same one on each computer. It cannot be recovered: if you forget it, push this compu…"
 // in the language of msgs.
 func (msgs Messages) SyncPasswordHint() string {
 	return Catalog.Format(msgs.locale, "syncPasswordHint", nil)
@@ -8286,21 +8286,21 @@ func (msgs Messages) SyncEveryMinutes(minutes int) string {
 	return Catalog.Format(msgs.locale, "syncEveryMinutes", map[string]any{"minutes": minutes})
 }
 
-// SyncAutomaticallyHint says "At start, a minute after changes here, and at this interval for changes made elsewhere."
+// SyncAutomaticallyHint says "At start, a minute after changes here, and at this interval for changes made elsewhere: the same merge as Merge and S…"
 // in the language the app shows.
 func SyncAutomaticallyHint() string { return In(i18n.Locale()).SyncAutomaticallyHint() }
 
-// SyncAutomaticallyHint says "At start, a minute after changes here, and at this interval for changes made elsewhere."
+// SyncAutomaticallyHint says "At start, a minute after changes here, and at this interval for changes made elsewhere: the same merge as Merge and S…"
 // in the language of msgs.
 func (msgs Messages) SyncAutomaticallyHint() string {
 	return Catalog.Format(msgs.locale, "syncAutomaticallyHint", nil)
 }
 
-// SyncNow says "Sync Now"
+// SyncNow says "Merge and Sync"
 // in the language the app shows.
 func SyncNow() string { return In(i18n.Locale()).SyncNow() }
 
-// SyncNow says "Sync Now"
+// SyncNow says "Merge and Sync"
 // in the language of msgs.
 func (msgs Messages) SyncNow() string {
 	return Catalog.Format(msgs.locale, "syncNow", nil)
@@ -8396,34 +8396,74 @@ func (msgs Messages) SyncConflicts(count int) string {
 	return Catalog.Format(msgs.locale, "syncConflicts", map[string]any{"count": count})
 }
 
-// SyncReplaceRemote says "Replace the Remote with This Computer's Data…"
+// SyncPush says "Push to the Remote…"
 // in the language the app shows.
-func SyncReplaceRemote() string { return In(i18n.Locale()).SyncReplaceRemote() }
+func SyncPush() string { return In(i18n.Locale()).SyncPush() }
 
-// SyncReplaceRemote says "Replace the Remote with This Computer's Data…"
+// SyncPush says "Push to the Remote…"
 // in the language of msgs.
-func (msgs Messages) SyncReplaceRemote() string {
-	return Catalog.Format(msgs.locale, "syncReplaceRemote", nil)
+func (msgs Messages) SyncPush() string {
+	return Catalog.Format(msgs.locale, "syncPush", nil)
 }
 
-// SyncReplaceRemoteConfirm says "The remote file is replaced with this computer's connections and settings, encrypted with the sync password above. Wh…"
+// SyncPushConfirm says "The remote file is replaced with this computer's connections and settings, encrypted with the sync password above. Wh…"
 // in the language the app shows.
-func SyncReplaceRemoteConfirm() string { return In(i18n.Locale()).SyncReplaceRemoteConfirm() }
+func SyncPushConfirm() string { return In(i18n.Locale()).SyncPushConfirm() }
 
-// SyncReplaceRemoteConfirm says "The remote file is replaced with this computer's connections and settings, encrypted with the sync password above. Wh…"
+// SyncPushConfirm says "The remote file is replaced with this computer's connections and settings, encrypted with the sync password above. Wh…"
 // in the language of msgs.
-func (msgs Messages) SyncReplaceRemoteConfirm() string {
-	return Catalog.Format(msgs.locale, "syncReplaceRemoteConfirm", nil)
+func (msgs Messages) SyncPushConfirm() string {
+	return Catalog.Format(msgs.locale, "syncPushConfirm", nil)
 }
 
-// SyncReplaceRemoteYes says "Replace"
+// SyncPushYes says "Push"
 // in the language the app shows.
-func SyncReplaceRemoteYes() string { return In(i18n.Locale()).SyncReplaceRemoteYes() }
+func SyncPushYes() string { return In(i18n.Locale()).SyncPushYes() }
 
-// SyncReplaceRemoteYes says "Replace"
+// SyncPushYes says "Push"
 // in the language of msgs.
-func (msgs Messages) SyncReplaceRemoteYes() string {
-	return Catalog.Format(msgs.locale, "syncReplaceRemoteYes", nil)
+func (msgs Messages) SyncPushYes() string {
+	return Catalog.Format(msgs.locale, "syncPushYes", nil)
+}
+
+// SyncPull says "Pull to This Computer…"
+// in the language the app shows.
+func SyncPull() string { return In(i18n.Locale()).SyncPull() }
+
+// SyncPull says "Pull to This Computer…"
+// in the language of msgs.
+func (msgs Messages) SyncPull() string {
+	return Catalog.Format(msgs.locale, "syncPull", nil)
+}
+
+// SyncPullConfirm says "This computer's connections and settings are replaced with the remote file's, decrypted with the sync password above.…"
+// in the language the app shows.
+func SyncPullConfirm() string { return In(i18n.Locale()).SyncPullConfirm() }
+
+// SyncPullConfirm says "This computer's connections and settings are replaced with the remote file's, decrypted with the sync password above.…"
+// in the language of msgs.
+func (msgs Messages) SyncPullConfirm() string {
+	return Catalog.Format(msgs.locale, "syncPullConfirm", nil)
+}
+
+// SyncPullYes says "Pull"
+// in the language the app shows.
+func SyncPullYes() string { return In(i18n.Locale()).SyncPullYes() }
+
+// SyncPullYes says "Pull"
+// in the language of msgs.
+func (msgs Messages) SyncPullYes() string {
+	return Catalog.Format(msgs.locale, "syncPullYes", nil)
+}
+
+// SyncPulled says "took the remote file's data"
+// in the language the app shows.
+func SyncPulled() string { return In(i18n.Locale()).SyncPulled() }
+
+// SyncPulled says "took the remote file's data"
+// in the language of msgs.
+func (msgs Messages) SyncPulled() string {
+	return Catalog.Format(msgs.locale, "syncPulled", nil)
 }
 
 // SyncErrWrongPassword says "The sync password does not match the one the remote file was encrypted with."
@@ -8454,6 +8494,16 @@ func SyncErrNotEnvelope() string { return In(i18n.Locale()).SyncErrNotEnvelope()
 // in the language of msgs.
 func (msgs Messages) SyncErrNotEnvelope() string {
 	return Catalog.Format(msgs.locale, "syncErrNotEnvelope", nil)
+}
+
+// SyncErrNoRemote says "The remote file does not exist yet."
+// in the language the app shows.
+func SyncErrNoRemote() string { return In(i18n.Locale()).SyncErrNoRemote() }
+
+// SyncErrNoRemote says "The remote file does not exist yet."
+// in the language of msgs.
+func (msgs Messages) SyncErrNoRemote() string {
+	return Catalog.Format(msgs.locale, "syncErrNoRemote", nil)
 }
 
 // SyncErrNewerFormat says "The remote file was written by a newer version of Finallyshell. Update to sync."

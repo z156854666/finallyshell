@@ -33,6 +33,10 @@ type Request struct {
 	// Force replaces the remote file with Local, without reading or
 	// merging it: for a new sync password, or to start over.
 	Force bool
+	// Pull replaces Local with the remote file, without merging it or
+	// writing anything: what the file has is taken as it is. Secrets and
+	// Keys say whether Local's are replaced too.
+	Pull bool
 	// Device and Now name the device and the time in what is uploaded.
 	Device string
 	Now    func() time.Time
@@ -53,6 +57,9 @@ type Result struct {
 	// Conflicts is how many items changed on both sides differently;
 	// this device's were kept.
 	Conflicts int
+	// Pulled: Merged is the remote file's, which local is to take as it
+	// is.
+	Pulled bool
 	// RemoteDevice is the device that wrote the file this one read, ""
 	// when it wrote none.
 	RemoteDevice string
@@ -70,6 +77,9 @@ func Sync(ctx context.Context, req Request) (*Result, error) {
 		now = time.Now
 	}
 	local := req.Local.Clone()
+	if req.Pull {
+		return pull(ctx, req, local)
+	}
 	local.Schema = PayloadSchema
 	var err error
 	for range maxAttempts {
@@ -145,6 +155,35 @@ func replace(ctx context.Context, req Request, local *Payload, now func() time.T
 		return nil, err
 	}
 	return upload(ctx, req, local, nil, &v, now)
+}
+
+// pull reads the remote file and returns it as Merged, for local to take
+// as it is: nothing is written. Secrets and keys are left out of Merged
+// when the request does not include them, so that local keeps its own.
+// ErrNotFound says the remote file does not exist yet.
+func pull(ctx context.Context, req Request, local *Payload) (*Result, error) {
+	data, _, err := req.Remote.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+	remote, err := openPayload(req.Password, data)
+	if err != nil {
+		return nil, err
+	}
+	if !req.Secrets {
+		local.Secrets = nil
+		remote.Secrets = nil
+	}
+	if !req.Keys {
+		local.Keys = nil
+		remote.Keys = nil
+	}
+	out := remote.Clone()
+	out.Schema = PayloadSchema
+	return &Result{
+		Merged: out, Envelope: data, Changed: !Equal(out, local),
+		Pulled: true, RemoteDevice: remote.Device,
+	}, nil
 }
 
 // upload seals p and writes it in place of prev, the envelope read (nil

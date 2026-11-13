@@ -10,7 +10,8 @@ package app
 // passwords on the secret queue when they are included, then reads,
 // merges and writes the remote file on a goroutine, and applies the
 // result back on the UI thread, merging again what changed here
-// meanwhile.
+// meanwhile. A push writes this device's data over the file instead of
+// merging, and a pull takes the file's data in place of this device's.
 
 import (
 	"context"
@@ -42,6 +43,18 @@ const (
 	syncCheckEvery = time.Minute
 )
 
+// syncMode is what a sync does with the other side's data.
+type syncMode int
+
+const (
+	// syncMerge keeps both sides' changes, as every ordinary sync does.
+	syncMerge syncMode = iota
+	// syncPush writes this device's data to the remote file, replacing it.
+	syncPush
+	// syncPull takes the remote file's data as this device's, replacing it.
+	syncPull
+)
+
 // syncState is the app's side of sync. Its fields belong to the UI
 // thread.
 type syncState struct {
@@ -69,8 +82,9 @@ type syncState struct {
 	// automatic sync syncs again when it changes.
 	synced *cloudsync.Payload
 
-	// confirmReplace asks before replacing the remote file.
-	confirmReplace bool
+	// confirm is the push or pull asked, which waits for the user's
+	// yes: syncMerge when none is asked.
+	confirm syncMode
 	// again: something changed here during the last sync that it did
 	// not carry, as a password saved meanwhile; automatic sync syncs
 	// again at its next check.
@@ -79,6 +93,8 @@ type syncState struct {
 
 // syncRun is what a sync started with, for syncDone.
 type syncRun struct {
+	// mode is what it was to do with the other side's data.
+	mode syncMode
 	// start is the Sync settings it started with: a result for another
 	// destination than the current one is dropped.
 	start config.SyncSettings
@@ -308,13 +324,14 @@ func (a *App) syncTick(c *ui.Context) {
 		due = true
 	}
 	if due {
-		a.startSync(false, now)
+		a.startSync(syncMerge, now)
 	}
 }
 
-// startSync syncs now, the frame's time; with force, it replaces the
-// remote file with this device's payload.
-func (a *App) startSync(force bool, now time.Time) {
+// startSync syncs now, the frame's time, as mode says: merging both sides,
+// writing this device's data to the remote file, or taking the remote's
+// data as this device's.
+func (a *App) startSync(mode syncMode, now time.Time) {
 	st := &a.sync
 	if st.running || !a.syncReady() {
 		return
@@ -329,16 +346,16 @@ func (a *App) startSync(force bool, now time.Time) {
 		st.state, st.stateLoaded = config.LoadSyncState(), true
 	}
 	st.running, st.err, st.lastTry = true, nil, now
-	st.confirmReplace, st.again = false, false
+	st.confirm, st.again = syncMerge, false
 	snapshot := a.localPayload()
 	// The saved keys travel with the passwords, as a connection that logs
 	// in with one takes it to the device it syncs to.
 	includeKeys := s.Passwords
 	req := cloudsync.Request{
-		Remote: remote, Password: st.password, Local: snapshot, Force: force,
-		Device: deviceName(),
+		Remote: remote, Password: st.password, Local: snapshot,
+		Force: mode == syncPush, Pull: mode == syncPull, Device: deviceName(),
 	}
-	if st.state.Remote == s.Remote() {
+	if mode == syncMerge && st.state.Remote == s.Remote() {
 		req.Base, req.BaseSecrets, req.BaseKeys = st.state.Base, st.state.Secrets, st.state.Keys
 	}
 	run := func(secrets map[string]string) {
@@ -355,7 +372,7 @@ func (a *App) startSync(force bool, now time.Time) {
 			ctx, cancel := context.WithTimeout(context.Background(), syncTimeout)
 			defer cancel()
 			res, err := cloudsync.Sync(ctx, req)
-			run := syncRun{start: s, snapshot: snapshot, secrets: secrets, keys: includeKeys}
+			run := syncRun{mode: mode, start: s, snapshot: snapshot, secrets: secrets, keys: includeKeys}
 			if g, ok := remote.(*cloudsync.Gist); ok {
 				run.gistID = g.ID
 			}
@@ -417,26 +434,45 @@ func (a *App) syncDone(res *cloudsync.Result, err error, run syncRun) {
 	}
 	snapshot := run.snapshot
 	merged := res.Merged
-	if res.Changed {
-		current := a.localPayload()
-		if !cloudsync.Equal(current, snapshot) {
-			// Changed here while the sync was away: merge again, and sync
-			// those changes soon.
-			m, _ := cloudsync.Merge(snapshot, current, merged)
-			m.Secrets = merged.Secrets
-			merged = m
-			st.nextCheck = time.Time{}
-		}
+	if run.mode == syncPull {
+		// The file's data is taken as it is, as asked: what changed here
+		// during the pull is replaced with it, not merged on top.
 		a.applyPayload(merged)
+		// The file's passwords and keys replace this device's only when
+		// it has some: a file written without them has none to take, and
+		// this device's are not deleted for that.
+		if run.secrets != nil && len(merged.Secrets) > 0 {
+			a.applySyncedSecrets(run.secrets, merged.Secrets)
+		}
+		if run.keys && len(merged.Keys) > 0 {
+			a.applySyncedKeys(merged.Keys, true)
+		}
+	} else {
+		if res.Changed {
+			current := a.localPayload()
+			if !cloudsync.Equal(current, snapshot) {
+				// Changed here while the sync was away: merge again, and sync
+				// those changes soon.
+				m, _ := cloudsync.Merge(snapshot, current, merged)
+				m.Secrets = merged.Secrets
+				merged = m
+				st.nextCheck = time.Time{}
+			}
+			a.applyPayload(merged)
+		}
+		if run.secrets != nil {
+			a.applySyncedSecrets(run.secrets, res.Merged.Secrets)
+		}
+		a.applySyncedKeys(merged.Keys, run.keys)
 	}
-	if run.secrets != nil {
-		a.applySyncedSecrets(run.secrets, res.Merged.Secrets)
-	}
-	a.applySyncedKeys(merged.Keys, run.keys)
 	st.err, st.done = nil, res
+	// A pull's base is the file as its writer made it: the passwords and
+	// keys in it are not this device's, and are not compared with next
+	// time, as after a sync that did not include them.
+	own := run.mode != syncPull
 	st.state = config.SyncState{
 		Remote: s.Remote(), Base: res.Envelope, At: time.Now(), Device: res.RemoteDevice,
-		Secrets: run.secrets != nil, Keys: run.keys,
+		Secrets: own && run.secrets != nil, Keys: own && run.keys,
 	}
 	if res.Uploaded {
 		st.state.Device = deviceName()
@@ -624,6 +660,8 @@ func syncErrorText(err error) string {
 		return locales.SyncErrAuth()
 	case errors.Is(err, cloudsync.ErrNotEnvelope):
 		return locales.SyncErrNotEnvelope()
+	case errors.Is(err, cloudsync.ErrNotFound):
+		return locales.SyncErrNoRemote()
 	case errors.Is(err, cloudsync.ErrNewerFormat):
 		return locales.SyncErrNewerFormat()
 	case errors.Is(err, context.DeadlineExceeded):

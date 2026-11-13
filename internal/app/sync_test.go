@@ -90,7 +90,7 @@ func (d *device) sync(t *testing.T) {
 func (d *device) syncErr(t *testing.T) {
 	t.Helper()
 	d.use(t)
-	d.a.startSync(false, time.Now())
+	d.a.startSync(syncMerge, time.Now())
 	if !d.a.sync.running {
 		t.Fatal("the sync did not start")
 	}
@@ -197,10 +197,10 @@ func TestSyncWrongPassword(t *testing.T) {
 		t.Error("the error is not explained")
 	}
 
-	// Replacing the remote starts over with the new password.
+	// Pushing starts over with the new password.
 	two.use(t)
-	two.a.startSync(true, time.Now())
-	two.p.until(t, "the replace", func() bool { return !two.a.sync.running })
+	two.a.startSync(syncPush, time.Now())
+	two.p.until(t, "the push", func() bool { return !two.a.sync.running })
 	if two.a.sync.err != nil {
 		t.Fatal(two.a.sync.err)
 	}
@@ -220,7 +220,7 @@ func TestSyncLocalChangeDuringSync(t *testing.T) {
 	two := newDevice(t, r)
 	two.addHost("h2", "db")
 	two.use(t)
-	two.a.startSync(false, time.Now())
+	two.a.startSync(syncMerge, time.Now())
 	two.addHost("h3", "added meanwhile")
 	two.p.until(t, "the sync", func() bool { return !two.a.sync.running })
 	if two.a.sync.err != nil {
@@ -390,7 +390,7 @@ func TestSyncPage(t *testing.T) {
 	a.settings.Sync = config.SyncSettings{Provider: config.SyncGist}
 	tt.Frame()
 	p.until(t, "the secrets", func() bool { return a.sync.loaded })
-	for _, s := range []string{locales.SyncGistToken(), locales.SyncGistNewToken(), locales.SyncPassword(), locales.SyncIncludePasswords(), locales.SyncNow()} {
+	for _, s := range []string{locales.SyncGistToken(), locales.SyncGistNewToken(), locales.SyncPassword(), locales.SyncIncludePasswords(), locales.SyncNow(), locales.SyncPush(), locales.SyncPull()} {
 		if !tt.HasText(s) {
 			t.Errorf("no %q; texts %q", s, tt.Texts())
 		}
@@ -415,7 +415,7 @@ func TestSyncPage(t *testing.T) {
 	}
 	p.SetLocale("zh-Hans")
 	tt.Frame()
-	for _, s := range []string{"同步到", "同步密码", "包括已保存的密码", "自动同步", "立即同步"} {
+	for _, s := range []string{"同步到", "同步密码", "包括已保存的密码", "自动同步", "合并同步", "推送到远端…", "拉取到本地…"} {
 		if !tt.HasText(s) {
 			t.Errorf("no %q in Chinese; texts %q", s, tt.Texts())
 		}
@@ -456,7 +456,7 @@ func TestSyncDestinationChangedDuringSync(t *testing.T) {
 	one.sync(t)
 	two := newDevice(t, r)
 	two.use(t)
-	two.a.startSync(false, time.Now())
+	two.a.startSync(syncMerge, time.Now())
 	two.a.settings.Sync.WebDAVURL = "https://elsewhere.example/dav/"
 	two.p.until(t, "the sync", func() bool { return !two.a.sync.running })
 	if len(two.a.hosts.Hosts) != 0 || two.a.sync.done != nil {
@@ -484,7 +484,7 @@ func TestSyncPasswordSavedDuringSync(t *testing.T) {
 	one.p.stored[key] = "new"
 	one.sync(t)
 	two.use(t)
-	two.a.startSync(false, time.Now())
+	two.a.startSync(syncMerge, time.Now())
 	two.a.setSecret(key, "mine") // after the sync read the passwords
 	two.p.until(t, "the sync", func() bool { return !two.a.sync.running && two.a.secrets.queue.idle() })
 	two.p.until(t, "the store", storeSettled(two.a, two.p))
@@ -499,5 +499,80 @@ func TestSyncPasswordSavedDuringSync(t *testing.T) {
 	one.p.until(t, "the store", storeSettled(one.a, one.p))
 	if got := one.p.stored[key]; got != "mine" {
 		t.Fatalf("the other device has %q", got)
+	}
+}
+
+// A pull takes the file's data as this computer's, in place of what only
+// this computer has, and nothing is written. The file's passwords come with
+// it; a file written without them leaves this computer's as they are.
+func TestSyncPull(t *testing.T) {
+	r := &memRemote{}
+	key := hostSecretKey("h1", secretPassword)
+	one := newDevice(t, r)
+	one.a.settings.Sync.Passwords = true
+	one.addHost("h1", "web")
+	one.p.stored[key] = "remote"
+	one.sync(t)
+
+	two := newDevice(t, r)
+	two.a.settings.Sync.Passwords = true
+	two.addHost("h2", "mine")
+	two.use(t)
+	two.a.startSync(syncPull, time.Now())
+	if !two.a.sync.running {
+		t.Fatal("the pull did not start")
+	}
+	two.p.until(t, "the pull", func() bool { return !two.a.sync.running })
+	two.p.until(t, "the store", storeSettled(two.a, two.p))
+	if two.a.sync.err != nil {
+		t.Fatal(two.a.sync.err)
+	}
+	if got := hostNames(two.a); !slices.Equal(got, []string{"web"}) {
+		t.Fatalf("hosts %v", got) // what only this computer had is replaced
+	}
+	if res := two.a.sync.done; res == nil || !res.Pulled {
+		t.Fatalf("the result is not a pull: %+v", res)
+	}
+	if r.writes() != 1 {
+		t.Fatalf("the pull wrote the remote %d times", r.writes()-1)
+	}
+	if got := two.p.stored[key]; got != "remote" {
+		t.Fatalf("the file's password did not come: %q", got)
+	}
+	if st := config.LoadSyncState(); st.Base == nil || st.Secrets || st.Keys {
+		t.Fatalf("the base is not the file's: %+v", st)
+	}
+	two.sync(t) // the base it kept merges: nothing is deleted
+	one.sync(t)
+	if got := hostNames(one.a); !slices.Equal(got, []string{"web"}) {
+		t.Fatalf("after the pull, hosts %v", got)
+	}
+
+	// A file written without passwords has none to take: this computer
+	// keeps its own.
+	plain := newDevice(t, r)
+	plain.addHost("h1", "web")
+	plain.addHost("h3", "plain")
+	plain.use(t)
+	plain.a.startSync(syncPush, time.Now())
+	plain.p.until(t, "the push", func() bool { return !plain.a.sync.running })
+	if plain.a.sync.err != nil {
+		t.Fatal(plain.a.sync.err)
+	}
+	two.use(t)
+	two.a.startSync(syncPull, time.Now())
+	two.p.until(t, "the pull", func() bool { return !two.a.sync.running })
+	two.p.until(t, "the store", storeSettled(two.a, two.p))
+	if two.a.sync.err != nil {
+		t.Fatal(two.a.sync.err)
+	}
+	if got := hostNames(two.a); !slices.Equal(got, []string{"plain", "web"}) {
+		t.Fatalf("hosts %v", got)
+	}
+	if got := two.p.stored[key]; got != "remote" {
+		t.Fatalf("this computer's password became %q", got)
+	}
+	if syncErrorText(cloudsync.ErrNotFound) != locales.SyncErrNoRemote() {
+		t.Error("a missing file is not explained")
 	}
 }
