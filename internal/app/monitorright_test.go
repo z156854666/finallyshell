@@ -42,7 +42,7 @@ func find(t *testing.T, tt *ui.Tester, text string) ui.Rect {
 
 // The monitor's menu moves it to the right column and back; with the
 // panel at the bottom, it has the column alone, full height, and the
-// session list fills the left column. The side is saved, monitorPct
+// connections fill the left column. The side is saved, monitorPct
 // kept.
 func TestMonitorOnRight(t *testing.T) {
 	a, p, tt, web, _ := panelApp(t)
@@ -57,14 +57,14 @@ func TestMonitorOnRight(t *testing.T) {
 		t.Fatalf("side %q, saved %q", a.monitorSide, config.LoadSettings().MonitorSide)
 	}
 	left := winW - a.rightWidth
-	if r := find(t, tt, webIP); r.X < left || r.Y > 40 {
+	if r := find(t, tt, webIP); r.X < left || r.Y > sessionTabsHeight+16 {
 		t.Errorf("monitor at %+v; the column starts at %v", r, left)
 	}
 	// Full height: the disks, its last part, show near the top half.
 	if r := find(t, tt, locales.DiskPath()); r.X < left {
 		t.Errorf("disks at %+v", r)
 	}
-	// The session list takes the left column.
+	// The connections take the left column.
 	if r := find(t, tt, "db-1"); r.X > a.sideWidth || r.Y >= listY || r.Y > 120 {
 		t.Errorf("db-1 at %+v, was at y %v", r, listY)
 	}
@@ -138,7 +138,7 @@ func TestMonitorAndPanelOnRight(t *testing.T) {
 	cols0, rows0 := web.term().Size()
 	left := winW - a.rightWidth
 	ip, files := find(t, tt, webIP), find(t, tt, locales.TabFiles())
-	if ip.X < left || ip.Y > 40 {
+	if ip.X < left || ip.Y > sessionTabsHeight+16 {
 		t.Errorf("monitor at %+v", ip)
 	}
 	// The panel starts at rightMonitorPct of the height.
@@ -208,7 +208,7 @@ func TestMonitorAndPanelOnRight(t *testing.T) {
 	if r := find(t, tt, locales.ShowPanel()); r.X < left || r.Y < 780 {
 		t.Errorf("Show panel at %+v", r)
 	}
-	if r := find(t, tt, webIP); r.X < left || r.Y > 40 {
+	if r := find(t, tt, webIP); r.X < left || r.Y > sessionTabsHeight+16 {
 		t.Errorf("monitor at %+v", r)
 	}
 	if cols, rows := web.term().Size(); cols != cols0 || rows != rows0 {

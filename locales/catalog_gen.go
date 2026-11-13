@@ -522,16 +522,6 @@ func (msgs Messages) DiskFreeSize() string {
 	return Catalog.Format(msgs.locale, "diskFreeSize", nil)
 }
 
-// SessionsTitle says "Sessions ({count})"
-// in the language the app shows.
-func SessionsTitle(count int) string { return In(i18n.Locale()).SessionsTitle(count) }
-
-// SessionsTitle says "Sessions ({count})"
-// in the language of msgs.
-func (msgs Messages) SessionsTitle(count int) string {
-	return Catalog.Format(msgs.locale, "sessionsTitle", map[string]any{"count": count})
-}
-
 // NewConnection says "New connection"
 // in the language the app shows.
 func NewConnection() string { return In(i18n.Locale()).NewConnection() }
@@ -582,26 +572,6 @@ func (msgs Messages) EditRemoteDesktop() string {
 	return Catalog.Format(msgs.locale, "editRemoteDesktop", nil)
 }
 
-// NoSessions says "No open sessions"
-// in the language the app shows.
-func NoSessions() string { return In(i18n.Locale()).NoSessions() }
-
-// NoSessions says "No open sessions"
-// in the language of msgs.
-func (msgs Messages) NoSessions() string {
-	return Catalog.Format(msgs.locale, "noSessions", nil)
-}
-
-// LeftPanelPages says "Sessions or connections"
-// in the language the app shows.
-func LeftPanelPages() string { return In(i18n.Locale()).LeftPanelPages() }
-
-// LeftPanelPages says "Sessions or connections"
-// in the language of msgs.
-func (msgs Messages) LeftPanelPages() string {
-	return Catalog.Format(msgs.locale, "leftPanelPages", nil)
-}
-
 // ConnectionsPage says "Connections"
 // in the language the app shows.
 func ConnectionsPage() string { return In(i18n.Locale()).ConnectionsPage() }
@@ -642,11 +612,11 @@ func (msgs Messages) DeleteHostBody() string {
 	return Catalog.Format(msgs.locale, "deleteHostBody", nil)
 }
 
-// ScSwitchLeftPanel says "Switch sessions / connections"
+// ScSwitchLeftPanel says "Focus the connections search"
 // in the language the app shows.
 func ScSwitchLeftPanel() string { return In(i18n.Locale()).ScSwitchLeftPanel() }
 
-// ScSwitchLeftPanel says "Switch sessions / connections"
+// ScSwitchLeftPanel says "Focus the connections search"
 // in the language of msgs.
 func (msgs Messages) ScSwitchLeftPanel() string {
 	return Catalog.Format(msgs.locale, "scSwitchLeftPanel", nil)

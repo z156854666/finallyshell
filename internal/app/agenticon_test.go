@@ -251,9 +251,9 @@ func TestAgentIconRows(t *testing.T) {
 	a.sessions[0], a.sessions[1] = a.sessions[1], a.sessions[0]
 	tt.Frame()
 	info, ok := tt.Access("Claude Code")
-	name, _ := tt.Find("web-1")
-	if !ok || info.Bounds.Y > name.Y+name.H || info.Bounds.Y+info.Bounds.H < name.Y {
-		t.Errorf("the first logo at %+v, the session's name at %+v", info.Bounds, name)
+	tab, found := tt.AccessByRole(ui.RoleGroup, "web-1")
+	if !ok || !found || info.Bounds.X < tab.Bounds.X || info.Bounds.X > tab.Bounds.X+tab.Bounds.W {
+		t.Errorf("the first logo at %+v, the session's tab at %+v", info.Bounds, tab.Bounds)
 	}
 	a.sessions[0], a.sessions[1] = a.sessions[1], a.sessions[0]
 	s.status = statusClosed
@@ -267,7 +267,7 @@ func TestAgentIconRows(t *testing.T) {
 	}
 }
 
-// TestAgentIconScreenshots draws a session list of tabs running
+// TestAgentIconScreenshots draws a row of tabs running
 // different agents, light and dark, in both languages, with SHOT_DIR
 // set.
 func TestAgentIconScreenshots(t *testing.T) {

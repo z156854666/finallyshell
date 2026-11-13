@@ -107,17 +107,17 @@ func agentIcon(ag *monitor.Agent) *ui.SVG {
 	return icons.Agent(ag.Icon)
 }
 
-// sessionName is the name line of s's row: its name, and after it the
-// logo of the agent running in its focused pane's shell, and how many
-// panes it has, which the name is cut before.
+// sessionName is the name of s's tab: its name, and after it the logo of
+// the agent running in its focused pane's shell, and how many panes it has,
+// which the name is cut before.
 func (a *App) sessionName(c *ui.Context, s *Session, active bool) {
 	ag := a.shownAgent(s)
 	if ag == nil && !s.split() {
-		rowName(c, s.label(), active)
+		tabNameText(c, s.label(), active)
 		return
 	}
 	ui.Row(c).Gap(5).AlignItems(ui.Center).MinWidth(0).Children(func() {
-		rowName(c, s.label(), active).MinWidth(0).Shrink(1)
+		tabNameText(c, s.label(), active).MinWidth(0).Shrink(1)
 		if ag != nil {
 			ui.Icon(c, agentIcon(ag)).FontSize(14).Shrink(0).Label(ag.Name).Tooltip(ag.Name)
 		}

@@ -167,7 +167,6 @@ func TestReadmeScreenshots(t *testing.T) {
 				for _, f := range []string{"prod", "db", "staging"} {
 					a.connTree.tree.Open.Add(managerItem{folder: f})
 				}
-				a.setLeftPage(leftConnections)
 				tt.Frame()
 				if !tt.HasText("Databases") || !tt.HasText("db-2") {
 					t.Errorf("no tree; texts %q", tt.Texts())

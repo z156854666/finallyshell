@@ -185,9 +185,10 @@ internal/
     app.go           App 状态、整体布局、打开/关闭会话
     session.go       一个会话：连接、终端、监控、SFTP；错误信息的翻译
     rdp.go           远程桌面会话：启动系统的客户端，写着在哪里打开的标签页，监控面板的位置和行的图标
-    sidebar.go       左侧：监控面板、竖向会话列表
-    conntree.go      左侧面板的“连接”页：两页之间的切换、连接管理器的树（只有一列）、记住展开的文件夹
-    paneltab.go      面板行：会话的底部面板单独成列表里的一行，共用会话的连接（connSession）
+    sidebar.go       左侧：监控面板在上、连接页在下
+    conntree.go      连接页：它的标题栏、连接管理器的树（只有一列）、记住展开的文件夹
+    sessiontabs.go   终端上方的会话标签：选择、关闭、重命名和拖动，以及标签行右端的按钮
+    paneltab.go      面板行：会话的底部面板单独成一个标签，共用会话的连接（connSession）
     local.go         本地终端：在本机运行程序的标签（没有 Host），打开和启动它，监控和面板各页对它显示什么，它的选项
     agenticon.go     会话行上显示 shell 里运行的编程智能体的图标：shell 跟随（shelldir.go）为它做的读取，“会话标签”选项
     netifaces.go     网速曲线的网卡菜单：标签、选择网卡、按主机保存选择

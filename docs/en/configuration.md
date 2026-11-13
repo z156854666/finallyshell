@@ -231,14 +231,13 @@ default.
 | `bottomPanelHidden` | `true` collapses the bottom panel under the terminal to its row of tabs, or, on the right, hides its column. | Open. |
 | `bottomPanelSide` | `right` puts the bottom panel in a column on the terminal's right. | `""`, under the terminal. |
 | `rightPanelWidth` | Width of the column on the terminal's right, in DIPs, as last dragged. | The app's default (460). |
-| `monitorSide` | `right` puts the server monitor at the top of the column on the terminal's right; the session list then fills the left column. | `""`, at the top left. |
+| `monitorSide` | `right` puts the server monitor at the top of the column on the terminal's right; the connections then fill the left column. | `""`, at the top left. |
 | `rightMonitorPercent` | The server monitor's share of the right column's height, above the bottom panel, when both are there, in percent. | The app's default (45). |
 | `commandEditorShown` | `true` shows the command editor in the Commands tab. | Hidden. |
 | `commandEditorWidth` | The command editor's width beside the command buttons, in DIPs, as last dragged. | The app's default (460). |
 | `commandEditorPercent` | The command buttons' share of the Commands tab's height above the command editor, where the tab is too narrow to have it beside them, in percent. | The app's default (40). |
 | `commandEditorNoEnter` | `true` turns off the command editor's "Press Enter after each line": the last line it sends goes without a carriage return. | Every line runs. |
 | `commandEditorClear` | `true` turns on the command editor's "Clear after sending". | Off. |
-| `leftPanelPage` | `connections` shows the Connections page in the bottom-left panel. | The session tabs. |
 | `connectionTreeExpanded` | IDs of the folders open on the Connections page, such as `["f1730000000000000000"]`; `[]` for none. By ID, so a renamed or moved folder stays open. | Every folder open. |
 | `sync` | The Sync page's settings (see [Sync](#sync)). | Sync is off. |
 
@@ -280,10 +279,10 @@ local: `sidebarWidth`, `monitorPercent`, `terminalPercent`, `treeWidth`,
 `commandEditorWidth`, `commandEditorPercent`, `commandEditorNoEnter`,
 `commandEditorClear`, `termBackground`, `localShell`, `sshAgent`, `downloadDir`,
 `askDownloadDir`, `sync`,
-`geoLocations`, `geoLocationsV6`, `geoOnline`, `leftPanelPage` and
-`connectionTreeExpanded` (the left panel's page and the folders open are
-where this computer's window was left, as the pane sizes are), and a
-`fileIconTheme` installed from a VSIX or found in an editor's extensions.
+`geoLocations`, `geoLocationsV6`, `geoOnline` and
+`connectionTreeExpanded` (the folders open are where this computer's
+window was left, as the pane sizes are), and a `fileIconTheme` installed
+from a VSIX or found in an editor's extensions.
 
 Two more files belong to sync, next to `hosts.json`:
 

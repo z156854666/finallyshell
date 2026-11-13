@@ -44,68 +44,25 @@ func untilScreen(t *testing.T, p *fakePlatform, s *Session, want string) {
 	})
 }
 
-// headerLocal clicks the session list's Local terminal button.
-func headerLocal(t *testing.T, tt *ui.Tester) {
-	t.Helper()
-	set, ok := tt.Find(locales.Options())
-	if !ok {
-		t.Fatal("no options button")
-	}
-	tt.ClickAt(set.X+set.W+2+set.W/2, set.Y+set.H/2)
-}
-
-// The header's button opens a local terminal at the end of the list and
-// selects it; its program runs, and the row, the monitor and the panel
-// say what it is.
-func TestLocalTerminalFromHeader(t *testing.T) {
+// Duplicate session opens another local terminal, in a tab of its own,
+// which "Don't select new tabs" leaves unselected.
+func TestLocalTerminalDuplicate(t *testing.T) {
 	a, p, tt := localApp(t, testShell)
-	web := demoSession(a, "web-1", "203.0.113.10")
-	nHosts := len(a.hosts.Live())
-	a.active = 1
-	tt.Frame()
-	if !tt.HasText(locales.OpenPanelTab()) {
-		t.Fatal("a session has no Open in its own tab")
-	}
-	if _, ok := tt.Find(locales.LocalTerminal()); !ok {
-		t.Fatalf("no Local terminal button; texts %q", tt.Texts())
-	}
-
-	headerLocal(t, tt)
-	if len(a.sessions) != 3 || a.active != 2 {
-		t.Fatalf("%d rows, active %d", len(a.sessions), a.active)
-	}
-	s := a.sessions[2]
-	if !s.isLocal() || s.isNewTab() || s.Host != nil || s.status != statusConnected || s.term() == nil {
-		t.Fatalf("local %v, new tab %v, status %v, err %v", s.isLocal(), s.isNewTab(), s.status, s.err)
-	}
+	a.openLocal(nil)
+	s := a.current()
 	untilScreen(t, p, s, "ready")
 	tt.Frame()
-	for _, want := range []string{locales.SessionsTitle(2), locales.LocalTerminal(), locales.LocalThisComputer()} {
-		if !tt.HasText(want) {
-			t.Errorf("no %q; texts %q", want, tt.Texts())
-		}
-	}
-	if tt.HasText("IP ") || tt.HasText(locales.UptimeUnknown()) {
-		t.Errorf("the monitor shows a server; texts %q", tt.Texts())
-	}
-	if tt.HasText(locales.OpenPanelTab()) {
-		t.Error("Open in its own tab offered for a local terminal")
-	}
-	if !tt.HasText(locales.LocalNotAvailable()) { // the Files tab
-		t.Errorf("Files: texts %q", tt.Texts())
-	}
 
-	// With "Don't select new tabs", it opens without being selected.
 	a.settings.NoAutoSelectTab = true
-	a.active = 1
-	headerLocal(t, tt)
-	if len(a.sessions) != 4 || a.active != 1 || !a.sessions[3].isLocal() || a.current() != web {
-		t.Errorf("%d rows, active %d", len(a.sessions), a.active)
+	a.active = 0
+	tt.Frame()
+	tt.RightClickAt(tabCenter(t, tt, s.label()))
+	if err := tt.ChooseMenuItem(locales.DuplicateSession()); err != nil {
+		t.Fatalf("%v; menu %q", err, tt.Menu())
 	}
-
-	// Nothing of it is saved: the hosts and settings are as they were.
-	if len(a.hosts.Live()) != nHosts {
-		t.Errorf("%d hosts", len(a.hosts.Live()))
+	tt.Frame()
+	if len(a.sessions) != 2 || a.active != 0 || !a.sessions[1].isLocal() || a.sessions[1] == s {
+		t.Fatalf("duplicate: %d rows, active %d", len(a.sessions), a.active)
 	}
 }
 
@@ -113,7 +70,6 @@ func TestLocalTerminalFromHeader(t *testing.T) {
 // connecting there does; on the page without hosts too.
 func TestLocalTerminalFromStartPage(t *testing.T) {
 	a, p, tt := localApp(t, testShell)
-	a.setLeftPage(leftConnections) // the header's button is the sessions page's
 	tt.Frame()
 	tab := a.sessions[0]
 	if err := tt.Click(locales.LocalTerminal()); err != nil {
@@ -131,7 +87,6 @@ func TestLocalTerminalFromStartPage(t *testing.T) {
 	tt2 := ui.NewTester(b.View, 1280, 820)
 	q.tt = tt2
 	t.Cleanup(b.CloseAll)
-	b.setLeftPage(leftConnections)
 	tt2.Frame()
 	if err := tt2.Click(locales.LocalTerminal()); err != nil {
 		t.Fatalf("empty page: %v; texts %q", err, tt2.Texts())
@@ -289,7 +244,7 @@ func TestLocalTerminalMenu(t *testing.T) {
 	tt.Frame()
 
 	// Its row is the one that says "This computer"; Rename names it.
-	tt.RightClickAt(rowCenter(t, tt, locales.LocalThisComputer()))
+	tt.RightClickAt(tabCenter(t, tt, s.label()))
 	items := tt.Menu()
 	for _, want := range []string{locales.Reconnect(), locales.DuplicateSession(), locales.Disconnect(), locales.Rename(), locales.Close()} {
 		if !slices.Contains(items, want) {
@@ -315,7 +270,7 @@ func TestLocalTerminalMenu(t *testing.T) {
 	}
 	s.setName("scratch")
 	tt.Frame()
-	row := func() (float32, float32) { return rowCenter(t, tt, "scratch") }
+	row := func() (float32, float32) { return tabCenter(t, tt, "scratch") }
 
 	// Duplicate: another local terminal, a program of its own.
 	tt.RightClickAt(row())

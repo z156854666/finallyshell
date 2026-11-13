@@ -360,9 +360,10 @@ internal/
     app.go           App state, overall layout, opening and closing sessions
     session.go       one session: connection, terminal, monitor, SFTP; translating error messages
     rdp.go           remote desktop sessions: starting the system's client, the tab that says where it opened, the monitor's place and the row's icon
-    sidebar.go       left side: monitor panel, vertical session list
-    conntree.go      the left panel's Connections page: the switch between its pages, the connection manager's tree in one column, the folders kept open
-    paneltab.go      panel rows: a session's bottom panel in a row of the list of its own, sharing the session's connection (connSession)
+    sidebar.go       left side: the monitor panel over the connections panel
+    conntree.go      the connections panel: its header, the connection manager's tree in one column, the folders kept open
+    sessiontabs.go   the session tabs over the terminal: choosing, closing, renaming and dragging them, and the buttons at their right end
+    paneltab.go      panel rows: a session's bottom panel in a tab of its own, sharing the session's connection (connSession)
     local.go         local terminals: a tab running a program on this computer (no Host), opening and starting it, what the monitor and the panel's pages show for it, its option
     agenticon.go     the logo of the coding agent running in a session's shell, on its row: the reads the shell's follower (shelldir.go) does for it, the Session tabs option
     netifaces.go     the network graph's interface menu: its label, choosing interfaces and keeping the choice per host

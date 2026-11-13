@@ -142,7 +142,7 @@ func TestFindBar(t *testing.T) {
 // key leaves it, and Escape too where no shell runs.
 func TestFullScreen(t *testing.T) {
 	a, p, s, conn, tt := findTerm(t)
-	panes := []string{"Sessions (2)", locales.TabFiles(), "IP 45.56.78.90"}
+	panes := []string{locales.NewTab(), locales.TabFiles(), "IP 45.56.78.90"}
 	for _, x := range panes {
 		if !tt.HasText(x) {
 			t.Fatalf("no %q before full screen", x)
@@ -178,7 +178,7 @@ func TestFullScreen(t *testing.T) {
 	p.SetLocale("zh-Hans")
 	a.NewTab()
 	tt.Key(ui.Ctrl|ui.Shift, ui.KeyEnter)
-	if !a.fullScreen.on || tt.HasText("会话 (2)") || !tt.HasText("快速连接") {
+	if !a.fullScreen.on || tt.HasText("新标签页") || !tt.HasText("快速连接") {
 		t.Fatalf("full screen on a new tab; texts %q", tt.Texts())
 	}
 	saveShot(t, tt, "fullscreen-zh.png")
@@ -200,7 +200,7 @@ func TestFullScreen(t *testing.T) {
 	p.full = false // the green button
 	a.WindowLeftFullScreen()
 	tt.Frame()
-	if a.fullScreen.on || !tt.HasText("会话 (2)") {
+	if a.fullScreen.on || !tt.HasText("新标签页") {
 		t.Errorf("left by the system: app %v", a.fullScreen.on)
 	}
 }

@@ -63,7 +63,7 @@ type Settings struct {
 	// in DIPs, as last dragged. Zero is the app's default.
 	RightPanelWidth float32 `json:"rightPanelWidth,omitempty"`
 	// MonitorSide is where the server monitor is: "" at the top left,
-	// over the session list, PanelRight in the column on the terminal's
+	// over the connections panel, PanelRight in the column on the terminal's
 	// right.
 	MonitorSide string `json:"monitorSide,omitempty"`
 	// RightMonitorPercent is the monitor's share of the right column's
@@ -207,14 +207,11 @@ type Settings struct {
 
 	// The panel under the server monitor, this device's own layout.
 	//
-	// LeftPanelPage is the page it shows: "" for the session tabs,
-	// LeftPanelConnections for the tree of the saved connections.
-	LeftPanelPage string `json:"leftPanelPage,omitempty"`
-	// ConnectionTreeExpanded are the IDs of the folders open in that
-	// tree, which stay as folders are renamed and moved: nil, before the
-	// tree's folders were first opened or closed, opens every folder, and
-	// an empty list none. A pointer keeps Settings comparable; it is
-	// replaced, never changed through.
+	// ConnectionTreeExpanded are the IDs of the folders open in the tree
+	// of the saved connections, which stay as folders are renamed and
+	// moved: nil, before the tree's folders were first opened or closed,
+	// opens every folder, and an empty list none. A pointer keeps Settings
+	// comparable; it is replaced, never changed through.
 	ConnectionTreeExpanded *[]string `json:"connectionTreeExpanded,omitempty"`
 
 	// FileIconTheme is the file panel's icon theme, as package fileicons
@@ -269,10 +266,6 @@ type Settings struct {
 	// leaves without a city or ISP, while locations are shown.
 	GeoOnline bool `json:"geoOnline,omitempty"`
 }
-
-// LeftPanelConnections is Settings.LeftPanelPage showing the
-// connections.
-const LeftPanelConnections = "connections"
 
 // PanelRight is Settings.BottomPanelSide with the panel, and
 // Settings.MonitorSide with the monitor, in the column on the terminal's

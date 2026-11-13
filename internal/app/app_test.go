@@ -171,7 +171,7 @@ func TestLayoutInBothLanguages(t *testing.T) {
 	tt := ui.NewTester(a.View, 1280, 820)
 	p.tt = tt
 	tt.Frame()
-	for _, want := range []string{"Sessions (3)", "web-1", "db-1", "IP 45.56.78.90", "Up 410 days", "java", "libacl.so.1", "Name", "Files", "Transfers"} {
+	for _, want := range []string{"Connections", "web-1", "db-1", "IP 45.56.78.90", "Up 410 days", "java", "libacl.so.1", "Name", "Files", "Transfers"} {
 		if !tt.HasText(want) {
 			t.Errorf("English: missing %q", want)
 		}
@@ -183,7 +183,7 @@ func TestLayoutInBothLanguages(t *testing.T) {
 	if a.settings.Language != "zh-Hans" || config.LoadSettings().Language != "zh-Hans" {
 		t.Errorf("language not kept: %+v", config.LoadSettings())
 	}
-	for _, want := range []string{"会话 (3)", "运行 410 天", "命令", "文件名", "文件", "传输", "修改时间"} {
+	for _, want := range []string{"连接", "运行 410 天", "命令", "文件名", "文件", "传输", "修改时间"} {
 		if !tt.HasText(want) {
 			t.Errorf("Chinese: missing %q; texts %q", want, tt.Texts())
 		}

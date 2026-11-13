@@ -213,7 +213,7 @@ func TestSplitPanes(t *testing.T) {
 		t.Errorf("the bar's placeholder %q", barPlaceholder(tt))
 	}
 	// The row's menu splits too: the focused pane, down.
-	tt.RightClickAt(rowCenter(t, tt, "web-1"))
+	tt.RightClickAt(tabCenter(t, tt, "web-1"))
 	if menu := tt.Menu(); !slices.Contains(menu, locales.SplitDown()) || !slices.Contains(menu, locales.ClosePane()) {
 		t.Fatalf("row menu %q", menu)
 	}
@@ -547,7 +547,7 @@ func TestPanesScreenshots(t *testing.T) {
 		tt.ClickAt(paneAt(t, a, tt, s, ps[0]))
 		tt.Frame()
 		saveShot(t, tt, "panes-"+lang+".png")
-		tt.RightClickAt(rowCenter(t, tt, "web-1"))
+		tt.RightClickAt(tabCenter(t, tt, "web-1"))
 		tt.Frame()
 		if menu := tt.Menu(); !slices.Contains(menu, locales.SplitRight()) {
 			t.Fatalf("%s: row menu %q", lang, menu)

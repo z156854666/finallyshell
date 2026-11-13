@@ -20,7 +20,7 @@ import (
 // monitor, it collapses to its row of tabs at the column's bottom, as
 // under the terminal, and the monitor takes the height.
 //
-// With the monitor on the right, the session panel fills the left
+// With the monitor on the right, the connections panel fills the left
 // column. A panel row's panel has the monitor beside it, still
 // following the current session; full screen shows neither.
 
@@ -111,7 +111,7 @@ func (a *App) hiddenRightMainArea(c *ui.Context) {
 func (a *App) monitorOnRight() bool { return a.monitorSide == config.PanelRight }
 
 // setMonitorOnRight moves the server monitor to the right column, or
-// back over the session list, and saves the choice.
+// back over the connections panel, and saves the choice.
 func (a *App) setMonitorOnRight(right bool) {
 	side := ""
 	if right {

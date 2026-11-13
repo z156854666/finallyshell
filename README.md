@@ -3,7 +3,7 @@
 </h1>
 
 <p align="center">
-  An SSH client with FinalShell's layout and vertical session tabs, written in Go.
+  An SSH client with FinalShell's layout, session tabs over the terminal, written in Go.
 </p>
 
 <p align="center">
@@ -24,10 +24,10 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/main-en.png" alt="Finallyshell's main window: server monitor, session list, terminal and file panel">
+  <img src="docs/screenshots/main-en.png" alt="Finallyshell's main window: server monitor, connections, session tabs, terminal and file panel">
 </p>
 
-If you have used FinalShell, you already know your way around: server stats at the top left, sessions under them, the terminal on the right and the remote files below it. Finallyshell keeps that layout and puts the session tabs in a vertical list you can scroll and drag to reorder.
+If you have used FinalShell, you already know your way around: server stats at the top left, the connections under them, the session tabs over the terminal on the right and the remote files below it. Finallyshell keeps that layout, and the tabs scroll sideways and can be dragged into another order.
 
 It is a native app written in Go with the [MyGo](https://github.com/egoist/mygo) UI toolkit, so there's no Java runtime to install. The terminal is libghostty-vt, the terminal engine of [Ghostty](https://ghostty.org). Passwords go to the system's keychain, never to a file.
 
@@ -153,7 +153,7 @@ Servers whose locale isn't UTF-8 work too: the terminal converts GBK, GB18030, B
 
 ### And also
 
-- Need a shell on your own computer? The terminal button next to "+" opens a local terminal tab, with the same terminal, command bar and quick commands; Options › Terminal chooses its program (WSL, PowerShell, fish...).
+- Need a shell on your own computer? "Local terminal" on a new tab's page opens one, with the same terminal, command bar and quick commands; Options › Terminal chooses its program (WSL, PowerShell, fish...).
 - Keys in Bitwarden, 1Password or `ssh-agent`? Choose "SSH agent" as a host's authentication and it logs in with the agent's keys, no key file on disk; Options › General sets the agent's address.
 - Running Claude Code, Codex, Gemini CLI or another coding agent? Its logo shows on the session tab while it runs, so tabs to the same server are easy to tell apart.
 - English and Simplified Chinese, following the system language or chosen in Options.
@@ -185,7 +185,7 @@ The defaults follow FinalShell; the panes' follow Ghostty on macOS and Windows T
 | New tab | <kbd>Cmd</kbd>+<kbd>T</kbd> | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> |
 | Go to tab 1 to 9 | <kbd>Cmd</kbd>+<kbd>1</kbd>…<kbd>9</kbd> | <kbd>Alt</kbd>+<kbd>1</kbd>…<kbd>9</kbd> |
 | Command bar, and back to the terminal | <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd> | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd> |
-| Sessions or connections in the left panel | <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd> | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd> |
+| Focus the connections search | <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd> | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd> |
 | Show or hide the bottom panel | <kbd>Cmd</kbd>+<kbd>J</kbd> | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>J</kbd> |
 | Split the pane right | <kbd>Cmd</kbd>+<kbd>D</kbd> | <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>=</kbd> |
 | Split the pane down | <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> | <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>-</kbd> |

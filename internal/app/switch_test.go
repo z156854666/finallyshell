@@ -43,35 +43,18 @@ func switchApp(t *testing.T, steps []string) (*App, *ui.Tester, map[*Session]col
 	return a, tt, shows
 }
 
-// rowCenters returns the middle of each row of the session list, from
-// those of the rows with names of their own: the rows of new tabs all show
-// "New tab", and every row is as tall.
+// rowCenters returns the middle of each session tab, from those of the tabs
+// with names of their own: the tabs of new tabs all show "New tab", and
+// every tab is as wide as its name and its dot.
 func rowCenters(t *testing.T, a *App, tt *ui.Tester) [][2]float32 {
 	t.Helper()
-	var named []int
-	for i, s := range a.sessions {
-		if !s.isNewTab() {
-			named = append(named, i)
-		}
-	}
-	if len(named) < 2 {
-		t.Fatal("rowCenters needs two named rows")
-	}
-	first, last := named[0], named[len(named)-1]
-	x, y0 := rowCenter(t, tt, a.sessions[first].label())
-	_, y1 := rowCenter(t, tt, a.sessions[last].label())
-	pitch := (y1 - y0) / float32(last-first)
-	if pitch < 20 {
-		t.Fatalf("rows %.1f apart", pitch)
-	}
 	var centers [][2]float32
-	for i := range a.sessions {
-		centers = append(centers, [2]float32{x, y0 + float32(i-first)*pitch})
+	for _, s := range a.sessions {
+		x, y := tabCenter(t, tt, s.label())
+		centers = append(centers, [2]float32{x, y})
 	}
-	for _, i := range named {
-		if _, y := rowCenter(t, tt, a.sessions[i].label()); y != centers[i][1] {
-			t.Fatalf("row %d (%s) at %.1f, not %.1f", i, a.sessions[i].label(), y, centers[i][1])
-		}
+	if len(centers) < 2 {
+		t.Fatal("rowCenters needs two tabs")
 	}
 	return centers
 }
@@ -108,7 +91,7 @@ func checkShows(t *testing.T, a *App, tt *ui.Tester, shows map[*Session]color.RG
 	}
 }
 
-// TestClickSessionRowSelectsIt clicks every row of the session list,
+// TestClickSessionRowSelectsIt clicks every session tab,
 // whatever order its sessions and new tabs opened in, the older ones
 // first and back: each click selects the row and shows its terminal, or
 // its start page (#38). The keys that switch tabs keep working in
@@ -121,7 +104,8 @@ func TestClickSessionRowSelectsIt(t *testing.T) {
 		{"sessions only", []string{"alpha", "bravo", "charlie"}},
 		{"sessions then a new tab", []string{"alpha", "bravo", "+"}},
 		{"a new tab first", []string{"+", "alpha", "bravo"}},
-		{"interleaved", []string{"alpha", "+", "bravo", "+"}},
+		{"interleaved", []string{"alpha", "+", "bravo"}},
+		{"a new tab last", []string{"alpha", "bravo", "+"}},
 	}
 	for _, k := range cases {
 		t.Run(k.name, func(t *testing.T) {

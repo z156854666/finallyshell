@@ -29,7 +29,7 @@ func renameApp(t *testing.T) (*App, *ui.Tester, *int) {
 // renameFromMenu starts renaming the row of s from its context menu.
 func renameFromMenu(t *testing.T, tt *ui.Tester, s *Session) {
 	t.Helper()
-	tt.RightClickAt(rowCenter(t, tt, s.label()))
+	tt.RightClickAt(tabCenter(t, tt, s.label()))
 	if err := tt.ChooseMenuItem(locales.Rename()); err != nil {
 		t.Fatalf("%v; menu %q", err, tt.Menu())
 	}
@@ -55,7 +55,7 @@ func TestRenameSession(t *testing.T) {
 			if how == "menu" {
 				renameFromMenu(t, tt, s)
 			} else {
-				tt.ClickAt(rowCenter(t, tt, "alpha")) // the list takes the focus
+				tt.ClickAt(tabCenter(t, tt, "alpha")) // the list takes the focus
 				tt.Key(0, ui.KeyF2)
 				tt.Frame()
 			}
@@ -68,11 +68,13 @@ func TestRenameSession(t *testing.T) {
 			if s.name != "build" || s.label() != "build" || a.rename.s != nil {
 				t.Fatalf("name %q, label %q, renaming %v", s.name, s.label(), a.rename.s != nil)
 			}
-			if texts := tt.Texts(); !slices.Contains(texts, "build") || slices.Contains(texts, "alpha") {
-				t.Errorf("the row does not show the name; texts %q", tt.Texts())
+			// The tab shows the name: the host's, in the connections panel,
+			// keeps its own.
+			if _, ok := tt.AccessByRole(ui.RoleGroup, "build"); !ok {
+				t.Errorf("the tab does not show the name; texts %q", tt.Texts())
 			}
-			if a.sessList.Label(0) != "build" {
-				t.Errorf("type-to-find reads %q", a.sessList.Label(0))
+			if _, ok := tt.AccessByRole(ui.RoleGroup, "alpha"); ok {
+				t.Errorf("a tab named alpha; texts %q", tt.Texts())
 			}
 			if *saves != 0 {
 				t.Errorf("%d saves", *saves)
@@ -88,12 +90,16 @@ func TestRenameSessionCancel(t *testing.T) {
 	cases := map[string]func(t *testing.T, a *App, tt *ui.Tester){
 		"escape": func(t *testing.T, a *App, tt *ui.Tester) { tt.Key(0, ui.KeyEscape) },
 		"click another row": func(t *testing.T, a *App, tt *ui.Tester) {
-			tt.ClickAt(rowCenter(t, tt, "charlie"))
+			tt.ClickAt(tabCenter(t, tt, "charlie"))
 		},
 		"click the terminal": func(t *testing.T, a *App, tt *ui.Tester) { tt.ClickAt(termSpotX, termSpotY) },
 		"click a text": func(t *testing.T, a *App, tt *ui.Tester) {
 			// The monitor's text, which takes no focus.
-			tt.ClickAt(rowCenter(t, tt, locales.LoadAverage("0.28, 0.31, 0.27")))
+			r, ok := tt.Find(locales.LoadAverage("0.28, 0.31, 0.27"))
+			if !ok {
+				t.Fatalf("no text; texts %q", tt.Texts())
+			}
+			tt.ClickAt(r.X+r.W/2, r.Y+r.H/2)
 		},
 		"tab": func(t *testing.T, a *App, tt *ui.Tester) { tt.Key(0, ui.KeyTab) },
 	}
@@ -139,7 +145,7 @@ func TestRenameSessionReset(t *testing.T) {
 	}
 
 	// Reset name shows only while the tab has a name of its own.
-	tt.RightClickAt(rowCenter(t, tt, "bravo"))
+	tt.RightClickAt(tabCenter(t, tt, "bravo"))
 	for _, item := range tt.Menu() {
 		if item == locales.ResetName() {
 			t.Errorf("Reset name without a name; menu %q", tt.Menu())
@@ -148,7 +154,7 @@ func TestRenameSessionReset(t *testing.T) {
 	tt.CloseMenu()
 	s.name = "custom"
 	tt.Frame()
-	tt.RightClickAt(rowCenter(t, tt, "custom"))
+	tt.RightClickAt(tabCenter(t, tt, "custom"))
 	if err := tt.ChooseMenuItem(locales.ResetName()); err != nil {
 		t.Fatalf("%v; menu %q", err, tt.Menu())
 	}
@@ -158,33 +164,34 @@ func TestRenameSessionReset(t *testing.T) {
 	}
 }
 
-// TestRenameSessionKeys checks that the field takes the keys and the
-// presses the list would: the arrows and Page keys move no choice, the
-// letters choose no row, Enter is the field's, and a drag from the field
-// selects its text rather than moving the row.
+// TestRenameSessionKeys checks that the field takes the keys the tabs
+// would: Left, Right, Home and End move no choice, Enter is the field's,
+// and a drag from the field selects its text rather than moving the tab.
 func TestRenameSessionKeys(t *testing.T) {
 	a, tt, _ := renameApp(t)
 	s := a.sessions[0]
-	tt.ClickAt(rowCenter(t, tt, "alpha"))
+	tt.ClickAt(tabCenter(t, tt, "alpha"))
 	tt.Key(0, ui.KeyF2)
 	tt.Frame()
 	checkRenaming(t, a, tt, s)
-	for _, k := range []ui.Key{ui.KeyDown, ui.KeyUp, ui.KeyPageDown, ui.KeyPageUp, ui.KeyEnd, ui.KeyHome} {
+	// The name is selected: typing replaces it.
+	tt.Type("charlie")
+	tt.Frame()
+	if a.active != 0 || a.rename.text != "charlie" {
+		t.Fatalf("selected tab %d, text %q", a.active, a.rename.text)
+	}
+	// The keys move the caret, not the choice.
+	for _, k := range []ui.Key{ui.KeyRight, ui.KeyLeft, ui.KeyHome, ui.KeyEnd} {
 		tt.Key(0, k)
 		tt.Frame()
 		if a.active != 0 || a.rename.s != s {
-			t.Fatalf("%v: selected row %d, renaming %v", k, a.active, a.rename.s != nil)
+			t.Fatalf("%v: selected tab %d, renaming %v", k, a.active, a.rename.s != nil)
 		}
-	}
-	tt.Type("charlie")
-	tt.Frame()
-	if a.active != 0 || a.rename.text != "charliealpha" {
-		t.Fatalf("selected row %d, text %q", a.active, a.rename.text)
 	}
 	// F2 again leaves the field as it is.
 	tt.Key(0, ui.KeyF2)
 	tt.Frame()
-	if a.rename.s != s || a.rename.text != "charliealpha" {
+	if a.rename.s != s || a.rename.text != "charlie" {
 		t.Fatalf("F2 again: text %q", a.rename.text)
 	}
 
@@ -192,28 +199,29 @@ func TestRenameSessionKeys(t *testing.T) {
 	if !ok {
 		t.Fatalf("no field; texts %q", tt.Texts())
 	}
-	_, y := rowCenter(t, tt, "charlie")
+	x, _ := tabCenter(t, tt, "charlie")
 	tt.Press(field.X+4, field.Y+field.H/2)
-	for _, to := range []float32{field.Y + 20, field.Y + 40, y} {
-		tt.Move(field.X+40, to)
+	for _, to := range []float32{field.X + 24, field.X + 44, x} {
+		tt.Move(to, field.Y+field.H/2)
 		tt.Frame()
 	}
-	tt.Release(field.X+40, y)
+	tt.Release(x, field.Y+field.H/2)
 	tt.Frame()
 	if a.sessions[0] != s || a.active != 0 || a.rename.s != s {
-		t.Fatalf("the drag moved the row: %q, selected %d, renaming %v", a.sessList.Label(0), a.active, a.rename.s != nil)
+		t.Fatalf("the drag moved the tab: %q, selected %d, renaming %v", a.sessions[0].label(), a.active, a.rename.s != nil)
 	}
 
 	tt.Key(0, ui.KeyEnter)
 	tt.Frame()
-	if s.name != "charliealpha" || a.active != 0 {
+	if s.name != "charlie" || a.active != 0 {
 		t.Fatalf("name %q, selected %d", s.name, a.active)
 	}
-	// The list has the keys again.
-	tt.Key(0, ui.KeyDown)
+	// The tabs have the keys again, a frame after the field went.
+	tt.Frame()
+	tt.Key(0, ui.KeyRight)
 	tt.Frame()
 	if a.active != 1 {
-		t.Errorf("Down after renaming: selected row %d", a.active)
+		t.Errorf("Right after renaming: selected tab %d", a.active)
 	}
 }
 
@@ -240,7 +248,7 @@ func TestRenameSessionWindowFocus(t *testing.T) {
 }
 
 // TestRenameSessionF2Terminal leaves F2 to the terminal: it renames only
-// while the session list has the focus.
+// while the session tabs have the focus.
 func TestRenameSessionF2Terminal(t *testing.T) {
 	a, tt, _ := renameApp(t)
 	tt.ClickAt(termSpotX, termSpotY)
@@ -256,7 +264,7 @@ func TestRenameNewTab(t *testing.T) {
 	a, tt, _ := renameApp(t)
 	a.NewTab()
 	tt.Frame()
-	tt.RightClickAt(rowCenter(t, tt, locales.NewTab()))
+	tt.RightClickAt(tabCenter(t, tt, locales.NewTab()))
 	for _, item := range tt.Menu() {
 		if item == locales.Rename() {
 			t.Errorf("Rename on a new tab; menu %q", tt.Menu())
@@ -280,7 +288,7 @@ func TestRenamedSessionNames(t *testing.T) {
 		t.Errorf("tooltip %q, want %q", got, want)
 	}
 	tt.Frame()
-	tt.Move(rowCenter(t, tt, "build"))
+	tt.Move(tabCenter(t, tt, "build"))
 	tt.Advance(2 * time.Second)
 	tt.Frame()
 	if !slices.Contains(tt.Texts(), renamedTooltip(s)) {
@@ -322,7 +330,7 @@ func TestRenameSessionScreenshots(t *testing.T) {
 		logs.setTerm(web.term())
 		a.active = 2
 		tt.Frame()
-		tt.Move(rowCenter(t, tt, "web-1 build"))
+		tt.Move(tabCenter(t, tt, "web-1 build"))
 		tt.Advance(2 * time.Second)
 		tt.Frame()
 		saveShot(t, tt, "rename-two-tabs-"+lang+".png")
@@ -353,7 +361,7 @@ func TestRenameSessionReconnect(t *testing.T) {
 		t.Fatalf("label %q", s.label())
 	}
 
-	tt.RightClickAt(rowCenter(t, tt, "deploy"))
+	tt.RightClickAt(tabCenter(t, tt, "deploy"))
 	if err := tt.ChooseMenuItem(locales.Disconnect()); err != nil {
 		t.Fatalf("%v; menu %q", err, tt.Menu())
 	}
@@ -362,7 +370,7 @@ func TestRenameSessionReconnect(t *testing.T) {
 		t.Fatalf("status %d, label %q", s.status, s.label())
 	}
 
-	tt.RightClickAt(rowCenter(t, tt, "deploy"))
+	tt.RightClickAt(tabCenter(t, tt, "deploy"))
 	if err := tt.ChooseMenuItem(locales.Reconnect()); err != nil {
 		t.Fatalf("%v; menu %q", err, tt.Menu())
 	}
@@ -371,7 +379,7 @@ func TestRenameSessionReconnect(t *testing.T) {
 		t.Fatalf("status %d (%v), label %q", s.status, s.err, s.label())
 	}
 
-	tt.RightClickAt(rowCenter(t, tt, "deploy"))
+	tt.RightClickAt(tabCenter(t, tt, "deploy"))
 	if err := tt.ChooseMenuItem(locales.DuplicateSession()); err != nil {
 		t.Fatalf("%v; menu %q", err, tt.Menu())
 	}

@@ -11,12 +11,13 @@ import (
 )
 
 // A session tab can have a name of its own for this run (Session.name),
-// which its row and everything that names the tab show instead of the
+// which its tab and everything that names the tab show instead of the
 // host's title: the user renames it in place, as a file in Finder or
-// Explorer, from the row's context menu or with F2 in the session list.
-// The name is never saved; closing the tab forgets it.
+// Explorer, from the tab's context menu or with F2 while the session tabs
+// have the keyboard focus. The name is never saved; closing the tab
+// forgets it.
 
-// renameState is the session row being renamed: its session, nil when
+// renameState is the session tab being renamed: its session, nil when
 // none, and the text of its field.
 type renameState struct {
 	s    *Session
@@ -87,16 +88,6 @@ func (a *App) renameMenu(m *ui.Menu, s *Session) {
 	}
 }
 
-// renameKey renames the selected session with F2 while the session list
-// has the keyboard focus. The terminal keeps F2 for its programs.
-func (a *App) renameKey(c *ui.Context) {
-	if a.sessList.Shortcut(c, 0, ui.KeyF2) && a.rename.s == nil {
-		if s := a.current(); s != nil {
-			a.startRename(s)
-		}
-	}
-}
-
 // renamedTooltip is the tooltip of the row of a session with a name of its
 // own: the host it is a session of, or that it is a local terminal.
 func renamedTooltip(s *Session) string {
@@ -106,11 +97,11 @@ func renamedTooltip(s *Session) string {
 	return s.Host.Title() + "\n" + s.Host.Target()
 }
 
-// renameField is the field in place of the name of the row being renamed:
+// renameField is the field in place of the name of the tab being renamed:
 // Enter keeps what was typed, and Escape, a click elsewhere or the focus
-// moving away goes back to the name it had. It takes the keys the list
-// would take (Up, Down, Page Up, Page Down) and the letters it chooses
-// rows by; a press in it selects text rather than dragging the row.
+// moving away goes back to the name it had. A press in it selects text
+// rather than dragging the tab, and the keys that move the caret, which the
+// tabs move between themselves by, are its own while it has the focus.
 func (a *App) renameField(c *ui.Context, active bool) {
 	r := &a.rename
 	pad := float32(2)
@@ -121,19 +112,16 @@ func (a *App) renameField(c *ui.Context, active bool) {
 	if active {
 		in.Bold()
 	}
-	for _, k := range []ui.Key{ui.KeyUp, ui.KeyDown, ui.KeyPageUp, ui.KeyPageDown} {
-		in.Shortcut(0, k)
-	}
 	switch {
 	case r.fresh:
 		r.fresh = false
 		in.Focus().SetTextSelection(0, len([]rune(r.text)))
 	case in.Submitted():
 		a.endRename(true)
-		a.sessList.Focus(c) // the keys go to the list again, as in Finder
+		a.focusTabs = true // the keys go to the tabs again, as in Finder
 	case in.Shortcut(0, ui.KeyEscape):
 		a.endRename(false)
-		a.sessList.Focus(c)
+		a.focusTabs = true
 	case in.PressedOutside():
 		a.endRename(false)
 	case in.FocusLeft() && !in.FocusWithin():

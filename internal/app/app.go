@@ -142,10 +142,17 @@ type App struct {
 	secrets   secretStore       // the system's credential store (secrets.go)
 	sessions  []*Session        // new tabs included
 	active    int
-	sessList  ui.ListState
 	start     startState // the start page shown while no row is selected
 
-	rename renameState // the session row being renamed (rename.go)
+	// sessionTabsScroll is how far the session tabs are scrolled sideways,
+	// where they do not fit, focusTabs gives them the keyboard in the next
+	// frame, as after a rename, and tabsShown is the tab they last brought
+	// into view, -1 while none (sessiontabs.go).
+	sessionTabsScroll ui.ScrollState
+	focusTabs         bool
+	tabsShown         int
+
+	rename renameState // the session tab being renamed (rename.go)
 	// notices are toasts asked for between frames, as by a goroutine,
 	// which the next frame shows (paneview.go).
 	notices []string
@@ -295,6 +302,7 @@ func New(plat Platform) *App {
 		passwords:       map[string]string{},
 		windows:         map[WindowKind]bool{},
 		active:          -1,
+		tabsShown:       -1,
 		manager:         managerState{row: -1, win: WindowManager},
 		connTree:        managerState{row: -1, win: WindowMain},
 		start:           startState{row: -1},
@@ -360,27 +368,35 @@ func (a *App) cycle(d int) {
 	}
 }
 
-// sidebar is the monitor over the session panel, or the session panel
-// alone while the monitor is on the right (rightcolumn.go), monitorPct
-// kept for when it comes back.
+// sidebar is the monitor over the connections panel, or the connections
+// panel alone while the monitor is on the right (rightcolumn.go),
+// monitorPct kept for when it comes back.
 func (a *App) sidebar(c *ui.Context) {
 	ui.Column(c).Fill().Background(colors.sidebar).Children(func() {
 		if a.monitorOnRight() {
-			a.sessionPanel(c)
+			a.connectionPanel(c)
 			return
 		}
-		split := ui.SplitVerticalPercent(c, &a.monitorPct, func() { a.monitorPanel(c) }, func() { a.sessionPanel(c) }).SplitReset(defaultMonitorPct).Fill()
+		split := ui.SplitVerticalPercent(c, &a.monitorPct, func() { a.monitorPanel(c) }, func() { a.connectionPanel(c) }).SplitReset(defaultMonitorPct).Fill()
 		a.splitMoved(c, split, &a.monitorPct, monitorLimits)
 	})
 }
 
-// mainArea is the terminal over the bottom panel, or over its tabs alone
-// while it is collapsed (panelhide.go); the terminal beside the panel in
-// the right column, or beside the strip that shows it while it is hidden
-// (rightcolumn.go); or a panel row's panel (paneltab.go). With the
-// monitor on the right, the right column holds it too, on top, over the
-// panel when that is there.
+// mainArea is the session tabs over the rest: the terminal over the bottom
+// panel, or over its tabs alone while it is collapsed (panelhide.go); the
+// terminal beside the panel in the right column, or beside the strip that
+// shows it while it is hidden (rightcolumn.go); or a panel row's panel
+// (paneltab.go). With the monitor on the right, the right column holds it
+// too, on top, over the panel when that is there.
 func (a *App) mainArea(c *ui.Context) {
+	ui.Column(c).Fill().Children(func() {
+		a.sessionTabs(c)
+		ui.Column(c).Grow(1).MinHeight(0).FillWidth().Children(func() { a.mainContent(c) })
+	})
+}
+
+// mainContent is the main area under the session tabs.
+func (a *App) mainContent(c *ui.Context) {
 	var monitor func()
 	if a.monitorOnRight() {
 		monitor = func() { a.rightMonitor(c) }
@@ -574,10 +590,10 @@ func (a *App) CloseAll() {
 	}
 }
 
-// moveSessions moves the rows dragged before the row to, as the list
-// asks. A session takes its panel row along, right below it; a panel row
-// does not move alone, and a drop between a session and its panel row
-// goes below the panel row.
+// moveSessions moves the rows dragged before the row to, as a tab dropped
+// on another asks. A session takes its panel row along, right after it; a
+// panel row does not move alone, and a drop between a session and its panel
+// row goes below the panel row.
 func (a *App) moveSessions(rows []int, to int) {
 	cur := a.current()
 	moved := make([]*Session, 0, len(rows))

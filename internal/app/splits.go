@@ -34,7 +34,8 @@ var (
 	// The sidebar keeps the monitor's tables readable; the main area keeps
 	// the file table's columns.
 	sidebarLimits = splitLimits{first: 180, second: 420}
-	// The monitor keeps its IP line; the session list its title and a row.
+	// The monitor keeps its IP line; the connections panel its title and
+	// a row.
 	monitorLimits = splitLimits{first: 60, second: 90, vertical: true, percent: true}
 	// The terminal keeps a few rows above its command bar; the bottom
 	// panel its tabs, path bar and a row of the table.

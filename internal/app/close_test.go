@@ -56,7 +56,7 @@ func coloredSession(t *testing.T, a *App, name string, color int) *Session {
 	return s
 }
 
-// rowCenter is the middle of the session row of name.
+// rowCenter is the middle of the row of name, in a list or a tree.
 func rowCenter(t *testing.T, tt *ui.Tester, name string) (x, y float32) {
 	t.Helper()
 	r, ok := tt.Find(name)
@@ -64,6 +64,26 @@ func rowCenter(t *testing.T, tt *ui.Tester, name string) (x, y float32) {
 		t.Fatalf("no row %q; texts %q", name, tt.Texts())
 	}
 	return r.X + r.W/2, r.Y + r.H/2
+}
+
+// tabCenter is the middle of the session tab of name, over the terminal.
+func tabCenter(t *testing.T, tt *ui.Tester, name string) (x, y float32) {
+	t.Helper()
+	r, ok := tt.AccessByRole(ui.RoleGroup, name)
+	if !ok {
+		t.Fatalf("no tab %q; texts %q", name, tt.Texts())
+	}
+	return r.Bounds.X + r.Bounds.W/2, r.Bounds.Y + r.Bounds.H/2
+}
+
+// quickCenter is the middle of the start page's row of name.
+func quickCenter(t *testing.T, tt *ui.Tester, name string) (x, y float32) {
+	t.Helper()
+	r, ok := tt.AccessByRole(ui.RoleListItem, name)
+	if !ok {
+		t.Fatalf("no row %q on the start page; texts %q", name, tt.Texts())
+	}
+	return r.Bounds.X + r.Bounds.W/2, r.Bounds.Y + r.Bounds.H/2
 }
 
 // closeWith closes the session at row with the shortcut, the row's close
@@ -76,18 +96,22 @@ var closeWith = map[string]func(t *testing.T, a *App, tt *ui.Tester, row int){
 		tt.Key(ui.Ctrl|ui.Shift, ui.KeyW)
 	},
 	"button": func(t *testing.T, a *App, tt *ui.Tester, row int) {
-		// The close button shows on the selected row, and on the row
-		// under the pointer.
-		btn, ok := tt.Find(locales.CloseSession())
+		// The close button shows on the selected tab, and on the tab
+		// under the pointer: at the tab's right end.
+		r, ok := tt.AccessByRole(ui.RoleGroup, a.sessions[row].label())
 		if !ok {
+			t.Fatalf("no tab; texts %q", tt.Texts())
+		}
+		x, y := r.Bounds.X+r.Bounds.W-12, r.Bounds.Y+r.Bounds.H/2
+		tt.Move(x, y)
+		tt.Frame()
+		if _, ok := tt.Find(locales.CloseSession()); !ok {
 			t.Fatalf("no close button; texts %q", tt.Texts())
 		}
-		_, y := rowCenter(t, tt, a.sessions[row].label())
-		tt.Move(btn.X+btn.W/2, y)
-		tt.ClickAt(btn.X+btn.W/2, y)
+		tt.ClickAt(x, y)
 	},
 	"menu": func(t *testing.T, a *App, tt *ui.Tester, row int) {
-		tt.RightClickAt(rowCenter(t, tt, a.sessions[row].label()))
+		tt.RightClickAt(tabCenter(t, tt, a.sessions[row].label()))
 		if err := tt.ChooseMenuItem(locales.Close()); err != nil {
 			t.Fatalf("%v; menu %q", err, tt.Menu())
 		}

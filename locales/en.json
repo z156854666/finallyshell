@@ -87,26 +87,16 @@
   "netIfaceNotFound": "not found",
   "diskPath": "Path",
   "diskFreeSize": "Free/Size",
-  "sessionsTitle": "Sessions ({count})",
-  "@sessionsTitle": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "newConnection": "New connection",
   "newSSHConnection": "SSH connection (Linux)",
   "newRDPConnection": "Remote desktop connection (Windows)",
   "newRemoteDesktop": "New remote desktop",
   "editRemoteDesktop": "Edit remote desktop",
-  "noSessions": "No open sessions",
-  "leftPanelPages": "Sessions or connections",
   "connectionsPage": "Connections",
   "searchConnections": "Search connections",
   "connTreeEmpty": "No connections yet. Click + to add one.",
   "deleteHostBody": "It moves to the deleted connections, which “Show deleted” in the connection manager lists to restore.",
-  "scSwitchLeftPanel": "Switch sessions / connections",
+  "scSwitchLeftPanel": "Focus the connections search",
   "reconnect": "Reconnect",
   "duplicateSession": "Duplicate session",
   "resetName": "Reset name",

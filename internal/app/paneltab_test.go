@@ -19,7 +19,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// rowNames is the session list as its rows' text: "web-1", and a panel
+// rowNames is the session tabs as their names: "web-1", and a panel
 // row as "web-1 | Network".
 func rowNames(a *App) []string {
 	var out []string
@@ -51,16 +51,16 @@ func TestPanelRow(t *testing.T) {
 	if _, ok := tt.Find(locales.BackToTerminal()); ok {
 		t.Fatal("Back to terminal on a session's row")
 	}
-	// inList checks that the session list shows the panel row's name: the
-	// first text name is the list's, left of the bottom panel's tab.
-	inList := func(name string) {
+	// inTabs checks that the session tabs, over the main area, show the
+	// panel row's name: the first text with it is a tab's.
+	inTabs := func(name string) {
 		t.Helper()
-		if r, ok := tt.Find(name); !ok || r.X > a.sideWidth || r.X < panelIndent {
-			t.Errorf("%s at %+v, not in the list", name, r)
+		if r, ok := tt.Find(name); !ok || r.X < a.sideWidth || r.Y > sessionTabsHeight {
+			t.Errorf("%s at %+v, not a tab", name, r)
 		}
 	}
 	if r, _ := tt.Find(locales.TabProcesses()); r.X < a.sideWidth {
-		t.Fatalf("Processes in the list at %+v before the panel row", r)
+		t.Fatalf("Processes in the panel at %+v before the panel row", r)
 	}
 
 	// The button opens the panel row right below its session, selected,
@@ -83,7 +83,7 @@ func TestPanelRow(t *testing.T) {
 	tt.Frame()
 
 	// The bottom panel alone, at the top of the main area: no terminal.
-	if r, ok := tt.Find(locales.BackToTerminal()); !ok || r.Y > 40 {
+	if r, ok := tt.Find(locales.BackToTerminal()); !ok || r.Y < sessionTabsHeight {
 		t.Errorf("the panel's tab row at %+v, %v", r, ok)
 	}
 	if tt.Image().RGBAAt(termSpotX, termSpotY) == termColor {
@@ -97,9 +97,9 @@ func TestPanelRow(t *testing.T) {
 	if _, ok := tt.Find(locales.OpenPanelTab()); ok {
 		t.Error("Open in its own tab on the panel row")
 	}
-	inList("Processes")
+	inTabs("Processes")
 	// One session each, two sessions open.
-	if !tt.HasText("Sessions (2)") || a.sessionCount() != 2 || a.liveSessions() != 2 {
+	if !tt.HasText("web-1") || !tt.HasText("db-1") || a.sessionCount() != 2 || a.liveSessions() != 2 {
 		t.Errorf("count %d, live %d; texts %q", a.sessionCount(), a.liveSessions(), tt.Texts())
 	}
 	saveShot(t, tt, "panel-row-processes.png")
@@ -112,7 +112,7 @@ func TestPanelRow(t *testing.T) {
 	if panel.panelTab != tabNetwork || a.bottomTab != tabProcesses || listLabel(panel) != "web-1 | Network" {
 		t.Errorf("panel on %d, session on %d, label %q", panel.panelTab, a.bottomTab, listLabel(panel))
 	}
-	inList("Network")
+	inTabs("Network")
 	// The side panel's process list shows the panel row's Processes tab.
 	if err := tt.Click("mysqld"); err != nil {
 		t.Fatal(err)
@@ -186,7 +186,7 @@ func TestPanelRow(t *testing.T) {
 	// Closing a panel row ends nothing.
 	a.openPanelTab(db, tabFiles)
 	tt.Frame()
-	if err := tt.Click(locales.Close()); err != nil {
+	if err := tt.Click(locales.CloseSession()); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
@@ -231,7 +231,7 @@ func TestPanelRowMoves(t *testing.T) {
 	_, _ = y, z
 }
 
-// Dragging a session's row in the list moves its panel row with it.
+// Dragging a session's tab moves its panel row with it.
 func TestPanelRowDrag(t *testing.T) {
 	a, p := testApp(t)
 	x := demoSession(a, "alpha", "1")
@@ -241,16 +241,17 @@ func TestPanelRowDrag(t *testing.T) {
 	tt := ui.NewTester(a.View, 1280, 820)
 	p.tt = tt
 	tt.Frame()
-	fx, fy := rowCenter(t, tt, "alpha")
-	_, by := rowCenter(t, tt, "bravo")
-	dragTo(tt, fx, fy, fx, by+14)
+	// Dropped on a tab, a tab goes before it: bravo first.
+	bx, by := tabCenter(t, tt, "bravo")
+	ax, ay := tabCenter(t, tt, "alpha")
+	dragTo(tt, bx, by, ax, ay)
 	if got, want := rowNames(a), []string{"bravo", "alpha", "alpha | Files"}; !slices.Equal(got, want) {
 		t.Errorf("rows %q, want %q", got, want)
 	}
 	// The panel row alone does not move.
-	_, py := rowCenter(t, tt, "Files")
-	_, ty := rowCenter(t, tt, "bravo")
-	dragTo(tt, fx, py, fx, ty-14)
+	px, py := tabCenter(t, tt, listLabel(a.sessions[2]))
+	bx, by = tabCenter(t, tt, "bravo")
+	dragTo(tt, px, py, bx, by)
 	if got, want := rowNames(a), []string{"bravo", "alpha", "alpha | Files"}; !slices.Equal(got, want) {
 		t.Errorf("after dragging the panel row: rows %q, want %q", got, want)
 	}
@@ -454,9 +455,9 @@ func TestPanelRowRename(t *testing.T) {
 	alpha := a.sessions[0]
 	a.openPanelTab(alpha, tabNetwork)
 	tt.Frame()
-	x, y := rowCenter(t, tt, locales.TabNetwork()) // the list's row comes first
-	if x > a.sideWidth {
-		t.Fatalf("Network at %v, not in the list", x)
+	x, y := tabCenter(t, tt, listLabel(a.sessions[1])) // the panel row's tab
+	if x < a.sideWidth {
+		t.Fatalf("Network at %v, not in the tabs", x)
 	}
 	tt.RightClickAt(x, y)
 	if menu := tt.Menu(); slices.Contains(menu, locales.Rename()) || !slices.Contains(menu, locales.BackToTerminal()) {

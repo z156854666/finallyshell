@@ -69,14 +69,12 @@ supported. [configuration.md](configuration.md) covers the files on disk;
 
 ## Window layout
 
-The main window follows FinalShell's layout, except that the session tabs
-are vertical:
+The main window follows FinalShell's layout:
 
 - Top left: the server monitor of the current session.
-- Bottom left: the vertical session list, or, on its other page, the
-  saved connections in their folders (see
+- Bottom left: the saved connections in their folders (see
   [Connections page](#connections-page)).
-- Top right: the terminal.
+- Top right: the session tabs, over the terminal.
 - Bottom right: the Files, Transfers, Tunnels, Processes, Network and
   Commands tabs, which can also open in a tab of their own (see below).
 
@@ -111,7 +109,7 @@ screen is unchanged.
 
 The server monitor can go on the right too: "Move to right side" at the
 top of its context menu puts it in the same column, and "Move to left
-side" puts it back. The session list then fills the left column, and the
+side" puts it back. The connections then fill the left column, and the
 monitor's old height there comes back with it. With the bottom panel
 under the terminal, the monitor has the column alone, full height, next
 to the terminal and the panel. With the panel on the right as well, the
@@ -125,33 +123,32 @@ in a tab of its own has it beside it. The side is kept in
 
 ## Sessions and tabs
 
-The bottom left of the window is a vertical list of sessions, on the
-"Sessions (N)" page of the switch at its top. Each has a status dot:
-green for connected, yellow for
-connecting, red for failed. The list scrolls, and sessions can be
-reordered by dragging. The context menu of a session has Reconnect,
-Duplicate session, Disconnect, Rename and Close.
+The top of the right side is a row of tabs, one for each open session, as
+FinalShell has them, numbered in their order, which "Switch to tab 1–9"
+goes by. Each shows a status dot: green for connected, yellow for
+connecting, red for failed. The tabs scroll sideways where they do not
+fit, the one selected comes into view as it changes, and sessions can be
+reordered by dragging a tab onto another, which goes before it. The context menu of a session has Reconnect, Duplicate
+session, Disconnect, Rename and Close, and a double click on a tab
+reconnects a session that is not connected.
 
 A session tab can have a name of its own for this run, to tell apart
 several tabs open to the same server. "Rename" in its context menu, or F2
-while the session list has the keyboard focus, turns the tab's name into
-a text field in place, with the name selected. Enter keeps the new name;
+while a tab has the keyboard focus, turns the tab's name into a text field
+in place, with the name selected. Enter keeps the new name;
 Esc, clicking elsewhere or moving the focus away keeps the old one.
 Names are trimmed and kept to one line, and an empty name, or the host's
 own title, goes back to the host's name, as "Reset name" in the context
 menu does. A renamed tab's tooltip shows the host and its address. The
-name is shown wherever the tab is named: the session list and finding a
-row by typing in it, the transfers, and the file editor's tabs opened
-after the rename. It is never saved: it stays through Disconnect and
+name is shown wherever the tab is named: the session's tab, the transfers,
+and the file editor's tabs opened after the rename. It is never saved: it stays through Disconnect and
 Reconnect, and goes when the tab closes. "Duplicate session" opens a tab
 with the host's name. New tabs, which have no host yet, cannot be
 renamed. In the terminal, F2 goes to the program running there.
 
-The "+" button opens a new tab (see below), and the terminal button to
-its left a [local terminal](#local-terminal). New tabs can be selected,
-dragged and closed like sessions, but the count in the title does not
-include them. When every tab is closed, the right side still shows quick
-connect, and connecting there opens a new tab.
+The "+" after the last tab opens a new tab (see below). New tabs can be
+selected, dragged and closed like sessions. When every tab is closed, the right side still
+shows quick connect, and connecting there opens a new tab.
 
 When a connection succeeds, its time is recorded for the "Recent" list of
 quick connect. When a host's `noMonitor` is `true`, the server status is
@@ -177,14 +174,13 @@ the config directory. A connection whose host key has changed is refused.
 ### Bottom panel in a tab of its own
 
 The button at the right end of the bottom panel's tabs ("Open in its own
-tab", two arrows pointing out) opens a panel row: a row in the session
-list, indented right below its session, that shows the bottom panel in
-the whole right side, without the terminal, for the tables that want
-height, such as Processes and Network. The row shows the icon and the
-name of the tab it shows, such as "Network". Its tooltip, and the text
-the list finds as you type, is "server1 | Network", with the session's
-current name; a panel row is not renamed itself. The session's own row
-keeps its terminal and its bottom panel as before.
+tab", two arrows pointing out) opens a panel row: a tab right after its
+session's, that shows the bottom panel in the whole right side, without
+the terminal, for the tables that want height, such as Processes and
+Network. The tab shows the icon and the name of the tab it shows, such as
+"Network". Its tooltip is "server1 | Network", with the session's current
+name; a panel row is not renamed itself. The session's own tab keeps its
+terminal and its bottom panel as before.
 
 - The panel row is another view of the same session, not a second
   connection: it uses the session's connection, files, tunnels,
@@ -196,14 +192,13 @@ keeps its terminal and its bottom panel as before.
 - A session has at most one panel row: the button selects it when it is
   already open.
 - In the panel row the button is "Back to terminal" (two arrows pointing
-  in), which selects the session's row. The panel row stays until it is
+  in), which selects the session's tab. The panel row stays until it is
   closed with its × or its context menu (Back to terminal, Close).
 - Dragging the session moves its panel row with it; the panel row cannot
   be dragged alone. Closing the session closes its panel row too, and
   reconnecting keeps it, showing the new connection. Closing the panel
   row ends nothing.
-- A panel row is not a session: the count in "Sessions (N)" and the
-  question when quitting leave it out.
+- A panel row is not a session: the question when quitting leaves it out.
 - The terminal's actions do nothing in a panel row: full screen, find,
   the command bar.
 - A new tab has no button. A session that failed or was disconnected
@@ -211,15 +206,14 @@ keeps its terminal and its bottom panel as before.
 
 ### Coding agents in tabs
 
-While a coding agent runs in a session's shell, the session's row shows
-the agent's logo after its name, on the name's line, so that several tabs
-to the same server, each running an agent, can be told apart. The logo's
-tooltip is the agent's name ("Claude Code"). It is drawn in one color,
-the row's text color, as the other icons are. A long name is cut before
-the logo. The name itself doesn't change: a renamed tab shows its own
-name with the logo, and the transfers, finding a row by typing and the
-file editor's tabs read the name alone. A panel row shows no logo; its
-session's row does.
+While a coding agent runs in a session's shell, the session's tab shows
+the agent's logo after its name, so that several tabs to the same server,
+each running an agent, can be told apart. The logo's tooltip is the
+agent's name ("Claude Code"). It is drawn in one color, the tab's text
+color, as the other icons are. A long name is cut before the logo. The
+name itself doesn't change: a renamed tab shows its own name with the
+logo, and the transfers and the file editor's tabs read the name alone. A
+panel row shows no logo; its session's tab does.
 
 | Agent | Its program |
 |---|---|
@@ -278,23 +272,20 @@ owners' trademarks, shown only to name the program that is running.
 
 ## Connections page
 
-The switch at the top of the bottom-left panel, "Sessions (N) |
-Connections", shows the session tabs or the saved connections. The
-Connections page is the connection manager's tree of folders and
-connections, kept in the main window as MobaXterm's session tree and
-Xshell's Sessions pane are, without taking width from the terminal. It
-shows the names only, in the order the connection manager shows them
-unsorted, and never the deleted connections. A connection's tooltip
-shows `user@host:port` and the first line of its notes. A connection
-with a session open has a dot after its name, in the color of that
-session's dot in the session list: green when connected, yellow while
-connecting.
+The bottom-left panel under the server monitor is Connections: the
+connection manager's tree of folders and connections, kept in the main
+window as MobaXterm's session tree and Xshell's Sessions pane are,
+without taking width from the terminal. It shows the names only, in the
+order the connection manager shows them unsorted, and never the deleted
+connections. A connection's tooltip shows `user@host:port` and the first
+line of its notes. A connection with a session open has a dot after its
+name, in the color of that session's dot in the session tabs: green when
+connected, yellow while connecting.
 
 - Double-click a connection, or select it and press Enter, to open a
   session, in the selected tab if it is a new tab, as quick connect does.
-  The session shows on the right, and the panel stays on Connections, so
-  several connections can be opened in a row; "Sessions (N)" counts the
-  new ones. Double-click or Enter on a folder opens or closes it, as do
+  The session shows on the right, in a tab of its own, and the panel
+  stays, so several connections can be opened in a row. Double-click or Enter on a folder opens or closes it, as do
   its arrow and the Left and Right keys.
 - The search box at the top filters as the connection manager's does:
   every word must be in the name, address, user or notes, ignoring case.
@@ -314,24 +305,21 @@ connecting.
 - Deleting asks first, for a connection too: it moves to the deleted
   connections, which the page does not list, and which "Show deleted" in
   the connection manager lists to restore.
-- The "+" in the header is New connection while the page is shown: in
-  the selected folder, or the folder of the selected connection. It asks
+- The "+" in the header is New connection: in the selected folder, or
+  the folder of the selected connection. It asks
   which kind of connection to add, then opens its editor. The editor, and
   Edit, belong to the main window (not modal); once saved, the page
   selects the connection.
 - Both places read the same connections, so a rename, move or delete in
   either shows in the other at once.
-- The key "Switch sessions / connections" (Cmd+Shift+E on macOS,
-  Ctrl+Shift+E elsewhere, changed on the Shortcuts page) switches the
-  pages: to Connections with the keyboard in the search, leaving full
-  screen first, and back to the sessions with the keyboard in the
-  terminal.
+- The key "Focus the connections search" (Cmd+Shift+E on macOS,
+  Ctrl+Shift+E elsewhere, changed on the Shortcuts page) puts the keyboard
+  in the search, leaving full screen first.
 
-The page shown is `leftPanelPage` in `settings.json`, and the folders
-open are `connectionTreeExpanded`, by folder ID, so a folder keeps being
-open as it is renamed or moved. Until a folder is opened or closed on the
-page, every folder is open. Neither is synced: they are where this
-computer's window was left, as the pane sizes are.
+The folders open are `connectionTreeExpanded` in `settings.json`, by
+folder ID, so a folder keeps being open as it is renamed or moved. Until
+a folder is opened or closed, every folder is open. It is not synced: it
+is where this computer's window was left, as the pane sizes are.
 
 ## New tab and quick connect
 
@@ -371,10 +359,10 @@ away, without having to be connected once first.
 
 A local terminal is a tab whose terminal runs a shell on this computer
 instead of connecting to a server, to try something without leaving the
-app. The terminal button in the session list's header, left of "+", opens
-one at the end of the list and selects it (unless Options › General says
-not to select new tabs); the "Local terminal" button of a new tab's page
-opens one in that tab. There is no default shortcut.
+app. The "Local terminal" button of a new tab's page opens one in that
+tab; "Duplicate session" in the context menu of a local terminal's tab
+opens another, in a tab of its own, which Options › General may leave
+unselected as it does new tabs. There is no default shortcut.
 
 - It runs the Local terminal program of [Options › Terminal](#terminal-defaults)
   in the home folder, in a pseudo-terminal of MyGo's terminal plugin (a
@@ -383,13 +371,12 @@ opens one in that tab. There is no default shortcut.
   and `/bin/sh` elsewhere), or PowerShell on Windows (`pwsh.exe`, else
   `powershell.exe`, else `%COMSPEC%` or `cmd.exe`). Text is UTF-8: a host's encoding
   and Backspace and Delete settings are for servers.
-- Its row looks like a session's, with a computer in place of the status
+- Its tab looks like a session's, with a computer in place of the status
   dot, in the dot's color: green while the program runs, gray once it
-  ended, red when it could not start. Its name is "Local terminal", and
-  the line under it "This computer", or the title the program sets (OSC 0
-  and 2), as a terminal app shows it. Rename, Duplicate session (another
-  local terminal), Disconnect (ends the program), Reconnect and Close
-  work as for a session. It is counted in "Sessions (N)".
+  ended, red when it could not start. Its name is "Local terminal", or the
+  title the program sets (OSC 0 and 2), as a terminal app shows it.
+  Rename, Duplicate session (another local terminal), Disconnect (ends the
+  program), Reconnect and Close work as for a session.
 - The terminal, its font, colors, mouse, keys, find bar and full screen
   are a session's. The command bar sends to it, and keeps its commands in
   a history of its own (`history/local.txt`, see
@@ -2493,7 +2480,7 @@ Terminal › Shortcuts page.
 | New tab | Cmd+T | Ctrl+Shift+T |
 | Switch to tab 1–9 | Cmd+1…9 | Alt+1…9 |
 | Focus command bar (and back to the terminal) | Cmd+Shift+L | Ctrl+Shift+L |
-| Switch sessions / connections (the bottom-left panel's pages) | Cmd+Shift+E | Ctrl+Shift+E |
+| Focus the connections search | Cmd+Shift+E | Ctrl+Shift+E |
 | Show or hide the bottom panel | Cmd+J | Ctrl+Shift+J |
 | Split the pane right | Cmd+D | Alt+Shift+= |
 | Split the pane down | Cmd+Shift+D | Alt+Shift+- |

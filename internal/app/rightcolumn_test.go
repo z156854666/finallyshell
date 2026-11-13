@@ -42,7 +42,7 @@ func TestPanelOnRight(t *testing.T) {
 	}
 	left := winW - a.rightWidth
 	r, ok := tt.Find(locales.TabFiles())
-	if !ok || r.X < left || r.Y > 40 {
+	if !ok || r.X < left || r.Y > sessionTabsHeight+16 {
 		t.Errorf("Files tab at %+v, %v; the column starts at %v", r, ok, left)
 	}
 	if !tt.HasText("7 processes") {

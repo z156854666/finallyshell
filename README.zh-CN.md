@@ -3,7 +3,7 @@
 </h1>
 
 <p align="center">
-  布局和 FinalShell 一样、会话标签竖着排的 SSH 客户端，用 Go 编写。
+  布局和 FinalShell 一样、会话标签在终端上方的 SSH 客户端，用 Go 编写。
 </p>
 
 <p align="center">
@@ -24,10 +24,10 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/main-zh-CN.png" alt="Finallyshell 主窗口：服务器监控、会话列表、终端和文件面板">
+  <img src="docs/screenshots/main-zh-CN.png" alt="Finallyshell 主窗口：服务器监控、连接、会话标签、终端和文件面板">
 </p>
 
-用过 FinalShell 的话，打开就会用：左上是服务器状态，下面是会话，右边是终端，终端下面是服务器上的文件。Finallyshell 保留了这个布局，把会话标签放进左下角的竖向列表，可以滚动，也可以拖动排序。
+用过 FinalShell 的话，打开就会用：左上是服务器状态，下面是连接，右边终端上方是会话标签，终端下面是服务器上的文件。Finallyshell 保留了这个布局，标签放不下时可以横向滚动，也可以拖动排序。
 
 它是用 Go 和 [MyGo](https://github.com/egoist/mygo) 界面库写的原生程序，不需要装 Java。终端用的是 [Ghostty](https://ghostty.org) 的终端引擎 libghostty-vt。密码存在系统的钥匙串里，不写进文件。
 
@@ -153,7 +153,7 @@ locale 不是 UTF-8 的服务器也能用：终端可以转换 GBK、GB18030、B
 
 ### 其他
 
-- 想在自己电脑上开个 shell？“+”旁边的终端按钮打开一个本地终端标签，终端、命令输入框和快捷命令都和会话一样；运行什么程序（WSL、PowerShell、fish 等）在“选项 › 终端”里选。
+- 想在自己电脑上开个 shell？新标签页上的“本地终端”打开一个本地终端标签，终端、命令输入框和快捷命令都和会话一样；运行什么程序（WSL、PowerShell、fish 等）在“选项 › 终端”里选。
 - 私钥放在 Bitwarden、1Password 或 `ssh-agent` 里？认证方法选“SSH Agent”，就用 agent 里的私钥登录，硬盘上不需要私钥文件；agent 的地址在“选项 › 常规”里设置。
 - 在运行 Claude Code、Codex、Gemini CLI 等编程智能体？运行期间会话标签上会显示它的图标，连到同一台服务器的几个标签一眼就能分清。
 - 中文和英文界面，默认跟随系统，也可以在“选项”里切换。
@@ -185,7 +185,7 @@ locale 不是 UTF-8 的服务器也能用：终端可以转换 GBK、GB18030、B
 | 新标签页 | <kbd>Cmd</kbd>+<kbd>T</kbd> | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> |
 | 切换到第 1 到 9 个标签 | <kbd>Cmd</kbd>+<kbd>1</kbd>…<kbd>9</kbd> | <kbd>Alt</kbd>+<kbd>1</kbd>…<kbd>9</kbd> |
 | 命令输入框，再按回到终端 | <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd> | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd> |
-| 左侧面板切换会话/连接 | <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd> | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd> |
+| 定位到连接搜索 | <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd> | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd> |
 | 显示或隐藏底部面板 | <kbd>Cmd</kbd>+<kbd>J</kbd> | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>J</kbd> |
 | 向右分屏 | <kbd>Cmd</kbd>+<kbd>D</kbd> | <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>=</kbd> |
 | 向下分屏 | <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> | <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>-</kbd> |

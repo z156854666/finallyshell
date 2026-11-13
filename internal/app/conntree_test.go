@@ -58,25 +58,18 @@ func connPageApp(t *testing.T, lang string) (*App, *fakePlatform, *ui.Tester) {
 	tt.SetLocale(lang)
 	p.tt = tt
 	tt.Frame()
-	if err := tt.Click(locales.ConnectionsPage()); err != nil {
-		t.Fatal(err)
-	}
 	return a, p, tt
 }
 
-// The header switches the panel between the sessions and the tree of the
-// connections, which has the manager's folders, every one open at first,
-// and no deleted host; the page is kept.
+// The left panel is the tree of the connections, which has the manager's
+// folders, every one open at first, and no deleted host.
 func TestConnectionPage(t *testing.T) {
 	a, p, tt := connPageApp(t, "en")
-	if a.left.page != leftConnections || config.LoadSettings().LeftPanelPage != config.LeftPanelConnections {
-		t.Fatalf("page %d, saved %q", a.left.page, config.LoadSettings().LeftPanelPage)
-	}
 	want := []string{"Production", "  Databases", "    pg-main", "  web-1", "  web-2", "Lab", "  raspberry", "vps"}
 	if got := connShown(a); !slices.Equal(got, want) {
 		t.Fatalf("rows %q, want %q", got, want)
 	}
-	if tt.HasText("old-box") || tt.HasText(locales.NoSessions()) || !tt.HasText(locales.SessionsTitle(0)) {
+	if tt.HasText("old-box") || !tt.HasText(locales.ConnectionsPage()) {
 		t.Errorf("texts %q", tt.Texts())
 	}
 	// One column: no address, no notes.
@@ -113,19 +106,9 @@ func TestConnectionPage(t *testing.T) {
 		t.Fatalf("opened: %q", got)
 	}
 
-	// Back to the sessions.
-	if err := tt.Click(locales.SessionsTitle(0)); err != nil {
-		t.Fatal(err)
-	}
-	if a.left.page != leftSessions || !tt.HasText(locales.NoSessions()) || config.LoadSettings().LeftPanelPage != "" {
-		t.Errorf("page %d; texts %q", a.left.page, tt.Texts())
-	}
 	p.SetLocale("zh-Hans")
 	tt.Frame()
-	if err := tt.Click("连接"); err != nil {
-		t.Fatalf("%v; texts %q", err, tt.Texts())
-	}
-	for _, s := range []string{"会话 (0)", "连接", "搜索连接", "Production"} {
+	for _, s := range []string{"连接", "搜索连接", "Production", locales.NewTab()} {
 		if !tt.HasText(s) {
 			if _, ok := tt.Access(s); !ok {
 				t.Errorf("missing %q; texts %q", s, tt.Texts())
@@ -153,8 +136,8 @@ func TestConnectFromPage(t *testing.T) {
 	x, y := connRow(t, tt, "web-2")
 	tt.ClickAt(x, y)
 	tt.ClickAt(x, y) // a double click
-	if len(a.sessions) != 1 || tab.Host != a.hosts.Host("web-2") || a.current() != tab || a.left.page != leftConnections {
-		t.Fatalf("%d sessions, tab %v, page %d", len(a.sessions), tab.Host, a.left.page)
+	if len(a.sessions) != 1 || tab.Host != a.hosts.Host("web-2") || a.current() != tab {
+		t.Fatalf("%d sessions, tab %v", len(a.sessions), tab.Host)
 	}
 	if _, ok := a.sessionDot(a.hosts.Host("web-2")); !ok {
 		t.Error("no dot while connecting")
@@ -175,15 +158,15 @@ func TestConnectFromPage(t *testing.T) {
 	if _, ok := a.sessionDot(a.hosts.Host("web-1")); ok {
 		t.Error("a dot on a host with no session")
 	}
-	if !tt.HasText(locales.SessionsTitle(1)) {
-		t.Errorf("the count; texts %q", tt.Texts())
+	if !tt.HasText(a.sessions[0].label()) {
+		t.Errorf("no tab for the session opened; texts %q", tt.Texts())
 	}
 
 	// Enter on the next one opens it in a tab of its own, the page still
 	// there.
 	tt.ClickAt(connRow(t, tt, "pg-main"))
 	tt.Key(0, ui.KeyEnter)
-	if len(a.sessions) != 2 || a.sessions[1].Host != a.hosts.Host("pg") || a.left.page != leftConnections {
+	if len(a.sessions) != 2 || a.sessions[1].Host != a.hosts.Host("pg") {
 		t.Fatalf("%d sessions", len(a.sessions))
 	}
 	p.until(t, "the second shell", func() bool {
@@ -285,9 +268,6 @@ func TestConnectionPageKeepsFolders(t *testing.T) {
 
 	b := New(p)
 	b.saveHosts = func(*config.Store) error { return nil }
-	if b.left.page != leftConnections {
-		t.Errorf("page %d", b.left.page)
-	}
 	tt2 := ui.NewTester(b.View, 1280, 820)
 	tt2.Frame()
 	if got := connShown(b); !slices.Equal(got, []string{"Production", "Homelab", "  raspberry", "vps"}) {
@@ -417,7 +397,6 @@ func TestConnectionPageMenus(t *testing.T) {
 			managerHosts(a)
 			a.connTree.tree.Open.Clear()
 			a.restoreLeftPanel()
-			a.left.page = leftConnections
 			for _, id := range []string{"web-1", "vps"} {
 				s := newSession(a.hosts.Host(id))
 				s.status = statusConnected
@@ -550,8 +529,7 @@ func TestConnectionPageMultiSelect(t *testing.T) {
 	}
 }
 
-// The shortcut switches the pages: to the connections with the keyboard
-// in the search, and back.
+// The shortcut puts the keyboard in the search of the connections panel.
 func TestConnectionPageShortcut(t *testing.T) {
 	a, _ := testApp(t)
 	managerHosts(a)
@@ -559,21 +537,18 @@ func TestConnectionPageShortcut(t *testing.T) {
 	tt.Frame()
 	k := a.shortcut(scLeftPanel)
 	tt.Key(k.Mods, k.Key)
-	if a.left.page != leftConnections || !tt.Focused(locales.SearchConnections()) {
-		t.Fatalf("page %d, search focused %v", a.left.page, tt.Focused(locales.SearchConnections()))
+	if !tt.Focused(locales.SearchConnections()) {
+		t.Fatalf("search focused %v", tt.Focused(locales.SearchConnections()))
 	}
 	tt.Type("pi")
 	if got := connShown(a); !slices.Equal(got, []string{"Lab", "  raspberry"}) {
 		t.Errorf("rows %q", got)
 	}
-	tt.Key(k.Mods, k.Key)
-	if a.left.page != leftSessions {
-		t.Errorf("page %d", a.left.page)
-	}
 	// Rebound, the new key does it.
+	tt.ClickAt(termSpotX, termSpotY)
 	rebind(&a.settings.Shortcuts, "linux", scLeftPanel, keyCombo{ui.Ctrl | ui.Alt, ui.KeyJ})
 	tt.Key(ui.Ctrl|ui.Alt, ui.KeyJ)
-	if a.left.page != leftConnections {
-		t.Errorf("rebound: page %d", a.left.page)
+	if !tt.Focused(locales.SearchConnections()) {
+		t.Errorf("rebound: search focused %v", tt.Focused(locales.SearchConnections()))
 	}
 }

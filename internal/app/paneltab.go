@@ -3,7 +3,6 @@ package app
 import (
 	"slices"
 
-	"finallyshell/internal/icons"
 	"finallyshell/internal/widgets"
 	"finallyshell/locales"
 
@@ -12,9 +11,9 @@ import (
 
 // A panel row shows a session's bottom panel (Files, Transfers, Tunnels,
 // Processes, Network, Commands) in the whole main area, without the
-// terminal, as FinalShell opens a panel in a tab of its own. The button at the right
-// of the bottom panel's tabs opens it, right below its session in the
-// list, indented, with the icon and the name of the tab it shows.
+// terminal, as FinalShell opens a panel in a tab of its own. The button at
+// the right of the bottom panel's tabs opens it, right after its session's
+// tab (sessiontabs.go), with the icon and the name of the tab it shows.
 //
 // It is a second view of the session, not a second connection: a Session
 // without a Host whose panelOf is the session, whose connection, files,
@@ -26,10 +25,6 @@ import (
 //
 // As it has no Host, isNewTab holds for it too: isPanelTab tells it from
 // a new tab.
-
-// panelIndent is how far a panel row's content is indented from its
-// session's.
-const panelIndent = 16
 
 // isPanelTab tells whether s is a panel row; false for nil.
 func (s *Session) isPanelTab() bool { return s != nil && s.panelOf != nil }
@@ -128,52 +123,17 @@ func panelTabName(p *Session) string {
 	return panelTabNames[p.panelTab]()
 }
 
-// panelLabel is the panel row p where only text fits, as its tooltip and
-// the text the list finds as the user types: "server1 | Network".
+// panelLabel is the panel row p where only text fits, as its tooltip:
+// "server1 | Network".
 func panelLabel(p *Session) string {
 	return locales.PanelTabLabel(p.panelOf.label(), panelTabName(p))
 }
 
-// listLabel is the text of the row s in the session list.
+// listLabel is the name s goes by where a list, or a window title, shows
+// one line for it: its own, or "server1 | Network" for a panel row.
 func listLabel(s *Session) string {
 	if s.isPanelTab() {
 		return panelLabel(s)
 	}
 	return s.label()
-}
-
-// panelRow is the row of the panel row p in the session list: indented
-// under its session's, one line with its tab's icon and name. It reports
-// whether the user closed it.
-func (a *App) panelRow(c *ui.Context, p *Session, active bool) (closed bool) {
-	row := ui.Row(c).Gap(8).Padding(5, 4, 5, 8+panelIndent).Radius(5).AlignItems(ui.Center).Tooltip(panelLabel(p))
-	hovered := row.Hovered()
-	row.ContextMenu(func(m *ui.Menu) {
-		if m.Item(locales.BackToTerminal()).Chosen() {
-			a.backToTerminal(p)
-		}
-		m.Separator()
-		if m.Item(locales.Close()).Danger().Chosen() {
-			closed = true
-		}
-	})
-	row.Children(func() {
-		icon := "app-window"
-		if p.panelTab >= 0 && p.panelTab < len(panelTabIcons) {
-			icon = panelTabIcons[p.panelTab]
-		}
-		ui.Icon(c, icons.Get(icon)).FontSize(14).Shrink(0)
-		name := ui.Text(c, panelTabName(p)).SingleLine().Grow(1).MinWidth(0)
-		if active {
-			name.Bold()
-		}
-		closeBtn := widgets.IconButton(c, "x", locales.Close()).Size(20, 20)
-		if !hovered && !active {
-			closeBtn.Invisible()
-		}
-		if closeBtn.Clicked() {
-			closed = true
-		}
-	})
-	return closed
 }

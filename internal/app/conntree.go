@@ -13,36 +13,27 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// The panel under the server monitor has two pages, switched in its
-// header: the session tabs (sidebar.go), and Connections, the saved hosts
-// in their folders, as MobaXterm's session tree and Xshell's Sessions
-// pane keep them in the main window. Connections is the connection
-// manager's tree (manager.go), with its search, menus and dragging, in
-// one column: the names, a dot on the hosts with a session open, and the
-// rest in a tooltip. Opening a host there opens a session as the start
-// page does, and the page stays, to open the next.
+// The left panel under the server monitor is Connections, the saved hosts
+// in their folders, as MobaXterm's session tree and Xshell's Sessions pane
+// keep them in the main window: the connection manager's tree
+// (manager.go), with its search, menus and dragging, in one column: the
+// names, a dot on the hosts with a session open, and the rest in a
+// tooltip. Opening a host there opens a session as the start page does,
+// and the panel stays, to open the next. The open sessions are the tabs
+// over the terminal (sessiontabs.go).
 //
 // Both trees read a.hosts, so a change in one shows in the other at once.
 // Each has its own managerState: what is open, chosen and searched, and
-// its questions, which this page asks in the main window. It never shows
+// its questions, which this panel asks in the main window. It never shows
 // the deleted hosts, so it asks before deleting one, and has neither the
 // manager's filter nor its sort.
 //
-// The page shown and the folders open are kept in the settings
-// (leftPanelPage, connectionTreeExpanded), on this device only: the
-// folders by their IDs, which stay as they are renamed and moved.
+// The folders open are kept in the settings (connectionTreeExpanded), on
+// this device only: by their IDs, which stay as they are renamed and moved.
 
-// The pages of the left panel, in its switch's order.
-const (
-	leftSessions = iota
-	leftConnections
-)
-
-// leftPanel is the page the left panel shows, and what its Connections
-// page keeps besides its tree.
+// leftPanel is what the left panel keeps besides its tree.
 type leftPanel struct {
-	page int
-	// focusSearch gives the page's search the keyboard in the next frame
+	// focusSearch gives the panel's search the keyboard in the next frame
 	// it shows.
 	focusSearch bool
 	// saved are the IDs of the folders open, as the settings have them.
@@ -52,12 +43,9 @@ type leftPanel struct {
 // connIndent is how far each level of the tree is indented, in DIPs.
 const connIndent = 14
 
-// restoreLeftPanel shows the page and opens the folders the settings
-// keep: every folder before the user opened or closed any.
+// restoreLeftPanel opens the folders the settings keep: every folder
+// before the user opened or closed any.
 func (a *App) restoreLeftPanel() {
-	if a.settings.LeftPanelPage == config.LeftPanelConnections {
-		a.left.page = leftConnections
-	}
 	open := &a.connTree.tree.Open
 	if ids := a.settings.ConnectionTreeExpanded; ids != nil {
 		for _, id := range *ids {
@@ -99,101 +87,38 @@ func (a *App) keepFoldersOpen() {
 	a.saveSettings(a.settings)
 }
 
-// setLeftPage shows page in the left panel, and keeps the choice.
-func (a *App) setLeftPage(page int) {
-	if page == a.left.page {
-		return
-	}
-	a.left.page = page
-	a.settings.LeftPanelPage = ""
-	if page == leftConnections {
-		a.settings.LeftPanelPage = config.LeftPanelConnections
-		a.endRename(false) // its field is in a row no longer shown
-	}
-	a.saveSettings(a.settings)
-}
-
-// switchLeftPanel is the shortcut's: the Connections page with the
-// keyboard in its search, or back to the sessions, with the keyboard in
-// the terminal.
+// switchLeftPanel is the shortcut's: the connections panel's search takes
+// the keyboard, leaving full screen first to show it.
 func (a *App) switchLeftPanel() {
-	if a.left.page == leftConnections {
-		a.setLeftPage(leftSessions)
-		if s := a.current(); s != nil && s.term() != nil {
-			s.bar.toTerm = true
-		}
-		return
-	}
 	if a.fullScreen.on {
 		a.setFullScreen(false) // to show it
 	}
-	a.setLeftPage(leftConnections)
 	a.left.focusSearch = true
 }
 
-// leftPanelHeader is the switch between the pages, and the buttons: the
-// options, then a local terminal and a new tab, or a new connection on
-// the Connections page.
-func (a *App) leftPanelHeader(c *ui.Context) {
-	ui.Row(c).Padding(6, 6, 6, 8).Gap(2).AlignItems(ui.Center).Children(func() {
-		page := a.left.page
-		if leftPageSwitch(c, &page, locales.SessionsTitle(a.sessionCount()), locales.ConnectionsPage()).Changed() {
-			a.setLeftPage(page)
-		}
-		ui.Spacer(c)
+// connectionHeader is the panel's header: its name, the options button and
+// the one that adds a connection.
+func (a *App) connectionHeader(c *ui.Context) {
+	ui.Row(c).Padding(8, 6, 6, 8).Gap(2).AlignItems(ui.Center).Children(func() {
+		ui.Text(c, locales.ConnectionsPage()).Bold().SingleLine().Grow(1).MinWidth(0)
 		if headerButton(c, "settings", locales.Options()).Clicked() {
 			a.openOptions()
 		}
-		if a.left.page == leftConnections {
-			if headerButton(c, "plus", locales.NewConnection()).Clicked() {
-				m := &a.connTree
-				a.newConnectionIn(m, a.treeTarget(m))
-			}
-			return
-		}
-		if headerButton(c, "square-terminal", locales.LocalTerminal()).Clicked() {
-			a.openLocal(nil)
-		}
-		if headerButton(c, "plus", locales.NewTab()).Clicked() {
-			a.NewTab()
+		if headerButton(c, "plus", locales.NewConnection()).Clicked() {
+			m := &a.connTree
+			a.newConnectionIn(m, a.treeTarget(m))
 		}
 	})
 }
 
 // headerButton is a button of the left panel's header: an icon button a
-// little narrower than the others, so that the page switch keeps its
-// labels beside three of them in a sidebar of the default width.
+// little narrower than the others, so that the header keeps its buttons in
+// a sidebar of the default width.
 func headerButton(c *ui.Context, icon, label string) ui.Element {
 	return widgets.IconButton(c, icon, label).Width(20)
 }
 
-// leftPageSwitch is the switch between the pages, a segmented control
-// with the theme's look in small text, whose segments shrink, cutting
-// their labels short, in a sidebar too narrow for them and the buttons.
-func leftPageSwitch(c *ui.Context, page *int, labels ...string) ui.Element {
-	parts := ui.SegmentedBase(c, page, len(labels))
-	track := parts.Track.Label(locales.LeftPanelPages()).MinWidth(0).Shrink(1).
-		AlignItems(ui.Stretch).Padding(theme.Space(0.5)).Gap(theme.Space(0.5)).
-		Radius(theme.Radius).Background(theme.Surface).Border(1, theme.Border)
-	track.Children(func() {
-		for i, label := range labels {
-			s := parts.Segment(i).MinWidth(0).Shrink(1).Padding(theme.Space(1), theme.Space(2)).
-				Radius(max(theme.Radius-theme.Space(0.5), 0)).TextColor(theme.Text)
-			switch {
-			case i == *page && theme.Dark:
-				s.Background(theme.SurfacePressed).Shadow(0, 1, 2, 0, ui.RGBA(0, 0, 0, 0.12))
-			case i == *page:
-				s.Background(theme.Background).Shadow(0, 1, 2, 0, ui.RGBA(0, 0, 0, 0.12))
-			case s.Hovered():
-				s.Background(theme.SurfaceHover)
-			}
-			s.Children(func() { ui.Text(c, label).FontSize(12).SingleLine().MinWidth(0) })
-		}
-	})
-	return track
-}
-
-// connectionPage is the Connections page: the search over the tree.
+// connectionPage is the panel's search over the tree.
 func (a *App) connectionPage(c *ui.Context) {
 	m := &a.connTree
 	var later []func() // what changes the tree, once it is built
@@ -224,8 +149,8 @@ func (a *App) connectionPage(c *ui.Context) {
 	a.keepFoldersOpen()
 }
 
-// connTreeView is the page's tree: one column, as the rows of the
-// session list are, with its own arrows (the Prefix of its rows), so
+// connTreeView is the panel's tree: one column, with its own arrows (the
+// Prefix of its rows), so
 // that the whole row takes the menu and the drops.
 func (a *App) connTreeView(c *ui.Context, m *managerState, later *[]func()) {
 	t := a.newManagerTree(m)
@@ -327,7 +252,7 @@ func hostTooltip(h *config.Host) string {
 }
 
 // sessionDot is the color of the dot of h's row: the color of its
-// sessions' dots in the session list, of one connected, else of one
+// sessions' dots on the session tabs, of one connected, else of one
 // connecting. ok is false when none is.
 func (a *App) sessionDot(h *config.Host) (color ui.Color, ok bool) {
 	for _, s := range a.sessions {

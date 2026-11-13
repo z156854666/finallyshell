@@ -3,7 +3,6 @@ package app
 import (
 	"fmt"
 
-	"finallyshell/internal/icons"
 	"finallyshell/internal/monitor"
 	"finallyshell/internal/widgets"
 	"finallyshell/locales"
@@ -209,164 +208,11 @@ func diskTable(c *ui.Context, disks []monitor.Disk) {
 	})
 }
 
-// sessionPanel is the list of open sessions: the vertical tabs, or the
-// saved connections on the other page of the panel (conntree.go).
-func (a *App) sessionPanel(c *ui.Context) {
+// connectionPanel is the left panel under the server monitor: its header,
+// and the saved connections in their folders (conntree.go).
+func (a *App) connectionPanel(c *ui.Context) {
 	ui.Column(c).Fill().BorderWidth(1, 0, 0, 0).BorderColor(colors.frame).Children(func() {
-		a.leftPanelHeader(c)
-		if a.left.page == leftConnections {
-			a.connectionPage(c)
-			return
-		}
-		// No Key: with one, the list follows the chosen session by it, and
-		// chooses none once that session is gone, even though a.active
-		// already holds the neighbor closeSession picked, which is on the
-		// same row. a.active is the app's: closeSession and moveSessions
-		// keep it on the right row.
-		a.sessList.Selected = &a.active
-		a.sessList.Label = func(i int) string { return listLabel(a.sessions[i]) }
-		a.sessList.Reorder = a.moveSessions
-		// A row asks to close its session, which closes once the list is
-		// built: closing it in the row would leave the rows after it to
-		// build with fewer sessions than the list was given.
-		var closing *Session
-		ui.List(c, &a.sessList, len(a.sessions), func(i int) {
-			if a.sessionRow(c, a.sessions[i], i == a.active) {
-				closing = a.sessions[i]
-			}
-		}).Grow(1).Padding(0, 4, 4, 4).Children(func() {
-			if len(a.sessions) == 0 {
-				widgets.Muted(c, locales.NoSessions()).Padding(8, 10)
-			}
-		})
-		a.renameKey(c)
-		if closing != nil {
-			a.closeSession(closing)
-		}
+		a.connectionHeader(c)
+		a.connectionPage(c)
 	})
-}
-
-// sessionCount is the number of sessions, local terminals included, new
-// tabs and panel rows left out.
-func (a *App) sessionCount() int {
-	n := 0
-	for _, s := range a.sessions {
-		if !s.isNewTab() {
-			n++
-		}
-	}
-	return n
-}
-
-// sessionRow is the tab of s. It reports whether the user closed it.
-func (a *App) sessionRow(c *ui.Context, s *Session, active bool) (closed bool) {
-	if s.isPanelTab() {
-		return a.panelRow(c, s, active)
-	}
-	row := ui.Row(c).Gap(8).Padding(5, 4, 5, 8).Radius(5)
-	hovered := row.Hovered()
-	if s.isNewTab() {
-		row.ContextMenu(func(m *ui.Menu) {
-			if m.Item(locales.Close()).Danger().Chosen() {
-				closed = true
-			}
-		})
-		row.Children(func() {
-			// As wide as a status dot, so that the names line up.
-			ui.Box(c).Size(8, 8).Center().Shrink(0).Children(func() {
-				ui.Icon(c, icons.Get("app-window")).FontSize(13).TextColor(rowSubColor(active))
-			})
-			closed = rowText(c, locales.NewTab(), locales.NotConnected(), active, hovered) || closed
-		})
-		return closed
-	}
-	row.ContextMenu(func(m *ui.Menu) {
-		if m.Item(locales.Reconnect()).Chosen() {
-			a.reconnect(s)
-		}
-		if m.Item(locales.DuplicateSession()).Chosen() {
-			// In a tab of its own, though a new tab is selected.
-			if s.isLocal() {
-				a.openLocal(nil)
-			} else {
-				a.openSessionIn(nil, s.Host)
-			}
-		}
-		if m.Item(locales.Disconnect()).Disabled(s.status != statusConnected && s.status != statusConnecting).Chosen() {
-			a.transfers.cancelSession(s)
-			s.disconnect()
-			s.status, s.err = statusClosed, nil
-		}
-		m.Separator()
-		a.paneMenu(m, s)
-		m.Separator()
-		a.renameMenu(m, s)
-		m.Separator()
-		if m.Item(locales.Close()).Danger().Chosen() {
-			closed = true
-		}
-	})
-	// RowDoubleClicked, not DoubleClicked: that makes this row clickable,
-	// and the press goes to the innermost clickable element, so the
-	// list's row, which chooses the session, would never see a click.
-	renaming := a.renaming(s)
-	if row.RowDoubleClicked() && !renaming && s.status != statusConnected && s.status != statusConnecting {
-		a.reconnect(s)
-	}
-	if s.name != "" && !renaming {
-		row.Tooltip(renamedTooltip(s))
-	}
-	row.Children(func() {
-		sessionMark(c, s, active)
-		sub := s.target()
-		switch {
-		case s.status != statusConnected:
-			sub = s.statusText()
-		case s.isLocal() && s.programTitle() != "":
-			sub = s.programTitle() // the program's own, as a terminal app's tab
-		}
-		name := func() { a.sessionName(c, s, active) }
-		if renaming {
-			name = func() { a.renameField(c, active) }
-		}
-		closed = rowLines(c, name, sub, active, hovered) || closed
-	})
-	return closed
-}
-
-// rowText is the name and the line under it of a session row, and its
-// close button, which shows on the selected row and the row hovered. It
-// reports whether the button was clicked.
-func rowText(c *ui.Context, name, sub string, active, hovered bool) bool {
-	return rowLines(c, func() { rowName(c, name, active) }, sub, active, hovered)
-}
-
-// rowLines is rowText with its name line built by name: the field of a
-// row being renamed (rename.go).
-func rowLines(c *ui.Context, name func(), sub string, active, hovered bool) bool {
-	ui.Column(c).Grow(1).MinWidth(0).Children(func() {
-		name()
-		ui.Text(c, sub).FontSize(11.5).SingleLine().TextColor(rowSubColor(active))
-	})
-	closeBtn := widgets.IconButton(c, "x", locales.CloseSession()).Size(20, 20)
-	if !hovered && !active {
-		closeBtn.Invisible()
-	}
-	return closeBtn.Clicked()
-}
-
-// rowName is the name line of a session row.
-func rowName(c *ui.Context, name string, active bool) ui.Element {
-	t := ui.Text(c, name).SingleLine()
-	if active {
-		t.Bold()
-	}
-	return t
-}
-
-func rowSubColor(active bool) ui.Color {
-	if active {
-		return theme.AccentText.Alpha(0.8)
-	}
-	return theme.TextMuted
 }

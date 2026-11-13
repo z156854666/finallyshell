@@ -147,18 +147,20 @@ func startApp(t *testing.T) (*App, *fakePlatform, *ui.Tester, map[string]*config
 }
 
 // shownInOrder fails unless the texts show, one under the other.
+// shownInOrder checks that the start page lists texts from the top down:
+// the rows of its list, not the same names in the connections panel.
 func shownInOrder(t *testing.T, tt *ui.Tester, texts ...string) {
 	t.Helper()
 	var last float32 = -1
 	for _, s := range texts {
-		r, ok := tt.Find(s)
+		r, ok := tt.AccessByRole(ui.RoleListItem, s)
 		if !ok {
 			t.Fatalf("%q not shown; texts %q", s, tt.Texts())
 		}
-		if r.Y <= last {
+		if r.Bounds.Y <= last {
 			t.Errorf("%q is not under the text before it", s)
 		}
-		last = r.Y
+		last = r.Bounds.Y
 	}
 }
 
@@ -205,8 +207,11 @@ func TestStartPageListsRecentAndClears(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Type("db")
-	if !tt.HasText("db-1") || tt.HasText("new-app") {
+	if _, ok := tt.AccessByRole(ui.RoleListItem, "db-1"); !ok {
 		t.Errorf("search not filtered; texts %q", tt.Texts())
+	}
+	if _, ok := tt.AccessByRole(ui.RoleListItem, "new-app"); ok {
+		t.Errorf("search lists new-app; texts %q", tt.Texts())
 	}
 }
 
@@ -253,7 +258,7 @@ func TestStartPageShowsNewHost(t *testing.T) {
 func TestConnectFromNewTab(t *testing.T) {
 	connectBy := map[string]func(t *testing.T, a *App, tt *ui.Tester){
 		"click": func(t *testing.T, a *App, tt *ui.Tester) {
-			tt.ClickAt(rowCenter(t, tt, "web-1"))
+			tt.ClickAt(quickCenter(t, tt, "web-1"))
 		},
 		"enter": func(t *testing.T, a *App, tt *ui.Tester) {
 			tt.Type("shop") // the search has the focus
@@ -281,7 +286,7 @@ func TestConnectFromNewTab(t *testing.T) {
 			h := a.hosts.Host("id-web-1")
 			// A port nothing listens on, to fail at once.
 			h.Auth, h.KeyPath, h.Addr, h.Port = config.AuthPassword, "", "127.0.0.1", 1
-			tt.ClickAt(rowCenter(t, tt, "web-1"))
+			tt.ClickAt(quickCenter(t, tt, "web-1"))
 			// Asked once the credential store has none.
 			a.plat.(*fakePlatform).until(t, "the password prompt", func() bool { return a.pwOpen })
 			if a.sessions[1].Host != nil {
@@ -381,7 +386,7 @@ func TestOpenWithNewTabsOpen(t *testing.T) {
 
 			a.active = 0 // the new tab
 			tt.Frame()
-			tt.RightClickAt(rowCenter(t, tt, s.Host.Target()))
+			tt.RightClickAt(tabCenter(t, tt, s.label()))
 			if err := tt.ChooseMenuItem(locales.DuplicateSession()); err != nil {
 				t.Fatalf("%v; menu %q", err, tt.Menu())
 			}
@@ -416,19 +421,18 @@ func TestNewTabRows(t *testing.T) {
 	a, _, tt, _ := startApp(t)
 	s := demoSession(a, "web-1", "203.0.113.10") // a session after the new tab
 
-	// The "+" button, after the options and local terminal buttons, adds
-	// another new tab and selects it.
-	set, ok := tt.Find(locales.Options())
+	// The "+" after the last tab adds another new tab and selects it.
+	plus, ok := tt.AccessByRole(ui.RoleButton, locales.NewTab())
 	if !ok {
-		t.Fatal("no options button")
+		t.Fatalf("no + button; texts %q", tt.Texts())
 	}
-	tt.ClickAt(set.X+2*(set.W+2)+set.W/2, set.Y+set.H/2)
+	tt.ClickAt(plus.Bounds.X+plus.Bounds.W/2, plus.Bounds.Y+plus.Bounds.H/2)
 	if len(a.sessions) != 3 || !a.sessions[2].isNewTab() || a.active != 2 {
 		t.Fatalf("+ made %d rows, active %d", len(a.sessions), a.active)
 	}
 	tt.Frame()
-	if !tt.HasText(locales.SessionsTitle(1)) {
-		t.Errorf("new tabs counted as sessions; texts %q", tt.Texts())
+	if a.sessionCount() != 1 {
+		t.Errorf("new tabs counted as sessions: %d", a.sessionCount())
 	}
 
 	// Ctrl+Tab goes through the new tabs and the session; the side panel
@@ -448,7 +452,7 @@ func TestNewTabRows(t *testing.T) {
 	}
 
 	// A new tab's menu has Close alone.
-	tt.RightClickAt(rowCenter(t, tt, locales.NotConnected())) // the + button is "New tab" too
+	tt.RightClickAt(tabCenter(t, tt, locales.NewTab()))
 	if items := tt.Menu(); len(items) != 1 {
 		t.Errorf("menu %q", items)
 	}
@@ -473,10 +477,17 @@ func TestNewTabRows(t *testing.T) {
 	if len(a.sessions) != 0 {
 		t.Fatalf("%d rows left", len(a.sessions))
 	}
-	if !tt.HasText(locales.QuickConnect()) || !tt.HasText(locales.NoSessions()) || !tt.HasText("IP -") {
+	if !tt.HasText(locales.QuickConnect()) || !tt.HasText("IP -") {
 		t.Errorf("no start page with the list empty; texts %q", tt.Texts())
 	}
-	tt.ClickAt(rowCenter(t, tt, "db-1"))
+	if _, ok := tt.AccessByRole(ui.RoleGroup, ""); ok {
+		t.Error("a tab left of the closed ones")
+	}
+	if r, ok := tt.AccessByRole(ui.RoleListItem, "db-1"); ok {
+		tt.ClickAt(r.Bounds.X+r.Bounds.W/2, r.Bounds.Y+r.Bounds.H/2)
+	} else {
+		t.Fatalf("no db-1 on the start page; texts %q", tt.Texts())
+	}
 	if len(a.sessions) != 1 || a.sessions[0].Host.Name != "db-1" || a.active != 0 {
 		t.Errorf("connecting with no row opened %d rows, active %d", len(a.sessions), a.active)
 	}

@@ -63,8 +63,8 @@ func TestConnectAllFromPage(t *testing.T) {
 			if got, want := sessionHosts(a), []string{"pg", "web-1", "web-2"}; !slices.Equal(got, want) || a.sessions[0] != tab {
 				t.Fatalf("sessions %q, want %q", got, want)
 			}
-			if a.pwOpen || a.manager.question != nil || a.connTree.question != nil || a.left.page != leftConnections {
-				t.Errorf("prompt %v, question %v %v, page %d", a.pwOpen, a.manager.question, a.connTree.question, a.left.page)
+			if a.pwOpen || a.manager.question != nil || a.connTree.question != nil {
+				t.Errorf("prompt %v, question %v %v", a.pwOpen, a.manager.question, a.connTree.question)
 			}
 
 			// The deleted host in Lab is left out.

@@ -322,7 +322,7 @@ func TestSwapPaneKeys(t *testing.T) {
 	if got := shape(s.panes.root, names); got != "r(2,1)" || s.pane() != ps[1] {
 		t.Fatalf("after the key: %s, focus %s", got, names[s.pane()])
 	}
-	tt.RightClickAt(rowCenter(t, tt, "web-1"))
+	tt.RightClickAt(tabCenter(t, tt, "web-1"))
 	if err := tt.ChooseMenuItem(locales.MovePane(), locales.MovePaneRight()); err != nil {
 		t.Fatal(err)
 	}
