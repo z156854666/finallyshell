@@ -702,6 +702,26 @@ func (msgs Messages) CloseSession() string {
 	return Catalog.Format(msgs.locale, "closeSession", nil)
 }
 
+// CloseOtherTabs says "Close other tabs"
+// in the language the app shows.
+func CloseOtherTabs() string { return In(i18n.Locale()).CloseOtherTabs() }
+
+// CloseOtherTabs says "Close other tabs"
+// in the language of msgs.
+func (msgs Messages) CloseOtherTabs() string {
+	return Catalog.Format(msgs.locale, "closeOtherTabs", nil)
+}
+
+// CloseTabsRight says "Close tabs to the right"
+// in the language the app shows.
+func CloseTabsRight() string { return In(i18n.Locale()).CloseTabsRight() }
+
+// CloseTabsRight says "Close tabs to the right"
+// in the language of msgs.
+func (msgs Messages) CloseTabsRight() string {
+	return Catalog.Format(msgs.locale, "closeTabsRight", nil)
+}
+
 // StatusConnecting says "Connecting…"
 // in the language the app shows.
 func StatusConnecting() string { return In(i18n.Locale()).StatusConnecting() }

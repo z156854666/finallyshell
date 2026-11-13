@@ -105,6 +105,8 @@
   "disconnect": "Disconnect",
   "close": "Close",
   "closeSession": "Close session",
+  "closeOtherTabs": "Close other tabs",
+  "closeTabsRight": "Close tabs to the right",
   "statusConnecting": "Connecting…",
   "statusFailed": "Connection failed",
   "statusDisconnected": "Disconnected",

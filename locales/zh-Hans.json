@@ -65,6 +65,8 @@
   "disconnect": "断开",
   "close": "关闭",
   "closeSession": "关闭会话",
+  "closeOtherTabs": "关闭其他标签",
+  "closeTabsRight": "关闭右侧标签",
   "statusConnecting": "正在连接…",
   "statusFailed": "连接失败",
   "statusDisconnected": "已断开",

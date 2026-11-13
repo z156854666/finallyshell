@@ -54,10 +54,10 @@ func (a *App) sessionTabs(c *ui.Context) {
 // keys they take while they have the focus: F2 renames the selected one.
 func (a *App) sessionTabList(c *ui.Context) {
 	tabs := ui.TabsBase(c, &a.active, len(a.sessions))
-	// A tab asks to close its session, which closes once the tabs are
-	// built: closing it in the tab would leave the tabs after it to build
-	// with fewer sessions than the list was given.
-	var closing *Session
+	// A tab asks to close sessions, its own or the other tabs', which close
+	// once the tabs are built: closing one in the tab would leave the tabs
+	// after it to build with fewer sessions than the list was given.
+	var closing tabClosing
 	var selected ui.Element
 	hasSelected := false
 	tabs.List.Role(ui.RoleList).Gap(2).AlignItems(ui.Center).Children(func() {
@@ -66,9 +66,7 @@ func (a *App) sessionTabList(c *ui.Context) {
 			if i == a.active {
 				selected, hasSelected = tab, true
 			}
-			if a.sessionTab(c, tab, s, i) {
-				closing = s
-			}
+			a.sessionTab(c, tab, s, i, &closing)
 		}
 	})
 	// The tab selected last, as the keys or a new session chose it, comes
@@ -90,8 +88,15 @@ func (a *App) sessionTabList(c *ui.Context) {
 			a.startRename(s)
 		}
 	}
-	if closing != nil {
-		a.closeSession(closing)
+	for _, s := range closing.rows {
+		a.closeSession(s)
+	}
+	// The tab whose menu closed the others stays selected, as it would be
+	// had the user clicked it.
+	if s := closing.selected; s != nil {
+		if i := slices.Index(a.sessions, s); i >= 0 {
+			a.active = i
+		}
 	}
 }
 
@@ -107,9 +112,19 @@ func (a *App) sessionCount() int {
 	return n
 }
 
-// sessionTab is the tab of s, at row i of the sessions. It reports whether
-// the user closed it.
-func (a *App) sessionTab(c *ui.Context, tab ui.Element, s *Session, i int) (closed bool) {
+// tabClosing is what the tabs ask to close as they build: the rows to close
+// once the tabs are built, and the tab to select then, if one.
+type tabClosing struct {
+	rows     []*Session
+	selected *Session
+}
+
+// add asks to close rows.
+func (t *tabClosing) add(rows ...*Session) { t.rows = append(t.rows, rows...) }
+
+// sessionTab is the tab of s, at row i of the sessions, which adds what it
+// asks to close to closing.
+func (a *App) sessionTab(c *ui.Context, tab ui.Element, s *Session, i int, closing *tabClosing) {
 	active := i == a.active
 	// An item of the tabs' list, rather than a leaf tab: assistive
 	// technology then reaches the logo of the agent running in the session,
@@ -131,7 +146,7 @@ func (a *App) sessionTab(c *ui.Context, tab ui.Element, s *Session, i int) (clos
 			p.Fill(ui.Rect{X: r.X + in, Y: r.Y + r.H - h, W: r.W - 2*in, H: h}, theme.Accent, h/2)
 		})
 	}
-	a.sessionTabMenu(row, s, &closed)
+	a.sessionTabMenu(row, s, closing)
 	a.sessionTabDrag(row, s)
 	// DoubleClicked, as the tab is clickable itself: it is what takes the
 	// press, and the tab list chooses the session on the click.
@@ -190,10 +205,9 @@ func (a *App) sessionTab(c *ui.Context, tab ui.Element, s *Session, i int) (clos
 			closeBtn.Invisible()
 		}
 		if closeBtn.Clicked() {
-			closed = true
+			closing.add(s)
 		}
 	})
-	return closed
 }
 
 // tabCloseButton is the button that closes s's tab, at its right end: a
@@ -238,8 +252,8 @@ func tabSubColor(active bool) ui.Color {
 }
 
 // sessionTabMenu is the context menu of s's tab: reconnect, the panes,
-// rename, close.
-func (a *App) sessionTabMenu(row ui.Element, s *Session, closed *bool) {
+// rename, close, and the items that close several tabs at once.
+func (a *App) sessionTabMenu(row ui.Element, s *Session, closing *tabClosing) {
 	row.ContextMenu(func(m *ui.Menu) {
 		if s.isPanelTab() {
 			if m.Item(locales.BackToTerminal()).Chosen() {
@@ -247,14 +261,18 @@ func (a *App) sessionTabMenu(row ui.Element, s *Session, closed *bool) {
 			}
 			m.Separator()
 			if m.Item(locales.Close()).Danger().Chosen() {
-				*closed = true
+				closing.add(s)
 			}
+			m.Separator()
+			a.closeTabsMenu(m, s, closing)
 			return
 		}
 		if s.isNewTab() { // a panel row has no host either, and is no new tab
 			if m.Item(locales.Close()).Danger().Chosen() {
-				*closed = true
+				closing.add(s)
 			}
+			m.Separator()
+			a.closeTabsMenu(m, s, closing)
 			return
 		}
 		if m.Item(locales.Reconnect()).Chosen() {
@@ -279,9 +297,68 @@ func (a *App) sessionTabMenu(row ui.Element, s *Session, closed *bool) {
 		a.renameMenu(m, s)
 		m.Separator()
 		if m.Item(locales.Close()).Danger().Chosen() {
-			*closed = true
+			closing.add(s)
 		}
+		m.Separator()
+		a.closeTabsMenu(m, s, closing)
 	})
+}
+
+// closeTabsMenu adds the items of a tab's menu that close several tabs: the
+// other tabs, and the tabs to the right. Each is off while it has nothing to
+// close.
+func (a *App) closeTabsMenu(m *ui.Menu, s *Session, closing *tabClosing) {
+	if others := a.otherTabs(s); m.Item(locales.CloseOtherTabs()).Disabled(len(others) == 0).Chosen() {
+		closing.add(others...)
+		// The tab the menu opened on stays, and selected, as it would be
+		// had the user clicked it.
+		closing.selected = s
+	}
+	if right := a.tabsRight(s); m.Item(locales.CloseTabsRight()).Disabled(len(right) == 0).Chosen() {
+		closing.add(right...)
+	}
+}
+
+// otherTabs returns the rows that closing the other tabs of s's closes: every
+// tab but s's own, as "close other tabs" offers. A panel row stays with its
+// session, so the panel row of s's session stays too, as does the session of
+// a panel row the menu opened on.
+func (a *App) otherTabs(s *Session) []*Session {
+	keep := s
+	if s.isPanelTab() {
+		keep = s.panelOf
+	}
+	panel := a.panelRowOf(keep)
+	var rows []*Session
+	for _, r := range a.sessions {
+		if r == s || r == keep || r == panel {
+			continue
+		}
+		rows = append(rows, r)
+	}
+	return rows
+}
+
+// tabsRight returns the rows after s's tab, leaving out the panel row of its
+// session where that lies after it.
+func (a *App) tabsRight(s *Session) []*Session {
+	i := slices.Index(a.sessions, s)
+	if i < 0 {
+		return nil
+	}
+	keep := s
+	if s.isPanelTab() {
+		keep = s.panelOf
+	}
+	panel := a.panelRowOf(keep)
+	var rows []*Session
+	for _, r := range a.sessions[i+1:] {
+		if r == keep || r == panel {
+			continue
+		}
+		rows = append(rows, r)
+	}
+	return rows
 }
 
 // sessionTabDrag makes s's tab a value to drag into another tab's place, and

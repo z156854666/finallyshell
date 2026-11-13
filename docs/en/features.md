@@ -130,7 +130,10 @@ connecting, red for failed. The tabs scroll sideways where they do not
 fit, the one selected comes into view as it changes, and sessions can be
 reordered by dragging a tab onto another, which goes before it. The context menu of a session has Reconnect, Duplicate
 session, Disconnect, Rename and Close, and a double click on a tab
-reconnects a session that is not connected.
+reconnects a session that is not connected. "Close other tabs" and
+"Close tabs to the right" close several at once, and are off while
+there is nothing to close; the tab the menu opened on stays, selected,
+and a session's panel row stays with its session.
 
 A session tab can have a name of its own for this run, to tell apart
 several tabs open to the same server. "Rename" in its context menu, or F2
