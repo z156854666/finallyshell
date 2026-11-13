@@ -558,15 +558,18 @@ toggles the selected row.
   line (`file:line`). Connections deleted in the other client are not
   listed, nor imported.
 - The Note column says what is not imported of a connection, such as a
-  proxy, or that its key file must be chosen after importing (the file's
+  proxy, or that its private key must be chosen after importing (the key's
   name once one is chosen above), and the jump host it will connect
   through.
 - When the connections include ones that log in with a key the source
   keeps in a store of its own (FinalShell's and Xshell's key stores), the
-  window has "Choose the key file…" above the table: one key file, used by
-  every connection imported that way, so none has to be edited afterwards.
-  Without one, each is chosen after importing. The next import window of
-  the same run has the key file chosen last.
+  window has "Choose a private key…" above the table, which opens the
+  private keys saved in the app, the dialog the connection editor's
+  "Browse…" opens (see [Private keys](#private-keys)): a key file is
+  imported there, and the key chosen is the one every connection imported
+  that way logs in with, so none has to be edited afterwards. Without one,
+  each is chosen after importing. The next import window of the same run
+  has the key chosen last.
 
 "Import N" puts the connections into folders that follow the source's
 folder structure. Folders are matched by name level by level from the top:
@@ -588,10 +591,10 @@ For every source:
   puts each in the system keychain, as "Remember password" does, never in
   `hosts.json`.
 - A private key file the source names becomes the host's key file. A key
-  the other client keeps in a store of its own is not imported: the host
-  has "Private key" authentication without a key file, which the key file
-  chosen in the window stands in for, and the Note column and the result
-  say to choose it.
+  the other client keeps in a store of its own is not read: the host has
+  "Private key" authentication without a key, which the private key chosen
+  in the window stands in for (saved in the app, as FinalShell's is), and
+  the Note column and the result say to choose it.
 
 ### From FinalShell
 
@@ -623,10 +626,11 @@ not known.
 - Passwords are not imported. FinalShell stores them encrypted in its
   files; Finallyshell does not decrypt them and does not read that field.
 - A connection that uses a private key is imported with "Private key"
-  authentication but no key file. FinalShell stores private keys in its
-  own `config.json` and the connection only records the key's ID; that
-  file is not read, so choose the key file in the import window ("Choose
-  the key file…") for all of them, or edit each connection to choose it.
+  authentication but no key. FinalShell stores private keys in its own
+  `config.json` and the connection only records the key's ID; that file is
+  not read, so import the key in the import window ("Choose a private
+  key…", which saves it in the app as the editor's dialog does) and it is
+  every one of theirs, or edit each connection to choose it.
 - Proxies (`proxy_id` points into FinalShell's own proxy list), port
   forwarding, terminal encoding and backspace settings are not imported
   (the format FinalShell stores those values in is not known yet). A
@@ -674,10 +678,11 @@ sessions are skipped.
 - Passwords are not imported. Xshell stores them encrypted in the session
   file; Finallyshell does not decrypt them and does not read that field.
 - A session that uses a public key is imported with "Private key"
-  authentication but no key file: Xshell keeps its keys in its own key
-  store, and the session only names the key. Choose one key file in the
-  import window for all of them, or edit each connection to choose it
-  (exported from Xshell's User Keys in OpenSSH format if needed).
+  authentication but no key: Xshell keeps its keys in its own key store,
+  and the session only names the key. Import the key in the import window
+  ("Choose a private key…") and it is every one of theirs, or edit each
+  connection to choose it (exported from Xshell's User Keys in OpenSSH
+  format if needed).
 - Proxies (a name from Xshell's own proxy list), port forwarding and
   terminal settings are not imported. A session that used a proxy says so
   in the Note column.
@@ -756,8 +761,8 @@ MobaXterm's `<default>`), the comment as the notes, the folder (the
 session folders, nested as in MobaXterm; a folder exported on its own is
 a folder of its name), and the private key file, as the host's key file
 (`_CurrentDrive_` in the path is the drive letter `C`). On macOS and
-Linux, a key path of Windows is not a file there: the host has "Private key" authentication
-without a key file, to choose after importing.
+Linux, a key path of Windows is not a file there: the host has "Private
+key" authentication without a key, to choose after importing.
 
 - Passwords are not imported. MobaXterm stores them encrypted (behind its
   master password), apart from the sessions; Finallyshell does not read
@@ -905,13 +910,34 @@ window of its own, with its page alone (see
 
 - Name, Host, Port, Notes (several lines).
 - Method (Password, Private key or SSH agent), User, then either
-  Password, or the Private key file ("Browse…" chooses it) and its
-  Passphrase.
+  Password, or the Private key and its Passphrase.
 - "Remember password" ("Remember passphrase" for a private key), on by
   default.
 - "Enable exec channel (server monitor)".
 
 Errors are shown under the field they belong to.
+
+#### Private keys
+
+"Browse…" opens the private keys saved in the app, as FinalShell's key
+list: each with a name, its type (ED25519, RSA, ECDSA) and the length of
+its public part in bits.
+
+- **Import…** reads a private key file into the app, OpenSSH or PEM, with
+  or without a passphrase, named after the file, and chooses it in the
+  list. A key imported twice, as its SHA256 fingerprint tells, is one key.
+- **Edit** renames the chosen key.
+- **Delete** deletes it, for every connection that logs in with it: they
+  then need another one, as FinalShell's keys work.
+- OK makes the chosen key the host's: the field shows its name, and the
+  key stays in the app, in `keys.json` (see
+  [keys.json](configuration.md#keysjson)), rather than in a file of its
+  own, so it travels with the connection when they sync.
+
+A file path typed in the field instead of choosing a saved key is used as
+before, and that file stays on this computer. The passphrase of a key is
+the host's, kept in the credential store as before: two connections that
+log in with the same key each ask for it.
 
 With **SSH agent**, the host logs in with the keys an SSH agent holds
 (Bitwarden, 1Password, KeePassXC, OpenSSH's `ssh-agent`, the Windows
@@ -2440,14 +2466,16 @@ What is synced:
   download folder, the background image itself and icon themes installed
   from a VSIX stay on each computer.
 - With "Include saved passwords" checked, off by default, the passwords and
-  key passphrases of the hosts that remember theirs. A computer that has it
-  off keeps the passwords already in the file as they are. Private key
-  files are not synced; hosts keep their key's path.
+  key passphrases of the hosts that remember theirs, and the private keys
+  saved in the app. A computer that has it off keeps the passwords and keys
+  already in the file as they are, and keeps the key files of its own: a
+  host that logs in with a file's path has that path, which is this
+  computer's.
 
 Each sync merges three ways: this computer's data, the file's, and the
 data both had after the last sync, kept in `sync-state.json`, still
-encrypted. Each folder, host, setting and password is merged on its own.
-What changed on one side only is kept; what was deleted on one side and
+encrypted. Each folder, host, setting, password and key is merged on its
+own. What changed on one side only is kept; what was deleted on one side and
 not changed on the other is deleted; what changed on both sides keeps this
 computer's version, and the status says how many there were. The first
 sync with a service (or after the sync password changed) deletes nothing:
@@ -2472,7 +2500,7 @@ this computer's data to the file without merging, encrypted with the sync
 password entered: the way to start over, or to change the sync password
 (enter the new one, replace, then enter the new one on the other
 computers). Without "Include saved passwords", the file then has no
-passwords.
+passwords and no keys.
 
 The sync password and the service's token, password or secret key are kept
 in the system's credential store (see

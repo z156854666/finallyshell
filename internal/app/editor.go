@@ -2,8 +2,6 @@ package app
 
 import (
 	"cmp"
-	"os"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -11,7 +9,6 @@ import (
 
 	"finallyshell/internal/config"
 	"finallyshell/internal/rdp"
-	"finallyshell/internal/sshx"
 	"finallyshell/internal/widgets"
 	"finallyshell/locales"
 
@@ -94,16 +91,20 @@ type connEditor struct {
 	auth                    config.AuthKind
 	user                    string
 	password                string
-	keyPath, passphrase     string
-	remember                bool // in the system's credential store
-	monitor                 bool
-	termType                string
-	backspace               config.BackspaceKey
-	delete                  config.DeleteKey
-	encoding                config.Encoding
-	proxy                   proxyFields  // the Proxy page (editor_proxy.go)
-	tunnels                 tunnelEditor // see editor_tunnels.go
-	folder                  string       // a new host's, from the manager
+	// key is the ID of the private key saved in the app that the host
+	// logs in with, "" for the file keyPath names; keyPath is what the
+	// private key field shows, the key's name or the file's path.
+	key, keyPath, passphrase string
+	keys                     keyFields // the dialog of the saved keys (editor_keys.go)
+	remember                 bool      // in the system's credential store
+	monitor                  bool
+	termType                 string
+	backspace                config.BackspaceKey
+	delete                   config.DeleteKey
+	encoding                 config.Encoding
+	proxy                    proxyFields  // the Proxy page (editor_proxy.go)
+	tunnels                  tunnelEditor // see editor_tunnels.go
+	folder                   string       // a new host's, from the manager
 	// tree is the tree of hosts that opened the editor, which shows the
 	// host once saved: the manager's when nil.
 	tree *managerState
@@ -151,6 +152,13 @@ func (a *App) openEditorAs(h *config.Host, kind config.Kind, from WindowKind, fo
 		ed.kind, ed.rdp = kind, h.RDPOf()
 		ed.port = strconv.Itoa(h.ProtocolPort())
 		ed.auth, ed.user, ed.keyPath = h.Auth, h.User, h.KeyPath
+		if h.Key != "" {
+			// The field shows the saved key's name; a key this device does
+			// not have, as one not synced yet, leaves it empty, and OK
+			// asks for another.
+			ed.key = h.Key
+			ed.keyPath = a.savedKeyName(h.Key)
+		}
 		if ed.kind == config.KindRDP {
 			ed.auth = config.AuthPassword // a remote desktop logs in with a password
 		}
@@ -231,7 +239,13 @@ func (ed *connEditor) problems() map[editorField]string {
 func (a *App) saveEditor() {
 	ed := a.editor
 	ed.checked = true
-	if errs := ed.problems(); len(errs) > 0 {
+	errs := ed.problems()
+	if ed.auth == config.AuthKey && ed.key != "" && a.keys.Key(ed.key) == nil {
+		// Deleted in the key dialog, or by a sync, while the editor was
+		// open.
+		errs[fieldKeyPath] = locales.ErrKeyFileRequired()
+	}
+	if len(errs) > 0 {
 		first, here := "", false
 		for _, f := range append([]editorField{fieldAddr, fieldPort, fieldUser, fieldKeyPath, fieldTermType}, proxyFieldOrder...) {
 			if errs[f] != "" {
@@ -273,10 +287,15 @@ func (a *App) saveEditor() {
 	if ed.kind != config.KindRDP {
 		// A remote desktop logs in with a password alone; a key the host
 		// had stays for the day it is an SSH connection again.
-		h.KeyPath = ""
+		h.KeyPath, h.Key = "", ""
 		switch ed.auth {
 		case config.AuthKey:
-			h.KeyPath, secret = strings.TrimSpace(ed.keyPath), ed.passphrase
+			secret = ed.passphrase
+			if k := a.savedKeyOf(ed); k != nil {
+				h.Key = k.ID
+			} else {
+				h.KeyPath = strings.TrimSpace(ed.keyPath)
+			}
 		case config.AuthAgent:
 			secret = ""
 		}
@@ -315,32 +334,6 @@ func (a *App) saveEditor() {
 	}
 	ed.saveErr = nil
 	a.closeWindow(WindowEditor)
-}
-
-// browseKey asks for the private key file, starting where the one typed
-// is, else in ~/.ssh.
-func (a *App) browseKey() {
-	ed := a.editor
-	dir := ""
-	if p := strings.TrimSpace(ed.keyPath); p != "" {
-		dir = filepath.Dir(sshx.ExpandHome(p))
-	} else if home, err := os.UserHomeDir(); err == nil {
-		if fi, err := os.Stat(filepath.Join(home, ".ssh")); err == nil && fi.IsDir() {
-			dir = filepath.Join(home, ".ssh")
-		}
-	}
-	title := locales.ChooseKeyFile()
-	go func() {
-		path, err := a.plat.OpenFile(WindowEditor, title, dir)
-		if err != nil || path == "" {
-			return
-		}
-		a.post(func() {
-			if a.editor == ed {
-				ed.keyPath = path
-			}
-		})
-	}()
 }
 
 // termTypes are the terminal types the editor suggests.
@@ -447,9 +440,14 @@ func (a *App) sshPage(c *ui.Context, ed *connEditor, errs map[editorField]string
 			case config.AuthKey:
 				ui.Field(c, locales.FieldKeyFile(), func() {
 					ui.Row(c).Gap(8).Children(func() {
-						input(ui.TextInput(c, &ed.keyPath).Placeholder("~/.ssh/id_ed25519").Grow(1).MinWidth(0))
+						field := input(ui.TextInput(c, &ed.keyPath).Placeholder("~/.ssh/id_ed25519").Grow(1).MinWidth(0))
+						if field.Changed() && ed.key != "" && strings.TrimSpace(ed.keyPath) != a.savedKeyName(ed.key) {
+							// Typed a path: the saved key is no longer the
+							// one the host logs in with.
+							ed.key = ""
+						}
 						if ui.Button(c, locales.Browse()).Clicked() {
-							a.browseKey()
+							ed.keys.open(a.keys, ed.key)
 						}
 					})
 				}).Error(errs[fieldKeyPath])
@@ -471,6 +469,7 @@ func (a *App) sshPage(c *ui.Context, ed *connEditor, errs map[editorField]string
 			}).Description(locales.MonitorChannelHint())
 		})
 	})
+	ui.Modal(c, &ed.keys.dialog, func() { a.keyDialog(c, a.editorKeys(ed)) })
 }
 
 // agentField is the SSH agent's line of the editor, for a host that logs

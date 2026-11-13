@@ -17,6 +17,9 @@ type Request struct {
 	// Secrets says whether this device includes its saved passwords.
 	// When it does not, the remote's are kept as they are.
 	Secrets bool
+	// Keys says whether this device includes the private keys saved in
+	// it. When it does not, the remote's are kept as they are.
+	Keys bool
 	// Base is the envelope this device last synced, as the remote had
 	// it; nil for none. It is what the merge compares both sides with.
 	Base []byte
@@ -25,6 +28,8 @@ type Request struct {
 	// never this device's, and are not compared with: otherwise each one
 	// it lacks would count as deleted here.
 	BaseSecrets bool
+	// BaseKeys is BaseSecrets' for the saved keys.
+	BaseKeys bool
 	// Force replaces the remote file with Local, without reading or
 	// merging it: for a new sync password, or to start over.
 	Force bool
@@ -36,7 +41,8 @@ type Request struct {
 // Result is what a sync did.
 type Result struct {
 	// Merged is the payload both sides now have. With Request.Secrets
-	// unset, its Secrets are the remote's, not to be applied.
+	// unset, its Secrets are the remote's, kept as they were; so are its
+	// Keys with Request.Keys unset.
 	Merged *Payload
 	// Envelope is the file the remote now has: the next Request's Base.
 	Envelope []byte
@@ -103,9 +109,14 @@ func syncOnce(ctx context.Context, req Request, local *Payload, now func() time.
 			base.Secrets = nil
 		}
 	}
-	if !req.Secrets {
+	if !req.Secrets || !req.Keys {
 		local = local.Clone()
-		local.Secrets = remote.Secrets
+		if !req.Secrets {
+			local.Secrets = remote.Secrets
+		}
+		if !req.Keys {
+			local.Keys = remote.Keys
+		}
 	}
 	merged, conflicts := Merge(base, local, remote)
 	if Equal(merged, remote) {

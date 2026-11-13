@@ -150,7 +150,7 @@ func authMethods(h *config.Host, opts Options) ([]ssh.AuthMethod, *agentLogin, e
 	}
 	var methods []ssh.AuthMethod
 	if h.Auth == config.AuthKey {
-		data, err := os.ReadFile(ExpandHome(h.KeyPath))
+		data, err := privateKeyData(h)
 		if err != nil {
 			return nil, nil, &KeyFileError{Err: err}
 		}

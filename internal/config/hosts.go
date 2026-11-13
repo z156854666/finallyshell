@@ -136,6 +136,11 @@ type Host struct {
 	// RDPOf.
 	RDP *RDPConfig `json:"rdp,omitempty"`
 
+	// Key is the ID of the private key saved in the app the host logs in
+	// with (keys.json), "" for the file KeyPath names, as every host
+	// saved before keys were saved is.
+	Key string `json:"key,omitempty"`
+
 	extra extras
 }
 

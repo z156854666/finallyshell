@@ -30,6 +30,10 @@ type Payload struct {
 	// Secrets are saved passwords and passphrases, by their key in the
 	// system's credential store: only from devices that include them.
 	Secrets map[string]string `json:"secrets,omitempty"`
+	// Keys are the private keys saved in the app: the objects of
+	// keys.json, as JSON, each with its "id" and its key's text. Only
+	// from devices that include their secrets, as Secrets are.
+	Keys []json.RawMessage `json:"keys,omitempty"`
 }
 
 // Clone is a copy of p sharing no maps or lists with it.
@@ -39,20 +43,22 @@ func (p *Payload) Clone() *Payload {
 	c.Hosts = slices.Clone(p.Hosts)
 	c.Settings = maps.Clone(p.Settings)
 	c.Secrets = maps.Clone(p.Secrets)
+	c.Keys = slices.Clone(p.Keys)
 	return &c
 }
 
-// Equal says whether a and b hold the same folders, hosts, settings and
-// secrets. The order of folders and hosts, the device and the time do not
-// count.
+// Equal says whether a and b hold the same folders, hosts, settings,
+// secrets and keys. The order of folders and hosts, the device and the time
+// do not count.
 func Equal(a, b *Payload) bool {
 	return sameItems(a.Folders, b.Folders) && sameItems(a.Hosts, b.Hosts) &&
-		maps.EqualFunc(a.Settings, b.Settings, sameJSON) && maps.Equal(a.Secrets, b.Secrets)
+		maps.EqualFunc(a.Settings, b.Settings, sameJSON) && maps.Equal(a.Secrets, b.Secrets) &&
+		sameItems(a.Keys, b.Keys)
 }
 
 // Merge merges local and remote three ways, against base, the payload
-// both last agreed on (nil when there is none). Each folder and host (by
-// its ID), each setting and each secret is merged on its own:
+// both last agreed on (nil when there is none). Each folder, host and saved
+// key (by its ID), each setting and each secret is merged on its own:
 //
 //   - changed on one side only, that side's is kept;
 //   - deleted on one side and unchanged on the other, it is deleted;
@@ -78,6 +84,11 @@ func Merge(base, local, remote *Payload) (merged *Payload, conflicts int) {
 	conflicts += n
 	if len(m.Secrets) == 0 {
 		m.Secrets = nil
+	}
+	m.Keys, n = mergeItems(base.Keys, local.Keys, remote.Keys)
+	conflicts += n
+	if len(m.Keys) == 0 {
+		m.Keys = nil
 	}
 	return m, conflicts
 }

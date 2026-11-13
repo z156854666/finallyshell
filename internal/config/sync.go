@@ -42,7 +42,8 @@ type SyncSettings struct {
 	S3Key         string `json:"s3Key,omitempty"`
 	S3AccessKeyID string `json:"s3AccessKeyId,omitempty"`
 
-	// Passwords includes the saved passwords and key passphrases.
+	// Passwords includes the saved passwords and key passphrases, and
+	// the private keys saved in the app (keys.json).
 	Passwords bool `json:"passwords,omitempty"`
 	// Auto syncs at start, after local changes and every Interval
 	// minutes.
@@ -191,6 +192,8 @@ type SyncState struct {
 	// Secrets says whether this device included its saved passwords in
 	// that sync, so that Base's passwords are its own.
 	Secrets bool `json:"secrets,omitempty"`
+	// Keys is Secrets' for the private keys saved in it.
+	Keys bool `json:"keys,omitempty"`
 }
 
 func syncStatePath() string { return filepath.Join(Dir(), "sync-state.json") }

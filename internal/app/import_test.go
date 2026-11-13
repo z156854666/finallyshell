@@ -253,7 +253,7 @@ func TestImportFinalShell(t *testing.T) {
 	sourcesShot(t, tt, "import-sources-en.png")
 	p.SetLocale("zh-Hans")
 	tt.Frame()
-	for _, s := range []string{"导入连接", "导入来源", "全选", "全不选", "导入 5 个", "已选 5 / 7 个", "文件夹", "说明", "已存在：“my pg”", "导入后需要选择私钥文件", "代理没有导入", "选择文件夹…", "密码不导入（FinalShell 对密码做了加密），第一次连接时会询问密码。"} {
+	for _, s := range []string{"导入连接", "导入来源", "全选", "全不选", "导入 5 个", "已选 5 / 7 个", "文件夹", "说明", "已存在：“my pg”", "导入后需要选择私钥", "代理没有导入", "选择文件夹…", "密码不导入（FinalShell 对密码做了加密），第一次连接时会询问密码。"} {
 		if !tt.HasText(s) && spec.Title() != s {
 			t.Errorf("missing %q; texts %q", s, tt.Texts())
 		}
@@ -365,10 +365,11 @@ func TestImportFinalShell(t *testing.T) {
 	a.closeWindow(WindowImport)
 }
 
-// One key file can be chosen for all the connections that log in with a
-// key the source keeps in a store of its own: the import sets it as the
-// key file of each of them, and the window after this one has it too.
-func TestImportKeyFile(t *testing.T) {
+// One private key can be chosen for all the connections that log in with a
+// key the source keeps in a store of its own: it is imported into the app as
+// the editor's keys are, the import makes it the key of each of them, and
+// the window after this one has it too.
+func TestImportSavedKey(t *testing.T) {
 	a, p := testApp(t)
 	findFinalShell(a, func() string { return finalShellSample(t, "finalshell") })
 	home := t.TempDir()
@@ -378,23 +379,43 @@ func TestImportKeyFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	key := filepath.Join(home, ".ssh", "id_ed25519")
+	writeTestKey(t, key)
 	_, tt := openImport(t, a, p)
 	// bastion is the one connection with a key, which FinalShell keeps
 	// in its own store.
 	if !tt.HasText(locales.ImportKeyNote(1, locales.ImportSourceFinalShell())) || !tt.HasText(locales.ImportNeedsKey()) {
 		t.Fatalf("texts %q", tt.Texts())
 	}
-	p.pick(key)
+	// The button opens the dialog of the saved keys, which imports the
+	// file into the app, starting in ~/.ssh.
 	if err := tt.Click(locales.ImportChooseKey()); err != nil {
 		t.Fatalf("%v; texts %q", err, tt.Texts())
 	}
-	p.until(t, "the key file chosen", func() bool { return a.imp.keyFile == key })
+	if !a.imp.keys.dialog || !tt.HasText(locales.KeysEmpty()) {
+		t.Fatalf("no dialog; texts %q", tt.Texts())
+	}
+	p.pick(key)
+	if err := tt.Click(locales.KeyImport()); err != nil {
+		t.Fatalf("%v; texts %q", err, tt.Texts())
+	}
+	p.until(t, "the key imported", func() bool { return len(a.keys.Keys) == 1 })
 	if asked := p.pickers(); len(asked) != 1 || asked[0] != (filePick{WindowImport, locales.ChooseKeyFile(), filepath.Join(home, ".ssh")}) {
 		t.Errorf("asked %+v", asked)
 	}
+	saved := a.keys.Keys[0]
+	tt.Frame()
+	if !tt.HasText("id_ed25519") || !tt.HasText("ED25519") {
+		t.Errorf("texts %q", tt.Texts())
+	}
+	saveShot(t, tt, "import-key-dialog-en.png")
+	// The dialog's OK chooses it for the connections.
+	tt.Key(0, ui.KeyEnter)
+	if a.imp.keys.dialog || a.imp.keyID != saved.ID {
+		t.Fatalf("dialog %v, key %q", a.imp.keys.dialog, a.imp.keyID)
+	}
 	tt.Frame()
 	if tt.HasText(locales.ImportKeyNote(1, locales.ImportSourceFinalShell())) || tt.HasText(locales.ImportNeedsKey()) ||
-		!tt.HasText(locales.ImportKeyUses("id_ed25519")) || !tt.HasText(key) {
+		!tt.HasText(locales.ImportKeyUses("id_ed25519")) || !tt.HasText("id_ed25519") {
 		t.Errorf("texts %q", tt.Texts())
 	}
 	saveShot(t, tt, "import-key-en.png")
@@ -409,21 +430,21 @@ func TestImportKeyFile(t *testing.T) {
 			bastion = h
 		}
 	}
-	// The key is the key file of the host imported with one, and the
-	// password hosts have none.
-	if bastion == nil || bastion.Auth != config.AuthKey || bastion.KeyPath != key {
+	// The key is the host's, saved in the app, and the password hosts have
+	// none.
+	if bastion == nil || bastion.Auth != config.AuthKey || bastion.Key != saved.ID || bastion.KeyPath != "" {
 		t.Fatalf("bastion %+v", bastion)
 	}
 	for _, h := range a.hosts.Live() {
-		if h != bastion && h.KeyPath != "" {
-			t.Errorf("%s has a key file: %+v", h.Title(), h)
+		if h != bastion && (h.KeyPath != "" || h.Key != "") {
+			t.Errorf("%s has a key: %+v", h.Title(), h)
 		}
 	}
 
-	// The window opened again has the same key file, and nothing to choose.
+	// The window opened again has the same key, and nothing to choose.
 	_, tt = openImport(t, a, p)
-	if a.imp.keyFile != key || !tt.HasText(locales.ImportKeyUses("id_ed25519")) || tt.HasText(locales.ImportNeedsKey()) {
-		t.Errorf("key %q; texts %q", a.imp.keyFile, tt.Texts())
+	if a.imp.keyID != saved.ID || !tt.HasText(locales.ImportKeyUses("id_ed25519")) || tt.HasText(locales.ImportNeedsKey()) {
+		t.Errorf("key %q; texts %q", a.imp.keyID, tt.Texts())
 	}
 	a.closeWindow(WindowImport)
 }

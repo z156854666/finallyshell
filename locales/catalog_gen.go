@@ -2126,6 +2126,116 @@ func (msgs Messages) ChooseKeyFile() string {
 	return Catalog.Format(msgs.locale, "chooseKeyFile", nil)
 }
 
+// KeyDialogTitle says "Saved private keys"
+// in the language the app shows.
+func KeyDialogTitle() string { return In(i18n.Locale()).KeyDialogTitle() }
+
+// KeyDialogTitle says "Saved private keys"
+// in the language of msgs.
+func (msgs Messages) KeyDialogTitle() string {
+	return Catalog.Format(msgs.locale, "keyDialogTitle", nil)
+}
+
+// ColKeyName says "Name"
+// in the language the app shows.
+func ColKeyName() string { return In(i18n.Locale()).ColKeyName() }
+
+// ColKeyName says "Name"
+// in the language of msgs.
+func (msgs Messages) ColKeyName() string {
+	return Catalog.Format(msgs.locale, "colKeyName", nil)
+}
+
+// ColKeyType says "Type"
+// in the language the app shows.
+func ColKeyType() string { return In(i18n.Locale()).ColKeyType() }
+
+// ColKeyType says "Type"
+// in the language of msgs.
+func (msgs Messages) ColKeyType() string {
+	return Catalog.Format(msgs.locale, "colKeyType", nil)
+}
+
+// ColKeyLength says "Length"
+// in the language the app shows.
+func ColKeyLength() string { return In(i18n.Locale()).ColKeyLength() }
+
+// ColKeyLength says "Length"
+// in the language of msgs.
+func (msgs Messages) ColKeyLength() string {
+	return Catalog.Format(msgs.locale, "colKeyLength", nil)
+}
+
+// KeyImport says "Import…"
+// in the language the app shows.
+func KeyImport() string { return In(i18n.Locale()).KeyImport() }
+
+// KeyImport says "Import…"
+// in the language of msgs.
+func (msgs Messages) KeyImport() string {
+	return Catalog.Format(msgs.locale, "keyImport", nil)
+}
+
+// KeyEditTitle says "Edit private key"
+// in the language the app shows.
+func KeyEditTitle() string { return In(i18n.Locale()).KeyEditTitle() }
+
+// KeyEditTitle says "Edit private key"
+// in the language of msgs.
+func (msgs Messages) KeyEditTitle() string {
+	return Catalog.Format(msgs.locale, "keyEditTitle", nil)
+}
+
+// KeyUsedBy says "{count, plural, one {# connection logs in with this key} other {# connections log in with this key}}; deleting it lea…"
+// in the language the app shows.
+func KeyUsedBy(count int) string { return In(i18n.Locale()).KeyUsedBy(count) }
+
+// KeyUsedBy says "{count, plural, one {# connection logs in with this key} other {# connections log in with this key}}; deleting it lea…"
+// in the language of msgs.
+func (msgs Messages) KeyUsedBy(count int) string {
+	return Catalog.Format(msgs.locale, "keyUsedBy", map[string]any{"count": count})
+}
+
+// KeysEmpty says "No saved keys yet: import a private key file."
+// in the language the app shows.
+func KeysEmpty() string { return In(i18n.Locale()).KeysEmpty() }
+
+// KeysEmpty says "No saved keys yet: import a private key file."
+// in the language of msgs.
+func (msgs Messages) KeysEmpty() string {
+	return Catalog.Format(msgs.locale, "keysEmpty", nil)
+}
+
+// KeyNeedsPassphrase says "This key needs a passphrase: enter it in the Passphrase field."
+// in the language the app shows.
+func KeyNeedsPassphrase() string { return In(i18n.Locale()).KeyNeedsPassphrase() }
+
+// KeyNeedsPassphrase says "This key needs a passphrase: enter it in the Passphrase field."
+// in the language of msgs.
+func (msgs Messages) KeyNeedsPassphrase() string {
+	return Catalog.Format(msgs.locale, "keyNeedsPassphrase", nil)
+}
+
+// KeyDefaultName says "Imported key"
+// in the language the app shows.
+func KeyDefaultName() string { return In(i18n.Locale()).KeyDefaultName() }
+
+// KeyDefaultName says "Imported key"
+// in the language of msgs.
+func (msgs Messages) KeyDefaultName() string {
+	return Catalog.Format(msgs.locale, "keyDefaultName", nil)
+}
+
+// ErrKeyNameRequired says "Enter the name"
+// in the language the app shows.
+func ErrKeyNameRequired() string { return In(i18n.Locale()).ErrKeyNameRequired() }
+
+// ErrKeyNameRequired says "Enter the name"
+// in the language of msgs.
+func (msgs Messages) ErrKeyNameRequired() string {
+	return Catalog.Format(msgs.locale, "errKeyNameRequired", nil)
+}
+
 // MonitorChannel says "Enable exec channel (server monitor)"
 // in the language the app shows.
 func MonitorChannel() string { return In(i18n.Locale()).MonitorChannel() }
@@ -6846,43 +6956,43 @@ func (msgs Messages) ImportSameAs(name string) string {
 	return Catalog.Format(msgs.locale, "importSameAs", map[string]any{"name": name})
 }
 
-// ImportNeedsKey says "Choose the key file after importing"
+// ImportNeedsKey says "Choose a private key after importing"
 // in the language the app shows.
 func ImportNeedsKey() string { return In(i18n.Locale()).ImportNeedsKey() }
 
-// ImportNeedsKey says "Choose the key file after importing"
+// ImportNeedsKey says "Choose a private key after importing"
 // in the language of msgs.
 func (msgs Messages) ImportNeedsKey() string {
 	return Catalog.Format(msgs.locale, "importNeedsKey", nil)
 }
 
-// ImportChooseKey says "Choose the key file…"
+// ImportChooseKey says "Choose a private key…"
 // in the language the app shows.
 func ImportChooseKey() string { return In(i18n.Locale()).ImportChooseKey() }
 
-// ImportChooseKey says "Choose the key file…"
+// ImportChooseKey says "Choose a private key…"
 // in the language of msgs.
 func (msgs Messages) ImportChooseKey() string {
 	return Catalog.Format(msgs.locale, "importChooseKey", nil)
 }
 
-// ImportKeyNote says "{count} of the connections listed log in with a key that {source} keeps in its own store: choose one key file for all…"
+// ImportKeyNote says "{count} of the connections listed log in with a key that {source} keeps in its own store: choose one of the private k…"
 // in the language the app shows.
 func ImportKeyNote(count int, source string) string {
 	return In(i18n.Locale()).ImportKeyNote(count, source)
 }
 
-// ImportKeyNote says "{count} of the connections listed log in with a key that {source} keeps in its own store: choose one key file for all…"
+// ImportKeyNote says "{count} of the connections listed log in with a key that {source} keeps in its own store: choose one of the private k…"
 // in the language of msgs.
 func (msgs Messages) ImportKeyNote(count int, source string) string {
 	return Catalog.Format(msgs.locale, "importKeyNote", map[string]any{"count": count, "source": source})
 }
 
-// ImportKeyUses says "key file: {name}"
+// ImportKeyUses says "private key: {name}"
 // in the language the app shows.
 func ImportKeyUses(name string) string { return In(i18n.Locale()).ImportKeyUses(name) }
 
-// ImportKeyUses says "key file: {name}"
+// ImportKeyUses says "private key: {name}"
 // in the language of msgs.
 func (msgs Messages) ImportKeyUses(name string) string {
 	return Catalog.Format(msgs.locale, "importKeyUses", map[string]any{"name": name})
@@ -6992,11 +7102,11 @@ func (msgs Messages) ImportResult(imported int, skipped int, failed int) string 
 	return Catalog.Format(msgs.locale, "importResult", map[string]any{"imported": imported, "skipped": skipped, "failed": failed})
 }
 
-// ImportKeysNote says "{count, plural, one {# uses a private key: edit it to choose the key file.} other {# use a private key: edit them to …"
+// ImportKeysNote says "{count, plural, one {# uses a private key: edit it to choose the private key.} other {# use a private key: edit them …"
 // in the language the app shows.
 func ImportKeysNote(count int) string { return In(i18n.Locale()).ImportKeysNote(count) }
 
-// ImportKeysNote says "{count, plural, one {# uses a private key: edit it to choose the key file.} other {# use a private key: edit them to …"
+// ImportKeysNote says "{count, plural, one {# uses a private key: edit it to choose the private key.} other {# use a private key: edit them …"
 // in the language of msgs.
 func (msgs Messages) ImportKeysNote(count int) string {
 	return Catalog.Format(msgs.locale, "importKeysNote", map[string]any{"count": count})
@@ -8146,11 +8256,11 @@ func (msgs Messages) SyncIncludePasswords() string {
 	return Catalog.Format(msgs.locale, "syncIncludePasswords", nil)
 }
 
-// SyncIncludePasswordsHint says "The passwords and key passphrases kept in the system's credential store, encrypted with the rest. Private key files a…"
+// SyncIncludePasswordsHint says "The passwords and key passphrases kept in the system's credential store, and the private keys saved in the app, encry…"
 // in the language the app shows.
 func SyncIncludePasswordsHint() string { return In(i18n.Locale()).SyncIncludePasswordsHint() }
 
-// SyncIncludePasswordsHint says "The passwords and key passphrases kept in the system's credential store, encrypted with the rest. Private key files a…"
+// SyncIncludePasswordsHint says "The passwords and key passphrases kept in the system's credential store, and the private keys saved in the app, encry…"
 // in the language of msgs.
 func (msgs Messages) SyncIncludePasswordsHint() string {
 	return Catalog.Format(msgs.locale, "syncIncludePasswordsHint", nil)

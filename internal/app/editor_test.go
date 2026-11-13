@@ -2,7 +2,10 @@ package app
 
 import (
 	"bytes"
+	"crypto/ed25519"
+	"crypto/rand"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"os"
 	"path/filepath"
@@ -19,6 +22,7 @@ import (
 
 	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
+	"golang.org/x/crypto/ssh"
 )
 
 // fakeFilePicker stands in for the dialog that picks a file, which the
@@ -528,37 +532,79 @@ func TestEditorKeyFile(t *testing.T) {
 	}
 	saveShot(t, tt, "editor-key-error-en.png")
 
-	// Browse fills it in, starting in ~/.ssh.
-	key := filepath.Join(home, "keys", "id_ed25519")
-	p.pick(key)
+	// Browse lists the keys saved in the app, none yet, which imports one
+	// from a file, starting in ~/.ssh.
 	if err := tt.Click(locales.Browse()); err != nil {
 		t.Fatal(err)
 	}
-	p.until(t, "the key path", func() bool { return a.editor.keyPath == key })
+	if !a.editor.keys.dialog || !tt.HasText(locales.KeyDialogTitle()) || !tt.HasText(locales.KeysEmpty()) {
+		t.Fatalf("no key dialog; texts %q", tt.Texts())
+	}
+	saveShot(t, tt, "editor-key-dialog-empty-en.png")
+	key := filepath.Join(home, "keys", "id_ed25519")
+	writeTestKey(t, key)
+	p.pick(key)
+	if err := tt.Click(locales.KeyImport()); err != nil {
+		t.Fatal(err)
+	}
+	p.until(t, "the key imported", func() bool { return len(a.keys.Keys) == 1 })
 	if asked := p.pickers(); len(asked) != 1 || asked[0] != (filePick{WindowEditor, locales.ChooseKeyFile(), filepath.Join(home, ".ssh")}) {
 		t.Errorf("asked %+v", asked)
 	}
+	saved := a.keys.Keys[0]
+	if saved.Name != "id_ed25519" || saved.Type != "ED25519" || saved.Bits != 256 || a.editor.keys.row != 0 {
+		t.Fatalf("imported %+v, row %d", saved, a.editor.keys.row)
+	}
 	tt.Frame()
-	if fieldValue(t, tt, locales.FieldKeyFile()) != key || tt.HasText(locales.ErrKeyFileRequired()) {
+	for _, want := range []string{"id_ed25519", "ED25519", "256"} {
+		if !tt.HasText(want) {
+			t.Errorf("missing %q; texts %q", want, tt.Texts())
+		}
+	}
+	saveShot(t, tt, "editor-key-dialog-en.png")
+
+	// The dialog's OK chooses it for the host: the field shows its name.
+	tt.Key(0, ui.KeyEnter)
+	if a.editor.keys.dialog || a.editor.key != saved.ID || a.editor.keyPath != "id_ed25519" {
+		t.Fatalf("dialog %v, key %q %q", a.editor.keys.dialog, a.editor.key, a.editor.keyPath)
+	}
+	tt.Frame()
+	if fieldValue(t, tt, locales.FieldKeyFile()) != "id_ed25519" || tt.HasText(locales.ErrKeyFileRequired()) {
 		t.Errorf("texts %q", tt.Texts())
 	}
 
-	// Again, from the key's folder; canceling keeps the path.
-	p.pick("")
-	if err := tt.Click(locales.Browse()); err != nil {
-		t.Fatal(err)
-	}
-	p.until(t, "the second dialog", func() bool { return len(p.pickers()) == 2 })
-	if dir := p.pickers()[1].dir; dir != filepath.Join(home, "keys") {
-		t.Errorf("second dialog in %q", dir)
-	}
+	// The key is the host's, not the file's, and the file it came from is
+	// where the chooser starts next time.
 	typeInto(t, tt, locales.FieldPassphrase(), "phrase")
 	tt.Key(0, ui.KeyEnter)
 	if len(a.hosts.Hosts) != 1 {
 		t.Fatal("not saved")
 	}
-	if h := a.hosts.Hosts[0]; h.Auth != config.AuthKey || h.KeyPath != key || a.passwords[h.ID] != "phrase" {
+	if h := a.hosts.Hosts[0]; h.Auth != config.AuthKey || h.Key != saved.ID || h.KeyPath != "" || a.passwords[h.ID] != "phrase" {
 		t.Errorf("host %+v", h)
+	}
+	if keys := config.LoadKeys(); len(keys.Keys) != 1 || keys.Keys[0].Key != saved.Key {
+		t.Errorf("keys.json has %+v", keys.Keys)
+	}
+}
+
+// writeTestKey writes a new ED25519 private key at path, as a user
+// importing one has.
+func writeTestKey(t *testing.T, path string) {
+	t.Helper()
+	_, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	block, err := ssh.MarshalPrivateKey(priv, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, pem.EncodeToMemory(block), 0o600); err != nil {
+		t.Fatal(err)
 	}
 }
 

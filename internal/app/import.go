@@ -12,7 +12,6 @@ import (
 	"finallyshell/internal/config"
 	"finallyshell/internal/icons"
 	"finallyshell/internal/importer"
-	"finallyshell/internal/sshx"
 	"finallyshell/internal/widgets"
 	"finallyshell/locales"
 
@@ -33,11 +32,13 @@ import (
 // them, as for any host. Those of a list that has them go in the system's
 // credential store, as a remembered password does; the table then has a
 // Password column saying which rows have one, without showing it. Keys
-// kept in a store of the source's own, as FinalShell's, come with no key
-// file: one key file is chosen for all of those connections above the
-// table, and each host imported that way takes it as its key file. A
-// source the user writes (a server list) has "Save template…", which
-// writes a file to fill in (importText.template).
+// kept in a store of the source's own, as FinalShell's, come with no key:
+// one private key is chosen for all of those connections above the table,
+// from those saved in the app (editor_keys.go), which imports a key file
+// and keeps it there as the connection editor's dialog does; each host
+// imported that way names it, so that it travels with the connections when
+// they sync. A source the user writes (a server list) has "Save
+// template…", which writes a file to fill in (importText.template).
 
 // WindowImport is the import window.
 const WindowImport WindowKind = "import"
@@ -62,8 +63,9 @@ type importState struct {
 	rows     []importRow
 	list     ui.ListState
 	row      int
-	reads    int    // the readings started, so that an older one's result is dropped
-	keyFile  string // the key file for the connections that need one (Entry.NeedsKey)
+	reads    int       // the readings started, so that an older one's result is dropped
+	keyID    string    // the saved key of the connections that need one (Entry.NeedsKey)
+	keys     keyFields // the dialog choosing that key
 
 	// The source's template (importText.template): saving it, and where
 	// it was saved, or why not.
@@ -112,7 +114,7 @@ func (a *App) openImport() {
 		a.plat.FocusWindow(WindowImport)
 		return
 	}
-	st := &importState{row: -1, source: a.importSource(a.importKind), keyFile: a.importKeyFile}
+	st := &importState{row: -1, source: a.importSource(a.importKind), keyID: a.importKeyID}
 	a.imp = st
 	a.openWindow(importSpec, a.importView)
 	a.readImport(st, false)
@@ -135,7 +137,7 @@ func (a *App) chooseImportSource(st *importState, s importSource) {
 		return
 	}
 	a.importKind = s.Kind
-	*st = importState{source: s, row: -1, reads: st.reads, keyFile: st.keyFile}
+	*st = importState{source: s, row: -1, reads: st.reads, keyID: st.keyID}
 	a.readImport(st, false)
 }
 
@@ -367,48 +369,48 @@ func (st *importState) keyCount() int {
 	return n
 }
 
-// importKeyRow is the choice of one private key file for the connections
-// that log in with a key the source keeps in a store of its own: all of
-// them use it, and it becomes the key file of each host imported.
+// importKeyRow is the choice of one private key for the connections that
+// log in with a key the source keeps in a store of its own: all of them use
+// it, and it becomes the key of each host imported. The key is one of those
+// saved in the app, imported there as the editor's keys are, so that it
+// stays with the connections when they sync.
 func (a *App) importKeyRow(c *ui.Context, st *importState, n int) {
 	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 		if ui.Button(c, locales.ImportChooseKey()).Clicked() {
-			a.chooseImportKey(st)
+			st.keys.open(a.keys, st.keyID)
 		}
-		if st.keyFile == "" {
+		name := a.savedKeyName(st.keyID)
+		if name == "" {
 			widgets.Muted(c, locales.ImportKeyNote(n, st.source.name())).SingleLine().MinWidth(0).Grow(1)
 			return
 		}
 		ui.Icon(c, icons.Get("key-round")).FontSize(14).TextColor(theme.TextMuted)
-		ui.Text(c, tildePath(st.keyFile, a.home(), runtime.GOOS)).SingleLine().MinWidth(0).Grow(1).Tooltip(st.keyFile)
+		ui.Text(c, name).SingleLine().MinWidth(0).Grow(1)
 	})
+	ui.Modal(c, &st.keys.dialog, func() { a.keyDialog(c, a.importKeys(st)) })
 }
 
-// chooseImportKey asks for the key file the connections that need one log
-// in with, starting where the one chosen is, else in ~/.ssh. The choice
-// is the import windows after this one's too, this run.
-func (a *App) chooseImportKey(st *importState) {
-	dir := ""
-	if st.keyFile != "" {
-		dir = filepath.Dir(sshx.ExpandHome(st.keyFile))
-	} else if home, err := os.UserHomeDir(); err == nil {
-		if fi, err := os.Stat(filepath.Join(home, ".ssh")); err == nil && fi.IsDir() {
-			dir = filepath.Join(home, ".ssh")
-		}
-	}
-	title := locales.ChooseKeyFile()
-	go func() {
-		path, err := a.plat.OpenFile(WindowImport, title, dir)
-		if err != nil || path == "" {
-			return
-		}
-		a.post(func() {
-			if a.imp != st {
-				return
+// importKeys is the dialog of the saved keys for the import window's key,
+// which the connections that need one log in with.
+func (a *App) importKeys(st *importState) keyOwner {
+	kf := &st.keys
+	return keyOwner{
+		kf:     kf,
+		window: WindowImport,
+		dir:    func() string { return keyDir("") },
+		alive:  func() bool { return a.imp == st },
+		choose: func(k *config.SSHKey) {
+			if k != nil {
+				st.keyID, a.importKeyID = k.ID, k.ID
 			}
-			st.keyFile, a.importKeyFile = path, path
-		})
-	}()
+			kf.dialog, kf.renaming, kf.err = false, false, nil
+		},
+		deleted: func(k *config.SSHKey) {
+			if st.keyID == k.ID {
+				st.keyID, a.importKeyID = "", ""
+			}
+		},
+	}
 }
 
 // chooseLabel is the label of the button choosing the source's file or
@@ -485,8 +487,8 @@ func (a *App) importTable(c *ui.Context, st *importState, statuses []importStatu
 				notes = append(notes, locales.ImportSameAs(s.above.Host.Title()))
 			}
 			if r.e.NeedsKey {
-				if st.keyFile != "" {
-					notes = append(notes, locales.ImportKeyUses(filepath.Base(st.keyFile)))
+				if name := a.savedKeyName(st.keyID); name != "" {
+					notes = append(notes, locales.ImportKeyUses(name))
 				} else {
 					notes = append(notes, locales.ImportNeedsKey())
 				}
@@ -602,22 +604,22 @@ func (a *App) importChosen(st *importState, statuses []importStatus) {
 			entries = append(entries, r.e)
 		}
 	}
-	// The key file chosen in the window is the key file of every host
-	// imported that needed one.
-	if st.keyFile != "" {
-		for _, e := range entries {
-			if e.NeedsKey {
-				e.KeyFile = st.keyFile
+	added := importer.Import(a.hosts, entries, time.Now())
+	// The key chosen in the window is the key of every host imported that
+	// needed one: a saved key, which stays in the app as its own.
+	if st.keyID != "" && a.keys.Key(st.keyID) != nil {
+		for _, h := range added {
+			if h.Auth == config.AuthKey && h.KeyPath == "" {
+				h.Key = st.keyID
 			}
 		}
 	}
-	added := importer.Import(a.hosts, entries, time.Now())
 	failed, skipped := st.problemCounts()
 	imported, skipped := len(added), skipped+len(st.rows)-len(added)
 	keys := 0
 	m := &a.manager
 	for _, h := range added {
-		if h.Auth == config.AuthKey && h.KeyPath == "" {
+		if h.Auth == config.AuthKey && h.KeyPath == "" && h.Key == "" {
 			keys++
 		}
 		// A list's password, as the editor keeps a remembered one.

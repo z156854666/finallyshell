@@ -310,6 +310,24 @@
   "fieldNotes": "Notes",
   "browse": "Browse…",
   "chooseKeyFile": "Choose a private key",
+  "keyDialogTitle": "Saved private keys",
+  "colKeyName": "Name",
+  "colKeyType": "Type",
+  "colKeyLength": "Length",
+  "keyImport": "Import…",
+  "keyEditTitle": "Edit private key",
+  "keyUsedBy": "{count, plural, one {# connection logs in with this key} other {# connections log in with this key}}; deleting it leaves them without one.",
+  "@keyUsedBy": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "keysEmpty": "No saved keys yet: import a private key file.",
+  "keyNeedsPassphrase": "This key needs a passphrase: enter it in the Passphrase field.",
+  "keyDefaultName": "Imported key",
+  "errKeyNameRequired": "Enter the name",
   "monitorChannel": "Enable exec channel (server monitor)",
   "monitorChannelHint": "Turn it off for jump hosts that disconnect when another channel opens.",
   "fieldTermType": "Terminal type",
@@ -1069,9 +1087,9 @@
       }
     }
   },
-  "importNeedsKey": "Choose the key file after importing",
-  "importChooseKey": "Choose the key file…",
-  "importKeyNote": "{count} of the connections listed log in with a key that {source} keeps in its own store: choose one key file for all of them, or choose each one's after importing.",
+  "importNeedsKey": "Choose a private key after importing",
+  "importChooseKey": "Choose a private key…",
+  "importKeyNote": "{count} of the connections listed log in with a key that {source} keeps in its own store: choose one of the private keys saved in the app for all of them, or choose each one's after importing.",
   "@importKeyNote": {
     "placeholders": {
       "count": {
@@ -1082,7 +1100,7 @@
       }
     }
   },
-  "importKeyUses": "key file: {name}",
+  "importKeyUses": "private key: {name}",
   "@importKeyUses": {
     "placeholders": {
       "name": {
@@ -1123,7 +1141,7 @@
       }
     }
   },
-  "importKeysNote": "{count, plural, one {# uses a private key: edit it to choose the key file.} other {# use a private key: edit them to choose the key files.}}",
+  "importKeysNote": "{count, plural, one {# uses a private key: edit it to choose the private key.} other {# use a private key: edit them to choose the private keys.}}",
   "@importKeysNote": {
     "placeholders": {
       "count": {
@@ -1360,7 +1378,7 @@
   "syncPassword": "Sync password",
   "syncPasswordHint": "Encrypts what is synced. Use the same one on each computer. It cannot be recovered: if you forget it, replace the remote with this computer's data and a new one.",
   "syncIncludePasswords": "Include saved passwords",
-  "syncIncludePasswordsHint": "The passwords and key passphrases kept in the system's credential store, encrypted with the rest. Private key files are not synced.",
+  "syncIncludePasswordsHint": "The passwords and key passphrases kept in the system's credential store, and the private keys saved in the app, encrypted with the rest. Key files kept only on this computer are not synced.",
   "syncAutomatically": "Sync automatically",
   "syncEveryMinutes": "{minutes, plural, one {Every # minute} other {Every # minutes}}",
   "@syncEveryMinutes": {

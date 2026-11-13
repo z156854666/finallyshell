@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -82,9 +83,11 @@ type syncRun struct {
 	// destination than the current one is dropped.
 	start config.SyncSettings
 	// snapshot is this device's payload, without secrets; secrets are
-	// the saved passwords it included, nil for none.
+	// the saved passwords it included, nil for none, and keys says
+	// whether it carried the keys saved in the app.
 	snapshot *cloudsync.Payload
 	secrets  map[string]string
+	keys     bool
 	// gistID is the gist the sync found or made, "" for another service.
 	gistID string
 }
@@ -183,9 +186,13 @@ func (a *App) keepSyncSecret(key, v string) {
 
 // localPayload is this device's payload, without secrets: its folders
 // and hosts, each without the time it last connected, which stays on this
-// device, and the settings that are synced.
+// device, the settings that are synced and, when the saved passwords
+// travel, the private keys saved in the app, which travel with them.
 func (a *App) localPayload() *cloudsync.Payload {
 	p := &cloudsync.Payload{Schema: cloudsync.PayloadSchema, Settings: config.SyncedSettings(a.settings)}
+	if a.settings.Sync.Passwords {
+		p.Keys = a.keysPayload()
+	}
 	for _, f := range a.hosts.Folders {
 		if b, err := json.Marshal(f); err == nil {
 			p.Folders = append(p.Folders, b)
@@ -199,6 +206,64 @@ func (a *App) localPayload() *cloudsync.Payload {
 		}
 	}
 	return p
+}
+
+// keysPayload are the private keys saved in the app, as the sync carries
+// them: their objects in keys.json, their text included, which the envelope
+// encrypts with the rest.
+func (a *App) keysPayload() []json.RawMessage {
+	var out []json.RawMessage
+	for _, k := range a.keys.Keys {
+		if b, err := json.Marshal(k); err == nil {
+			out = append(out, b)
+		}
+	}
+	return out
+}
+
+// applySyncedKeys makes the keys saved in the app those the merge brought,
+// which are this device's and the others', and writes keys.json when they
+// changed. With all set, the sync carried this device's keys, so raw is
+// every key both devices have: none left means they were all deleted. When
+// it did not, raw is the remote's alone, and empties nothing here.
+func (a *App) applySyncedKeys(raw []json.RawMessage, all bool) {
+	if len(raw) == 0 && !all {
+		return
+	}
+	var keys []*config.SSHKey
+	taken := map[string]bool{}
+	for _, b := range raw {
+		k := &config.SSHKey{}
+		if json.Unmarshal(b, k) != nil || k.ID == "" || k.Key == "" || taken[k.ID] {
+			continue
+		}
+		taken[k.ID] = true
+		keys = append(keys, k)
+	}
+	next := &config.KeyStore{Version: config.KeysVersion}
+	if all {
+		next.Keys = keys
+	} else {
+		// The remote's keys alone come back, as this device's were not
+		// sent: they are added, and none of this device's is taken away.
+		next.Keys = slices.Clone(a.keys.Keys)
+		for _, k := range keys {
+			if a.keys.Key(k.ID) == nil {
+				next.Keys = append(next.Keys, k)
+			}
+		}
+	}
+	before, err := json.Marshal(a.keys)
+	if err != nil {
+		return
+	}
+	after, err := json.Marshal(next)
+	if err != nil || string(before) == string(after) {
+		return
+	}
+	a.keys = next
+	a.saveSavedKeys()
+	a.redraw() // the editor's key list, when it shows
 }
 
 // syncSecretKeys are the keys of the secrets of the hosts that remember
@@ -266,23 +331,31 @@ func (a *App) startSync(force bool, now time.Time) {
 	st.running, st.err, st.lastTry = true, nil, now
 	st.confirmReplace, st.again = false, false
 	snapshot := a.localPayload()
+	// The saved keys travel with the passwords, as a connection that logs
+	// in with one takes it to the device it syncs to.
+	includeKeys := s.Passwords
 	req := cloudsync.Request{
 		Remote: remote, Password: st.password, Local: snapshot, Force: force,
 		Device: deviceName(),
 	}
 	if st.state.Remote == s.Remote() {
-		req.Base, req.BaseSecrets = st.state.Base, st.state.Secrets
+		req.Base, req.BaseSecrets, req.BaseKeys = st.state.Base, st.state.Secrets, st.state.Keys
 	}
 	run := func(secrets map[string]string) {
-		if secrets != nil {
+		if secrets != nil || includeKeys {
 			req.Local = snapshot.Clone()
-			req.Local.Secrets, req.Secrets = secrets, true
+			if secrets != nil {
+				req.Local.Secrets, req.Secrets = secrets, true
+			}
+			if includeKeys {
+				req.Local.Keys, req.Keys = a.keysPayload(), true
+			}
 		}
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), syncTimeout)
 			defer cancel()
 			res, err := cloudsync.Sync(ctx, req)
-			run := syncRun{start: s, snapshot: snapshot, secrets: secrets}
+			run := syncRun{start: s, snapshot: snapshot, secrets: secrets, keys: includeKeys}
 			if g, ok := remote.(*cloudsync.Gist); ok {
 				run.gistID = g.ID
 			}
@@ -359,10 +432,11 @@ func (a *App) syncDone(res *cloudsync.Result, err error, run syncRun) {
 	if run.secrets != nil {
 		a.applySyncedSecrets(run.secrets, res.Merged.Secrets)
 	}
+	a.applySyncedKeys(merged.Keys, run.keys)
 	st.err, st.done = nil, res
 	st.state = config.SyncState{
 		Remote: s.Remote(), Base: res.Envelope, At: time.Now(), Device: res.RemoteDevice,
-		Secrets: run.secrets != nil,
+		Secrets: run.secrets != nil, Keys: run.keys,
 	}
 	if res.Uploaded {
 		st.state.Device = deviceName()
@@ -372,6 +446,11 @@ func (a *App) syncDone(res *cloudsync.Result, err error, run syncRun) {
 	// device's payload differs, as when it changed during this sync.
 	st.synced = res.Merged.Clone()
 	st.synced.Secrets = nil
+	if !run.keys {
+		// What the payload has is the remote's, not this device's: what
+		// it is compared with next is this device's own keys.
+		st.synced.Keys = nil
+	}
 }
 
 // applyPayload makes this device's folders, hosts and synced settings

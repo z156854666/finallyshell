@@ -154,7 +154,14 @@ type secretNeed struct {
 func loginNeed(x, h *config.Host) *secretNeed {
 	n := &secretNeed{key: x.ID, store: loginSecretKey(x), host: x, title: locales.EnterPassword, who: x.Target()}
 	if x.Auth == config.AuthKey {
+		// The key's file, or the name of the one saved in the app.
 		n.passphrase, n.title, n.detail = true, locales.EnterPassphrase, x.KeyPath
+		if x.Key != "" {
+			n.detail = ""
+			if k := config.LoadKeys().Key(x.Key); k != nil {
+				n.detail = k.Name
+			}
+		}
 	}
 	if x != h {
 		if x.Name != "" {

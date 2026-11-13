@@ -67,7 +67,7 @@ func TestImportXshell(t *testing.T) {
 	sourcesShot(t, tt, "import-xshell-sources-en.png")
 	p.SetLocale("zh-Hans")
 	tt.Frame()
-	for _, s := range []string{"导入来源", "导入 5 个", "导入后需要选择私钥文件", "代理没有导入", "密码不导入（Xshell 对密码做了加密），第一次连接时会询问密码。"} {
+	for _, s := range []string{"导入来源", "导入 5 个", "导入后需要选择私钥", "代理没有导入", "密码不导入（Xshell 对密码做了加密），第一次连接时会询问密码。"} {
 		if !tt.HasText(s) {
 			t.Errorf("missing %q; texts %q", s, tt.Texts())
 		}

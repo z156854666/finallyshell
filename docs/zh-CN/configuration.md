@@ -10,6 +10,7 @@ Finallyshell 把主机和设置存在普通的 JSON 文件里。密码从不写�
   - [代理](#代理)
   - [文件夹、已删除的主机和其他字段](#文件夹已删除的主机和其他字段)
   - [安全](#安全)
+- [keys.json](#keysjson)
 - [settings.json](#settingsjson)
 - [同步](#同步)
 - [命令历史](#命令历史)
@@ -28,6 +29,7 @@ Finallyshell 把主机和设置存在普通的 JSON 文件里。密码从不写�
 | `hosts.json` | 保存的主机和文件夹（见下面）。 |
 | `hosts.v1.json` | 迁移第 1 版的 `hosts.json` 时保留的原文件。 |
 | `hosts.json.broken-<日期-时间>` | 读不出来的 `hosts.json` 的副本。 |
+| `keys.json` | 应用里保存的私钥（见下面）。 |
 | `settings.json` | 选项（见下面）。 |
 | `known_hosts` | 信任过的主机指纹。 |
 | `background-<时间>.<扩展名>` | 终端背景图片的副本。 |
@@ -113,7 +115,7 @@ Finallyshell 把主机和设置存在普通的 JSON 文件里。密码从不写�
 
 ### 文件夹、已删除的主机和其他字段
 
-- `auth` 是主机的登录方式：`password`（密码）、`key`（私钥，私钥文件在 `keyPath`）或 `agent`：用 [settings.json](#settingsjson) 里 `sshAgent` 地址上的 SSH Agent 里的私钥登录，不保存密码或私钥密码。不支持 SSH Agent 的旧版本把 `agent` 当作 `password`：同步到旧版本的主机在那里会要求输入密码，在那里保存后就变成密码主机。
+- `auth` 是主机的登录方式：`password`（密码）、`key`（私钥，应用里保存的私钥在 `key`，否则是 `keyPath` 里的私钥文件，见 [keys.json](#keysjson)）或 `agent`：用 [settings.json](#settingsjson) 里 `sshAgent` 地址上的 SSH Agent 里的私钥登录，不保存密码或私钥密码。不支持 SSH Agent 的旧版本把 `agent` 当作 `password`：同步到旧版本的主机在那里会要求输入密码，在那里保存后就变成密码主机。
 - `folder` 是主机所在文件夹的 ID，空表示顶层。文件夹用 `parent` 嵌套。
 - 有 `deletedAt`（删除时间）的主机是已删除的，只在连接管理器勾选“显示已删除”时列出。
 - `createdAt` 是添加时间，快速连接按它排没连接过的主机。以前的版本保存的主机没有这个字段。
@@ -130,12 +132,34 @@ Finallyshell 把主机和设置存在普通的 JSON 文件里。密码从不写�
 | `delete` | 跟随全局设置（`termDelete`）。 | `vt220`：删除键发送 `ESC [3~`；`del`：`^?`；`ctrl-h`：`^H`。 |
 | `encoding` | 跟随全局设置（`termEncoding`）。 | `utf-8`、`gbk`、`gb18030`、`big5`、`shift_jis`、`euc-jp`、`euc-kr`、`iso-8859-1` 或 `windows-1252`；不认识的值按 UTF-8。 |
 | `noRememberPassword` | 记住密码。 | `true`：关掉了“记住密码”。 |
+| `key` | 用 `keyPath` 里的私钥文件登录，保存私钥这个功能之前保存的每个主机都是这样。 | 它在 `keys.json` 里的私钥的 ID。 |
 
 ### 安全
 
 - 不认识的字段（新版本写的）原样保留，保存时不会丢。
 - 写入时先写临时文件再改名，不会留下写了一半的文件。
 - 如果 `hosts.json` 读不出来（比如被手改坏了），程序先把它原样复制成同目录下的 `hosts.json.broken-<年月日-时分秒>`，再按空列表启动。所以下次保存不会把原来的内容弄丢。
+
+## keys.json
+
+应用里保存的私钥，连接编辑器“选择私钥”对话框导入、改名和删除的就是它们（见[私钥](features.md#私钥)）。用保存的私钥登录的主机在 `key` 里写它的 ID，而不是在 `keyPath` 里写文件：
+
+```json
+{
+  "version": 1,
+  "keys": [{
+    "id": "k1", "name": "id_ed25519", "type": "ED25519", "bits": 256,
+    "fingerprint": "SHA256:…", "addedAt": "2026-11-13T10:00:00+08:00",
+    "key": "-----BEGIN OPENSSH PRIVATE KEY-----\n…\n-----END OPENSSH PRIVATE KEY-----\n"
+  }]
+}
+```
+
+- `name` 是列表里显示的名字：导入时是私钥文件的名字，也可以自己改。`type`、`bits`、`fingerprint` 和 `encrypted` 描述这个私钥，不代表它能用。
+- `key` 是私钥的内容，和导入时一样：OpenSSH 或 PEM。文件按 0600 权限写，和 `hosts.json` 一样；私钥密码不在这里，在凭据存储里（`host/<主机 ID>/passphrase`，见[密码存在哪里](#密码存在哪里)）。
+- 主机的 `key` 是它用的已保存私钥的 ID。只有 `keyPath` 的主机，也就是保存私钥这个功能之前保存的每个主机，用那个文件登录，文件只在这台电脑上。
+
+删除一个私钥会把它从所有用它登录的主机上删掉，这些主机之后要重新选一个，就像 FinalShell 的私钥列表一样。
 
 ## settings.json
 
@@ -221,10 +245,10 @@ Finallyshell 把主机和设置存在普通的 JSON 文件里。密码从不写�
 
 另有两个文件属于同步，和 `hosts.json` 放在一起：
 
-- `sync-state.json`：上次同步到哪里（`remote`）、什么时候（`at`）、读到的文件是哪台电脑写的（`device`），以及那次同步后的文件（`base`），仍用同步密码加密：下次同步拿它和两边比较；以及那次同步是否包括了本机已保存的密码（`secrets`）：没包括时，下次同步不拿基准里的密码做比较，所以后来再勾上“包括已保存的密码”会收到密码，而不是把它们删掉。删掉这个文件，下次同步会像第一次同步一样保留两边都有的内容。
+- `sync-state.json`：上次同步到哪里（`remote`）、什么时候（`at`）、读到的文件是哪台电脑写的（`device`），以及那次同步后的文件（`base`），仍用同步密码加密：下次同步拿它和两边比较；以及那次同步是否包括了本机已保存的密码（`secrets`）和私钥（`keys`）：没包括时，下次同步不拿基准里的密码和私钥做比较，所以后来再勾上“包括已保存的密码”会收到它们，而不是把它们删掉。删掉这个文件，下次同步会像第一次同步一样保留两边都有的内容。
 - `hosts.before-sync.json`：上次改动了 `hosts.json` 的同步之前的 `hosts.json`。
 
-服务上的文件 `finallyshell-sync.json` 是 JSON：`{"app": "finallyshell", "format": 1, "kdf": "argon2id", "salt": ..., "t": 3, "m": 65536, "p": 4, "cipher": "aes-256-gcm", "nonce": ..., "data": ...}`，二进制字段是 base64。`data` 解密后是 `{"schema": 1, "device": ..., "updatedAt": ..., "folders": [...], "hosts": [...], "settings": {...}, "secrets": {...}}`：folders 和 hosts 就是 `hosts.json` 里的，settings 是 `settings.json` 里同步的键，secrets 是已保存的密码，按它们在凭据存储里的键存放。
+服务上的文件 `finallyshell-sync.json` 是 JSON：`{"app": "finallyshell", "format": 1, "kdf": "argon2id", "salt": ..., "t": 3, "m": 65536, "p": 4, "cipher": "aes-256-gcm", "nonce": ..., "data": ...}`，二进制字段是 base64。`data` 解密后是 `{"schema": 1, "device": ..., "updatedAt": ..., "folders": [...], "hosts": [...], "settings": {...}, "secrets": {...}, "keys": [...]}`：folders 和 hosts 就是 `hosts.json` 里的，settings 是 `settings.json` 里同步的键，secrets 是已保存的密码，按它们在凭据存储里的键存放，keys 是 `keys.json` 里的对象，带私钥的内容。secrets 和 keys 只来自勾了“包括已保存的密码”的电脑，没勾的电脑保持文件里的原样。
 
 ## 命令历史
 

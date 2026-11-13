@@ -119,6 +119,22 @@ func ListAgentKeys(setting string) (string, []AgentKey, error) {
 // keyTypeLabel names a key's type as ssh-add -l does: "ED25519",
 // "RSA 4096", "ECDSA 256".
 func keyTypeLabel(k ssh.PublicKey) string {
+	typ, bits := keyTypeAndBits(k)
+	base, cert := strings.CutSuffix(typ, "-CERT")
+	if bits > 0 && (base == "RSA" || base == "ECDSA") {
+		label := base + " " + strconv.Itoa(bits)
+		if cert {
+			label += "-CERT"
+		}
+		return label
+	}
+	return typ
+}
+
+// keyTypeAndBits name a key's algorithm as keyTypeLabel's first word does,
+// "ED25519", "RSA", "ECDSA", and the size of its public part in bits: 256
+// for ED25519, 4096 for an RSA key of that size, 0 when it is not known.
+func keyTypeAndBits(k ssh.PublicKey) (string, int) {
 	t := k.Type()
 	cert := strings.HasSuffix(t, "-cert-v01@openssh.com")
 	if cert {
@@ -127,32 +143,34 @@ func keyTypeLabel(k ssh.PublicKey) string {
 			k = c.Key
 		}
 	}
-	var label string
+	var typ string
+	bits := 0
 	switch {
 	case t == ssh.KeyAlgoED25519:
-		label = "ED25519"
+		typ, bits = "ED25519", 256
 	case t == ssh.KeyAlgoSKED25519:
-		label = "ED25519-SK"
+		typ, bits = "ED25519-SK", 256
 	case t == ssh.KeyAlgoSKECDSA256:
-		label = "ECDSA-SK"
+		typ, bits = "ECDSA-SK", 256
 	case strings.HasPrefix(t, "ecdsa-sha2-nistp"):
-		label = "ECDSA " + strings.TrimPrefix(t, "ecdsa-sha2-nistp")
+		typ = "ECDSA"
+		bits, _ = strconv.Atoi(strings.TrimPrefix(t, "ecdsa-sha2-nistp"))
 	case t == ssh.KeyAlgoRSA:
-		label = "RSA"
+		typ = "RSA"
 		if ck, ok := k.(ssh.CryptoPublicKey); ok {
 			if rk, ok := ck.CryptoPublicKey().(*rsa.PublicKey); ok {
-				label += " " + strconv.Itoa(rk.N.BitLen())
+				bits = rk.N.BitLen()
 			}
 		}
 	case t == ssh.InsecureKeyAlgoDSA:
-		label = "DSA"
+		typ, bits = "DSA", 1024
 	default:
-		label = t
+		typ = t
 	}
 	if cert {
-		label += "-CERT"
+		typ += "-CERT"
 	}
-	return label
+	return typ, bits
 }
 
 // agentLogin is what logging in with an agent holds until Dial is done:

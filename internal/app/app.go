@@ -139,6 +139,7 @@ type App struct {
 	settings config.Settings
 
 	hosts     *config.Store     // deleted hosts included: lists show hosts.Live()
+	keys      *config.KeyStore  // the private keys saved in the app (editor_keys.go)
 	passwords map[string]string // by host ID: what the host logs in with, this run
 	secrets   secretStore       // the system's credential store (secrets.go)
 	sessions  []*Session        // new tabs included
@@ -193,6 +194,7 @@ type App struct {
 	layoutAt    time.Time
 
 	saveHosts    func(*config.Store) error
+	saveKeys     func(*config.KeyStore) error
 	saveSettings func(config.Settings) error
 
 	transfers transferQueue
@@ -213,12 +215,12 @@ type App struct {
 
 	// The import window's state (import.go); its sources,
 	// allImportSources() unless tests replace them, the kind of the one
-	// chosen last, "" for the first, and the key file chosen for the
+	// chosen last, "" for the first, and the saved key chosen for the
 	// connections that need one, "" for none.
 	imp           *importState
 	importSources []importSource
 	importKind    importer.Kind
-	importKeyFile string
+	importKeyID   string
 
 	// The password prompt: the password a connection takes (a saved
 	// host's, a jump host's or a proxy's), or a key's passphrase, and
@@ -316,6 +318,7 @@ func New(plat Platform) *App {
 		processes:       processesUI{listPct: defaultProcListPct, fieldsPct: defaultProcFieldsPct},
 		network:         networkUI{listPct: defaultNetListPct},
 		saveHosts:       config.SaveHosts,
+		saveKeys:        config.SaveKeys,
 		saveSettings:    config.SaveSettings,
 
 		importSources: allImportSources(),
@@ -323,6 +326,7 @@ func New(plat Platform) *App {
 		newRemote:     syncRemote,
 	}
 	a.hosts, _ = config.LoadHosts()
+	a.keys = config.LoadKeys()
 	// Proxies saved for a host alone, as hosts saved before proxies had a
 	// list of their own, join the store's; and every host connects through
 	// its saved proxy as it is now. Best effort: what fails to be written

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -296,6 +297,62 @@ func TestSyncPasswords(t *testing.T) {
 	one.p.until(t, "the store", storeSettled(one.a, one.p))
 	if _, ok := one.p.stored[hostSecretKey("h1", secretPassword)]; ok {
 		t.Error("the forgotten password is still stored")
+	}
+}
+
+// The private keys saved in the app travel with the passwords: a device
+// without them receives those the file has, sends none of its own, and
+// keeps what it has; a key deleted on a device that sends them is deleted
+// on the others.
+func TestSyncKeys(t *testing.T) {
+	r := &memRemote{}
+	one := newDevice(t, r)
+	one.a.settings.Sync.Passwords = true
+	h := one.addHost("h1", "web")
+	k := &config.SSHKey{ID: "k1", Name: "id_ed25519", Type: "ED25519", Bits: 256, Key: "the key's text"}
+	one.a.keys.Keys = append(one.a.keys.Keys, k)
+	one.a.saveKeys(one.a.keys)
+	h.Auth, h.Key = config.AuthKey, k.ID
+	one.sync(t)
+
+	// Without "Include saved passwords", the key comes with the host that
+	// logs in with it, and the device's own keys are not sent.
+	other := newDevice(t, r)
+	other.sync(t)
+	if keys := other.a.keys.Keys; len(keys) != 1 || keys[0].Key != k.Key {
+		t.Fatalf("keys %+v", keys)
+	}
+	if got := other.a.hosts.Host("h1"); got == nil || got.Key != k.ID {
+		t.Fatalf("host %+v", got)
+	}
+	if data, err := os.ReadFile(filepath.Join(other.dir, "keys.json")); err != nil || !bytes.Contains(data, []byte(`"id": "k1"`)) {
+		t.Fatalf("keys.json: %v, %s", err, data)
+	}
+	other.a.keys.Keys = append(other.a.keys.Keys, &config.SSHKey{ID: "k2", Name: "mine", Type: "RSA", Bits: 4096, Key: "mine"})
+	other.a.saveKeys(other.a.keys)
+	other.sync(t)
+	one.sync(t)
+	if keys := one.a.keys.Keys; len(keys) != 1 || keys[0].ID != k.ID {
+		t.Errorf("a device without passwords sent its keys: %+v", keys)
+	}
+	if keys := other.a.keys.Keys; len(keys) != 2 {
+		t.Errorf("its own key is gone: %+v", keys)
+	}
+
+	// With them, both devices' keys are there, and one deleted here is
+	// deleted there.
+	two := newDevice(t, r)
+	two.a.settings.Sync.Passwords = true
+	two.sync(t)
+	if keys := two.a.keys.Keys; len(keys) != 1 || keys[0].ID != k.ID {
+		t.Fatalf("keys %+v", keys)
+	}
+	two.a.keys.Remove(k.ID)
+	two.a.saveKeys(two.a.keys)
+	two.sync(t)
+	one.sync(t)
+	if keys := one.a.keys.Keys; len(keys) != 0 {
+		t.Errorf("the deleted key is still here: %+v", keys)
 	}
 }
 

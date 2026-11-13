@@ -13,6 +13,7 @@ behind each setting.
   - [Proxy](#proxy)
   - [Folders, deleted hosts and other fields](#folders-deleted-hosts-and-other-fields)
   - [Safety](#safety)
+- [keys.json](#keysjson)
 - [settings.json](#settingsjson)
 - [Sync](#sync)
 - [Command history](#command-history)
@@ -35,6 +36,7 @@ instead.
 | `hosts.json` | Saved hosts and folders (see below). |
 | `hosts.v1.json` | The original file, kept when a version 1 `hosts.json` is migrated. |
 | `hosts.json.broken-<date-time>` | A copy of a `hosts.json` that could not be read. |
+| `keys.json` | The private keys saved in the app (see below). |
 | `settings.json` | The options (see below). |
 | `known_hosts` | Host keys you have trusted. |
 | `background-<time>.<extension>` | The copy of the terminal background image. |
@@ -154,7 +156,8 @@ SSH connection, and so is one whose type this build does not know, such as
 ### Folders, deleted hosts and other fields
 
 - `auth` is how the host logs in: `password`, `key` (with the private key
-  file in `keyPath`) or `agent`, the keys of the SSH agent at `sshAgent`
+  saved in the app in `key`, or else the private key file in `keyPath`, see
+  [keys.json](#keysjson)) or `agent`, the keys of the SSH agent at `sshAgent`
   in [settings.json](#settingsjson), with no password or passphrase
   stored. Versions before SSH agent support read `agent` as `password`:
   a host synced to such a version asks for a password there, and saving it
@@ -179,6 +182,7 @@ Fields with empty values are not written. Missing fields mean:
 | `delete` | The global setting (`termDelete`). | `vt220`: Delete sends `ESC [3~`; `del`: `^?`; `ctrl-h`: `^H`. |
 | `encoding` | The global setting (`termEncoding`). | `utf-8`, `gbk`, `gb18030`, `big5`, `shift_jis`, `euc-jp`, `euc-kr`, `iso-8859-1` or `windows-1252`; unknown values mean UTF-8. |
 | `noRememberPassword` | Passwords are remembered. | `true`: "Remember password" was turned off. |
+| `key` | The host logs in with the file in `keyPath`, as every host saved before keys were saved does. | The ID of its key in `keys.json`. |
 
 ### Safety
 
@@ -190,6 +194,38 @@ Fields with empty values are not written. Missing fields mean:
   app first copies it as is to `hosts.json.broken-<YYYYMMDD-HHMMSS>` in the
   same folder, then starts with an empty list. The next save therefore
   cannot destroy the original content.
+
+## keys.json
+
+The private keys saved in the app, which the connection editor's "Choose a
+private key" dialog imports, renames and deletes (see
+[Private keys](features.md#private-keys)). A host that logs in with one
+names it in `key` rather than a file in `keyPath`:
+
+```json
+{
+  "version": 1,
+  "keys": [{
+    "id": "k1", "name": "id_ed25519", "type": "ED25519", "bits": 256,
+    "fingerprint": "SHA256:…", "addedAt": "2026-11-13T10:00:00+08:00",
+    "key": "-----BEGIN OPENSSH PRIVATE KEY-----\n…\n-----END OPENSSH PRIVATE KEY-----\n"
+  }]
+}
+```
+
+- `name` is how the key shows in the list: the key file's name when it was
+  imported, or one the user gave it. `type`, `bits`, `fingerprint` and
+  `encrypted` describe the key, and say nothing about whether it works.
+- `key` is the private key's text, as imported: OpenSSH or PEM. The file is
+  written with mode 0600, as `hosts.json` is; its passphrase is not in it,
+  but in the credential store (`host/<host ID>/passphrase`, see
+  [Where passwords are stored](#where-passwords-are-stored)).
+- A host's `key` is the ID of its saved key. A host with `keyPath` instead,
+  as every host saved before keys were saved, logs in with that file, which
+  stays on this computer.
+
+Deleting a key deletes it for every host that logs in with it, which then
+need another: no host keeps a copy, as FinalShell's key store works.
 
 ## settings.json
 
@@ -306,21 +342,24 @@ Two more files belong to sync, next to `hosts.json`:
   the computer that wrote the file it read (`device`), and the file as it
   was after that sync (`base`), still encrypted with the sync password: the
   next sync compares both sides with it; and whether that sync included
-  this computer's saved passwords (`secrets`): when it did not, the next
-  sync does not compare passwords with the base, so turning "Include
-  saved passwords" on later receives the passwords rather than deleting
-  them. Deleting the file makes the next sync keep what either side has,
-  as a first sync does.
+  this computer's saved passwords (`secrets`) and private keys (`keys`):
+  when it did not, the next sync does not compare them with the base, so
+  turning "Include saved passwords" on later receives the passwords and
+  keys rather than deleting them. Deleting the file makes the next sync
+  keep what either side has, as a first sync does.
 - `hosts.before-sync.json`: `hosts.json` as it was before the last sync
   that changed it.
 
 The file on the service, `finallyshell-sync.json`, is JSON:
 `{"app": "finallyshell", "format": 1, "kdf": "argon2id", "salt": ..., "t": 3, "m": 65536, "p": 4, "cipher": "aes-256-gcm", "nonce": ..., "data": ...}`,
 the binary fields in base64. Decrypted, `data` is
-`{"schema": 1, "device": ..., "updatedAt": ..., "folders": [...], "hosts": [...], "settings": {...}, "secrets": {...}}`,
+`{"schema": 1, "device": ..., "updatedAt": ..., "folders": [...], "hosts": [...], "settings": {...}, "secrets": {...}, "keys": [...]}`,
 where folders and hosts are those of `hosts.json`, settings the synced
-keys of `settings.json`, and secrets the saved passwords by their key in
-the credential store.
+keys of `settings.json`, secrets the saved passwords by their key in
+the credential store, and keys the objects of `keys.json` with their
+private keys' text. Secrets and keys come from the computers with
+"Include saved passwords" checked, and those without it keep the file's
+as they are.
 
 ## Command history
 
