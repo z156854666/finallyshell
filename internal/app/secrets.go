@@ -35,12 +35,14 @@ import (
 // on a goroutine of the secret queue, and what they read comes back
 // through App.post. A read after a write sees what was written.
 
-// The names of a host's secrets, for hostSecretKey.
+// The names of a host's secrets, for hostSecretKey. A proxy's password is
+// not one: it is the saved proxy's, under proxySecretKey (proxy.go).
 const (
 	secretPassword   = "password"   // the password of a host that logs in with one
 	secretPassphrase = "passphrase" // the passphrase of the host's private key
-	// the password of the host's SOCKS5 or HTTP proxy, kept in memory
-	// under proxySecretKey (proxy.go)
+	// secretProxyPassword is where a build before saved proxies kept the
+	// password of the host's SOCKS5 or HTTP proxy: legacyProxyStoreKey
+	// (proxy.go) reads it, and a host deleted for good takes it along.
 	secretProxyPassword = "proxy-password"
 )
 
@@ -218,11 +220,15 @@ func (a *App) checkSecrets() {
 }
 
 // unread tells whether need's secret is to be read from the store before
-// it is used: the app does not know it, has not read it this run, and
-// the host remembers it, where there is a store.
+// it is used: the app does not know it, and has not read it this run, where
+// there is a store. A host's secrets are the host's, read when it remembers
+// them; a proxy's is the proxy's, which any host that uses it goes through.
 func (a *App) unread(need *secretNeed) bool {
 	_, known := a.knownSecret(need)
-	return !known && need.host.RemembersPassword() && !a.secrets.read[need.store] && !a.secretsUnavailable()
+	if known || a.secrets.read[need.store] || a.secretsUnavailable() {
+		return false
+	}
+	return need.proxy || need.host.RemembersPassword()
 }
 
 // readSecret reads need's secret from the store, when unread, and calls
@@ -234,16 +240,43 @@ func (a *App) readSecret(need *secretNeed, then func()) bool {
 	}
 	a.secret(need.store, func(v string, ok bool) {
 		a.secrets.markRead(need.store)
-		// Not when the host changed the way it logs in meanwhile.
-		_, known := a.knownSecret(need)
-		if ok && !known && (need.proxy || loginSecretKey(need.host) == need.store) {
-			a.keepSecret(need, v)
+		if !ok && need.legacy != "" {
+			// Where a build before saved proxies kept it, for the host:
+			// the proxy adopts it, for every host that uses it.
+			a.readLegacySecret(need, then)
+			return
 		}
+		a.keepRead(need, v, ok)
 		if then != nil {
 			then()
 		}
 	})
 	return true
+}
+
+// readLegacySecret reads need's secret where a build before saved proxies
+// kept it, and keeps it as the saved proxy's, under need.store, for the
+// hosts that use it too.
+func (a *App) readLegacySecret(need *secretNeed, then func()) {
+	a.secret(need.legacy, func(v string, ok bool) {
+		a.secrets.markRead(need.legacy)
+		if ok && v != "" {
+			a.setSecret(need.store, v)
+		}
+		a.keepRead(need, v, ok)
+		if then != nil {
+			then()
+		}
+	})
+}
+
+// keepRead keeps what the store answered for need, for this run.
+func (a *App) keepRead(need *secretNeed, v string, ok bool) {
+	// Not when the host changed the way it logs in meanwhile.
+	_, known := a.knownSecret(need)
+	if ok && !known && (need.proxy || loginSecretKey(need.host) == need.store) {
+		a.keepSecret(need, v)
+	}
 }
 
 // readChainSecrets reads from the store the secrets connecting to h
@@ -291,9 +324,10 @@ func (a *App) storedPassphrase(h *config.Host) func(ctx context.Context) string 
 	}
 }
 
-// readEditorSecret fills the editor's password, or passphrase, of h, and
-// its proxy's password, with those saved, once they are read; for a new
-// host (nil) it only finds out whether there is a store.
+// readEditorSecret fills the editor's password, or passphrase, of h with
+// those saved, once they are read; for a new host (nil) it only finds out
+// whether there is a store. The passwords of the saved proxies are the
+// dialog's (proxyFields.readPassword).
 func (a *App) readEditorSecret(ed *connEditor, h *config.Host) {
 	if h != nil && h.Auth != config.AuthAgent {
 		auth := h.Auth
@@ -310,17 +344,6 @@ func (a *App) readEditorSecret(ed *connEditor, h *config.Host) {
 				ed.password = v
 			}
 		})
-		if usesProxyPassword(h) {
-			ed.readingProxySecret = a.readSecret(proxyNeed(h, h), func() {
-				if a.editor != ed || !ed.readingProxySecret {
-					return
-				}
-				ed.readingProxySecret = false
-				if ed.proxy.password == "" {
-					ed.proxy.password = a.proxySecrets()[proxySecretKey(h.ID)]
-				}
-			})
-		}
 	}
 	a.checkSecrets()
 }
@@ -380,24 +403,6 @@ func (a *App) keepLogin(h *config.Host, secret string, remember, unread bool) bo
 	return changed
 }
 
-// keepProxySecret stores the password of h's proxy, as the editor's
-// Proxy page saved it in proxySecrets (saveProxy), with remember, and
-// deletes it from the store without, or when h has no proxy that takes
-// one. With unread, the saved one not read yet, an empty one leaves what
-// the store keeps.
-func (a *App) keepProxySecret(h *config.Host, remember, unread bool) {
-	key := hostSecretKey(h.ID, secretProxyPassword)
-	delete(a.secrets.untried, proxySecretKey(h.ID))
-	pw, ok := a.proxySecrets()[proxySecretKey(h.ID)]
-	switch {
-	case ok && remember && usesProxyPassword(h):
-		a.setSecret(key, pw)
-	case unread && remember && usesProxyPassword(h):
-	default:
-		a.deleteSecret(key)
-	}
-}
-
 // passwordEntered keeps what the prompt was given, for this run, and
 // goes on with what asked for it, which may ask for the next one. With
 // "Remember password" it is stored once a connection logs in with it
@@ -441,7 +446,9 @@ func (a *App) loggedIn(h *config.Host) {
 			continue
 		}
 		delete(a.secrets.untried, n.key)
-		if n.host.RemembersPassword() {
+		// A proxy's password is stored as the proxy's, however its hosts
+		// remember theirs, as the dialog that changes it stores it too.
+		if n.proxy || n.host.RemembersPassword() {
 			a.setSecret(n.store, v)
 		}
 	}

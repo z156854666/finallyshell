@@ -245,9 +245,12 @@ func TestEditorEditKeepsFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The saved proxy the host's is, and its own password.
 	a.hosts.Add(&h)
+	a.hosts.Proxies = []*config.ProxyEntry{{ID: "p1", Kind: config.ProxySOCKS5, Addr: "10.0.0.9", Port: 1081, User: "alice"}}
+	h.Proxy.ID = "p1"
 	a.passwords["h1"] = "phrase"
-	a.proxySecrets()["proxy/h1"] = "pp"
+	a.proxySecrets()[proxySecretKey("p1")] = "pp"
 	mainWin := ui.NewTester(a.View, 1280, 820)
 	p.tt = mainWin
 	a.openManager()
@@ -265,10 +268,14 @@ func TestEditorEditKeepsFields(t *testing.T) {
 	}
 	tt := editorWindow(t, a, p)
 	ed := a.editor
+	// The host's proxy is the saved one, which the page lists as chosen.
 	want := connEditor{id: "h1", kind: config.KindSSH, name: "web", addr: "10.0.0.1", port: "2200", notes: "main box\nrack 4",
 		auth: config.AuthKey, user: "root", keyPath: "~/.ssh/id_rsa", passphrase: "phrase",
 		remember: true, monitor: false, termType: "vt220", backspace: config.BackspaceCtrlH,
-		proxy:   proxyFields{kind: config.ProxySOCKS5, addr: "10.0.0.9", port: "1081", user: "alice", password: "pp", saved: h.Proxy, hosts: a.hosts},
+		proxy: proxyFields{proxies: []*config.ProxyEntry{{ID: "p1", Kind: config.ProxySOCKS5, Addr: "10.0.0.9", Port: 1081, User: "alice"}},
+			kind: config.ProxySOCKS5, entry: "p1", passwords: map[string]string{"p1": "pp"},
+			changed: map[string]bool{}, asked: map[string]bool{},
+			saved: h.Proxy, hosts: a.hosts, editing: -1},
 		tunnels: newTunnelEditor(&h)}
 	fields := *ed
 	fields.nav = widgets.NavState{}
@@ -318,7 +325,7 @@ func TestEditorEditKeepsFields(t *testing.T) {
 		"id": "h1", "name": "web-1", "addr": "10.0.0.1", "port": 2200.0, "user": "root", "auth": "key",
 		"keyPath": "~/.ssh/id_rsa", "folder": "f1", "notes": "main box\nrack 4", "noMonitor": true,
 		"lastConnectedAt": "2026-11-07T10:00:00Z", "termType": "vt220", "backspace": "ctrl-h",
-		"proxy": map[string]any{"kind": "socks5", "addr": "10.0.0.9", "port": 1081.0, "user": "alice", "timeout": 5.0},
+		"proxy": map[string]any{"id": "p1", "kind": "socks5", "addr": "10.0.0.9", "port": 1081.0, "user": "alice", "timeout": 5.0},
 	} {
 		if !reflect.DeepEqual(got[k], want) {
 			t.Errorf("%s = %v, want %v", k, got[k], want)
@@ -327,7 +334,7 @@ func TestEditorEditKeepsFields(t *testing.T) {
 	if len(got) != 14 {
 		t.Errorf("saved keys %v", got)
 	}
-	if a.passwords["h1"] != "phrase" || a.proxySecrets()["proxy/h1"] != "pp" || a.hosts.Host("h1") != &h {
+	if a.passwords["h1"] != "phrase" || a.proxySecrets()[proxySecretKey("p1")] != "pp" || a.hosts.Host("h1") != &h {
 		t.Errorf("passphrase %q", a.passwords["h1"])
 	}
 }
@@ -651,7 +658,7 @@ func TestEditorPages(t *testing.T) {
 				editorSSH: {locales.SectionGeneral(), locales.SectionAuth(), locales.SectionAdvanced(), locales.FieldNotes(), locales.MonitorChannel()},
 				editorTerminal: {locales.FieldTermType(), locales.FieldEncoding(), locales.FieldBackspace(), locales.FieldDelete(), locales.KeySeqDefault("UTF-8"), locales.EncodingHint(),
 					locales.KeySeqDefault(locales.KeySeqDEL()), locales.KeySeqDefault(locales.KeySeqVT220())},
-				editorProxy:   {locales.FieldProxyType(), locales.ProxyNone(), locales.ProxyNoneHint()},
+				editorProxy:   {locales.FieldProxyType(), locales.ProxyNoProxy(), locales.ProxyNoneHint()},
 				editorTunnels: {locales.TunnelsIntro(), locales.TunnelsEmpty(), locales.TunnelAdd()},
 			}
 			labels := map[string]string{

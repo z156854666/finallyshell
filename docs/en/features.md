@@ -470,9 +470,9 @@ The context menu of a connection has:
 - Connect.
 - Edit.
 - Duplicate: the copy is named "<name> (copy)". Proxy or jump host
-  settings, tunnels, and the remembered password and proxy password are
-  copied too; the entries in the credential store are copied to the new
-  connection as well.
+  settings, tunnels and the remembered password are copied too; the entries
+  in the credential store are copied to the new connection as well. The
+  proxy's password is not: it is the saved proxy's, which both go through.
 - Rename (F2).
 - Move to folder.
 - Copy host: copies the host address.
@@ -503,8 +503,8 @@ Deleting a connection only moves it to the deleted items (`deletedAt`).
 With "Show deleted" checked, deleted connections are shown in grey in
 their original folders, and their context menu has Restore and Delete
 permanently (which asks first). Every permanent delete goes through
-`deleteHostForever`, which also clears the password and proxy password
-remembered for the host, both in memory and in the credential store.
+`deleteHostForever`, which also clears the passwords kept for the host,
+both in memory and in the credential store.
 
 Deleting (or permanently deleting) a connection that other connections use
 as their jump host asks first, and the question lists the connections that
@@ -1003,15 +1003,23 @@ setting, whose default is still `^?`: their behavior does not change.
 
 ### Proxy and jump hosts
 
-Type is one of None (connect directly), SOCKS5, HTTP or Jump host.
+The page starts with the type of the way to the host:
 
-- SOCKS5 and HTTP (`CONNECT`) take the proxy's host and port (1080 and 8080
-  by default), and a user and password when the proxy needs
-  authentication (HTTP uses Basic authentication). With SOCKS5 the proxy
-  resolves the host name, so the host can be a name only the proxy's side
-  knows.
-- Jump host picks another saved connection (not the connection itself).
-  It works like `ssh -J`: log in to the jump host first, then have its SSH
+- "No proxy" connects directly.
+- SOCKS5 or HTTP then shows the proxies of that type saved for every
+  connection, as FinalShell's proxy list does: "Used" marks the one this
+  connection goes through. Add, Edit and Remove change a saved proxy: the
+  name (shown as its host and port when empty), the type, the host and port
+  (1080 and 8080 by default), the user, and the password when the proxy
+  needs authentication (HTTP uses Basic authentication). With SOCKS5 the
+  proxy resolves the host name, so the host can be a name only the proxy's
+  side knows.
+- Every connection that uses a saved proxy goes through it as it is now,
+  the next time the connections are saved. Removing one makes those
+  connections connect directly.
+- Jump host picks another saved connection (not the connection itself),
+  and gives up the proxy: it is the other way to reach this host. It works
+  like `ssh -J`: log in to the jump host first, then have its SSH
   server forward the connection to this host (the jump host must allow TCP
   forwarding). A jump host can have its own proxy or jump host, and the
   hops are connected one after another. If they loop back, both the editor
@@ -1024,9 +1032,18 @@ Type is one of None (connect directly), SOCKS5, HTTP or Jump host.
   password" and says which host it is for and which connection needs it.
   After a host is changed to use a jump host, reconnecting asks for the new
   jump host's password first.
-- Proxy passwords are kept in the system's credential store like host
-  passwords (following "Remember password" on the SSH connection page), not
-  in `hosts.json`.
+- A proxy's password is the proxy's, not one connection's: the dialog that
+  adds or changes it asks for it, and every connection that uses the proxy
+  connects with it. It is kept in the system's credential store, never in
+  `hosts.json`, and asked for as the first connection through the proxy
+  makes it without one. A password saved by a build before proxies had
+  passwords of their own is adopted the first time it is needed.
+- The lists of connections — the panel under the server monitor, the
+  connection manager and quick connect — mark each host that does not
+  connect directly with a route icon after its name, and the tooltip of the
+  row says which way it goes: "Proxy: cdt (SOCKS5 cdt.inses.top:20394)",
+  "Jump host: bastion". A remote desktop opens no connection of its own, so
+  it has no mark.
 - Errors name the hop that failed: "Proxy 1.2.3.4:1080: Connection
   refused: no proxy on that port", "Jump host web-1: Authentication
   failed: ...", "Jump host web-1: Cannot connect to 10.0.0.5:22: ...".

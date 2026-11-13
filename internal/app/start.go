@@ -282,10 +282,12 @@ func (a *App) quickConnect(c *ui.Context, tab *Session, st *startState) {
 			if row.Clicked() {
 				connect = h
 			}
+			row.Tooltip(a.hostTooltip(h))
 			row.Children(func() {
 				ui.Row(c).Gap(8).Grow(3).Basis(0).MinWidth(0).AlignItems(ui.Center).Children(func() {
 					ui.Icon(c, icons.Get(hostIcon(h))).FontSize(14).TextColor(color.Alpha(0.7))
 					ui.Text(c, h.Title()).SingleLine().TextColor(color).Grow(1).MinWidth(0)
+					hostRouteMark(c, h, color.Alpha(0.7), a.hostRouteLine(h))
 				})
 				quickColumns(c, color, "", hostAddr(h), h.User)
 			})

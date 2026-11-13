@@ -81,8 +81,11 @@ version 2.
     "createdAt": "2026-10-01T09:00:00+08:00"
   }, {
     "id": "h2", "name": "bastion", "addr": "198.51.100.1", "user": "jump", "auth": "password",
-    "proxy": {"kind": "socks5", "addr": "127.0.0.1", "port": 1080, "user": "alice"}
-  }]
+    "proxy": {"id": "p1", "kind": "socks5", "addr": "127.0.0.1", "port": 1080, "user": "alice"}
+  }],
+  "proxies": [
+    {"id": "p1", "name": "office", "kind": "socks5", "addr": "127.0.0.1", "port": 1080, "user": "alice"}
+  ]
 }
 ```
 
@@ -102,15 +105,28 @@ The listen address of a remote tunnel must be an IP address or
 
 ### Proxy
 
+`proxies` are the saved SOCKS5 and HTTP proxies, the ones the connection
+editor's Proxy page lists, each with an `id`, a `name` (`""` for one shown
+by its address and port), a `kind` (`socks5` or `http`), an `addr`, a
+`port` (`0` for the kind's usual one) and a `user` when it needs
+authentication.
+
 `proxy` says how the host is reached:
 
-- `kind` is `socks5` or `http`, which have `addr` and `port`, and `user`
-  when the proxy needs authentication;
+- `id` is the saved proxy of `proxies` the host connects through. `kind`,
+  `addr`, `port` and `user` repeat what that proxy says, so that a file
+  read without the `proxies` list, as another device's sync writes it,
+  still connects through it: they follow the saved proxy as the hosts are
+  saved (`config.Store.SyncProxies`).
 - or `kind` is `jump`, and `jumpHost` is the ID of the jump host.
 
-Without `proxy`, the host is connected directly. Proxy passwords are not
-written to the file either; like host passwords, they are kept in the
-credential store (see [Where passwords are stored](#where-passwords-are-stored)).
+Without `proxy`, the host is connected directly. A host saved before the
+list existed has no `id`: its proxy joins the list the first time the host
+is edited, or the app reads the file. Proxy passwords are not written to
+the file either: a proxy's password is the proxy's, kept in the credential
+store under `proxy/<proxy ID>/password` (see
+[Where passwords are stored](#where-passwords-are-stored)), so every host
+that uses the proxy connects with it.
 
 ### Remote desktop (RDP)
 
@@ -417,14 +433,17 @@ same entries, as they share `hosts.json`. The keys are:
 
 - `host/<host ID>/password`: the password;
 - `host/<host ID>/passphrase`: the private key passphrase;
-- `host/<host ID>/proxy-password`: the password of this host's SOCKS5 or
-  HTTP proxy;
+- `host/<host ID>/proxy-password`: where a build before saved proxies kept
+  the password of the host's SOCKS5 or HTTP proxy, which the saved proxy
+  adopts when it is first needed;
+- `proxy/<proxy ID>/password`: the password of a saved proxy, which every
+  host that uses it connects with;
 - `sync/password`: the sync password (see [Sync](features.md#sync));
 - `sync/<service>/credential`: the token, password or secret access key of
   the sync service (`gist`, `webdav` or `s3`).
 
-"Remember password" is a per-host setting and covers all of these for the
-host.
+"Remember password" is a per-host setting and covers the host's own
+passwords: a proxy's is its own, kept while the proxy is.
 
 | System | Where | How to look at it |
 |---|---|---|

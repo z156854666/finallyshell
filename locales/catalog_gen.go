@@ -602,6 +602,26 @@ func (msgs Messages) ConnTreeEmpty() string {
 	return Catalog.Format(msgs.locale, "connTreeEmpty", nil)
 }
 
+// HostRouteProxy says "Proxy: {route}"
+// in the language the app shows.
+func HostRouteProxy(route string) string { return In(i18n.Locale()).HostRouteProxy(route) }
+
+// HostRouteProxy says "Proxy: {route}"
+// in the language of msgs.
+func (msgs Messages) HostRouteProxy(route string) string {
+	return Catalog.Format(msgs.locale, "hostRouteProxy", map[string]any{"route": route})
+}
+
+// HostRouteJump says "Jump host: {route}"
+// in the language the app shows.
+func HostRouteJump(route string) string { return In(i18n.Locale()).HostRouteJump(route) }
+
+// HostRouteJump says "Jump host: {route}"
+// in the language of msgs.
+func (msgs Messages) HostRouteJump(route string) string {
+	return Catalog.Format(msgs.locale, "hostRouteJump", map[string]any{"route": route})
+}
+
 // DeleteHostBody says "It moves to the deleted connections, which “Show deleted” in the connection manager lists to restore."
 // in the language the app shows.
 func DeleteHostBody() string { return In(i18n.Locale()).DeleteHostBody() }
@@ -2186,24 +2206,14 @@ func (msgs Messages) FieldProxyType() string {
 	return Catalog.Format(msgs.locale, "fieldProxyType", nil)
 }
 
-// ProxyNone says "None"
+// ProxyJump says "Jump host"
 // in the language the app shows.
-func ProxyNone() string { return In(i18n.Locale()).ProxyNone() }
+func ProxyJump() string { return In(i18n.Locale()).ProxyJump() }
 
-// ProxyNone says "None"
+// ProxyJump says "Jump host"
 // in the language of msgs.
-func (msgs Messages) ProxyNone() string {
-	return Catalog.Format(msgs.locale, "proxyNone", nil)
-}
-
-// ProxyJumpHost says "Jump host"
-// in the language the app shows.
-func ProxyJumpHost() string { return In(i18n.Locale()).ProxyJumpHost() }
-
-// ProxyJumpHost says "Jump host"
-// in the language of msgs.
-func (msgs Messages) ProxyJumpHost() string {
-	return Catalog.Format(msgs.locale, "proxyJumpHost", nil)
+func (msgs Messages) ProxyJump() string {
+	return Catalog.Format(msgs.locale, "proxyJump", nil)
 }
 
 // ProxyNoneHint says "Connect to the host directly."
@@ -2254,6 +2264,156 @@ func ProxyUserPlaceholder() string { return In(i18n.Locale()).ProxyUserPlacehold
 // in the language of msgs.
 func (msgs Messages) ProxyUserPlaceholder() string {
 	return Catalog.Format(msgs.locale, "proxyUserPlaceholder", nil)
+}
+
+// FieldProxyServer says "Proxy server"
+// in the language the app shows.
+func FieldProxyServer() string { return In(i18n.Locale()).FieldProxyServer() }
+
+// FieldProxyServer says "Proxy server"
+// in the language of msgs.
+func (msgs Messages) FieldProxyServer() string {
+	return Catalog.Format(msgs.locale, "fieldProxyServer", nil)
+}
+
+// FieldProxyName says "Name"
+// in the language the app shows.
+func FieldProxyName() string { return In(i18n.Locale()).FieldProxyName() }
+
+// FieldProxyName says "Name"
+// in the language of msgs.
+func (msgs Messages) FieldProxyName() string {
+	return Catalog.Format(msgs.locale, "fieldProxyName", nil)
+}
+
+// ProxyNamePlaceholder says "Leave empty to show its host and port"
+// in the language the app shows.
+func ProxyNamePlaceholder() string { return In(i18n.Locale()).ProxyNamePlaceholder() }
+
+// ProxyNamePlaceholder says "Leave empty to show its host and port"
+// in the language of msgs.
+func (msgs Messages) ProxyNamePlaceholder() string {
+	return Catalog.Format(msgs.locale, "proxyNamePlaceholder", nil)
+}
+
+// ProxyNoProxy says "No proxy"
+// in the language the app shows.
+func ProxyNoProxy() string { return In(i18n.Locale()).ProxyNoProxy() }
+
+// ProxyNoProxy says "No proxy"
+// in the language of msgs.
+func (msgs Messages) ProxyNoProxy() string {
+	return Catalog.Format(msgs.locale, "proxyNoProxy", nil)
+}
+
+// ColProxyCurrent says "Used"
+// in the language the app shows.
+func ColProxyCurrent() string { return In(i18n.Locale()).ColProxyCurrent() }
+
+// ColProxyCurrent says "Used"
+// in the language of msgs.
+func (msgs Messages) ColProxyCurrent() string {
+	return Catalog.Format(msgs.locale, "colProxyCurrent", nil)
+}
+
+// ColProxyName says "Name"
+// in the language the app shows.
+func ColProxyName() string { return In(i18n.Locale()).ColProxyName() }
+
+// ColProxyName says "Name"
+// in the language of msgs.
+func (msgs Messages) ColProxyName() string {
+	return Catalog.Format(msgs.locale, "colProxyName", nil)
+}
+
+// ColProxyType says "Type"
+// in the language the app shows.
+func ColProxyType() string { return In(i18n.Locale()).ColProxyType() }
+
+// ColProxyType says "Type"
+// in the language of msgs.
+func (msgs Messages) ColProxyType() string {
+	return Catalog.Format(msgs.locale, "colProxyType", nil)
+}
+
+// ColProxyHost says "Host"
+// in the language the app shows.
+func ColProxyHost() string { return In(i18n.Locale()).ColProxyHost() }
+
+// ColProxyHost says "Host"
+// in the language of msgs.
+func (msgs Messages) ColProxyHost() string {
+	return Catalog.Format(msgs.locale, "colProxyHost", nil)
+}
+
+// ColProxyPort says "Port"
+// in the language the app shows.
+func ColProxyPort() string { return In(i18n.Locale()).ColProxyPort() }
+
+// ColProxyPort says "Port"
+// in the language of msgs.
+func (msgs Messages) ColProxyPort() string {
+	return Catalog.Format(msgs.locale, "colProxyPort", nil)
+}
+
+// ProxyAdd says "Add"
+// in the language the app shows.
+func ProxyAdd() string { return In(i18n.Locale()).ProxyAdd() }
+
+// ProxyAdd says "Add"
+// in the language of msgs.
+func (msgs Messages) ProxyAdd() string {
+	return Catalog.Format(msgs.locale, "proxyAdd", nil)
+}
+
+// ProxyEdit says "Edit"
+// in the language the app shows.
+func ProxyEdit() string { return In(i18n.Locale()).ProxyEdit() }
+
+// ProxyEdit says "Edit"
+// in the language of msgs.
+func (msgs Messages) ProxyEdit() string {
+	return Catalog.Format(msgs.locale, "proxyEdit", nil)
+}
+
+// ProxyRemove says "Remove"
+// in the language the app shows.
+func ProxyRemove() string { return In(i18n.Locale()).ProxyRemove() }
+
+// ProxyRemove says "Remove"
+// in the language of msgs.
+func (msgs Messages) ProxyRemove() string {
+	return Catalog.Format(msgs.locale, "proxyRemove", nil)
+}
+
+// ProxyNew says "New proxy"
+// in the language the app shows.
+func ProxyNew() string { return In(i18n.Locale()).ProxyNew() }
+
+// ProxyNew says "New proxy"
+// in the language of msgs.
+func (msgs Messages) ProxyNew() string {
+	return Catalog.Format(msgs.locale, "proxyNew", nil)
+}
+
+// ProxyChange says "Edit proxy"
+// in the language the app shows.
+func ProxyChange() string { return In(i18n.Locale()).ProxyChange() }
+
+// ProxyChange says "Edit proxy"
+// in the language of msgs.
+func (msgs Messages) ProxyChange() string {
+	return Catalog.Format(msgs.locale, "proxyChange", nil)
+}
+
+// ErrProxyRequired says "Choose a proxy server"
+// in the language the app shows.
+func ErrProxyRequired() string { return In(i18n.Locale()).ErrProxyRequired() }
+
+// ErrProxyRequired says "Choose a proxy server"
+// in the language of msgs.
+func (msgs Messages) ErrProxyRequired() string {
+	return Catalog.Format(msgs.locale, "errProxyRequired", nil)
 }
 
 // FieldJumpHost says "Jump host"

@@ -76,12 +76,21 @@ func TestConnectionPage(t *testing.T) {
 	if _, ok := tt.AccessByRole(ui.RoleTreeItem, "web-1"); !ok || tt.HasText("nginx, front") {
 		t.Errorf("texts %q", tt.Texts())
 	}
-	if got := hostTooltip(a.hosts.Host("web-1")); got != "root@203.0.113.10:22\nnginx, front" {
+	if got := a.hostTooltip(a.hosts.Host("web-1")); got != "root@203.0.113.10:22\nnginx, front" {
 		t.Errorf("tooltip %q", got)
 	}
-	if got := hostTooltip(a.hosts.Host("web-2")); got != "deploy@203.0.113.11:2222" {
+	if got := a.hostTooltip(a.hosts.Host("web-2")); got != "deploy@203.0.113.11:2222" {
 		t.Errorf("tooltip %q", got)
 	}
+	// A proxy is said between them: where, how, and what the notes say.
+	web2 := a.hosts.Host("web-2")
+	web2.Proxy = &config.ProxyConfig{Kind: config.ProxySOCKS5, Addr: "127.0.0.1", Port: 1080}
+	tt.Frame()
+	if got, want := a.hostTooltip(web2), "deploy@203.0.113.11:2222\n"+locales.HostRouteProxy("SOCKS5 127.0.0.1:1080"); got != want {
+		t.Errorf("tooltip %q, want %q", got, want)
+	}
+	web2.Proxy = nil
+	tt.Frame()
 	saveShot(t, tt, "conntree-en.png")
 	// At the narrowest the sidebar goes, the header keeps its buttons.
 	a.sideWidth = sidebarLimits.first

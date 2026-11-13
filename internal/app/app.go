@@ -322,6 +322,14 @@ func New(plat Platform) *App {
 		newRemote:     syncRemote,
 	}
 	a.hosts, _ = config.LoadHosts()
+	// Proxies saved for a host alone, as hosts saved before proxies had a
+	// list of their own, join the store's; and every host connects through
+	// its saved proxy as it is now. Best effort: what fails to be written
+	// is written at the next save.
+	shared := a.hosts.ShareProxies()
+	if a.hosts.SyncProxies() || shared {
+		a.saveHosts(a.hosts)
+	}
 	a.settings = config.LoadSettings()
 	a.loadAppearance()
 	a.restoreLayout()

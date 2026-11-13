@@ -111,8 +111,6 @@ type connEditor struct {
 	// readingSecret is set while the host's saved password, or
 	// passphrase, is read from the credential store into the fields.
 	readingSecret bool
-	// readingProxySecret is the same of its proxy's password.
-	readingProxySecret bool
 
 	// agentCheck is what the SSH agent's Check found (agent.go).
 	agentCheck agentCheck
@@ -168,6 +166,10 @@ func (a *App) openEditorAs(h *config.Host, kind config.Kind, from WindowKind, fo
 		ed.monitor = h.MonitorEnabled()
 		ed.termType, ed.backspace, ed.delete, ed.encoding = h.TermType, h.Backspace, h.Delete, h.Encoding
 	}
+	// A proxy saved for a host alone, as hosts saved before proxies had a
+	// list of their own, joins the store's, so that the page shows them
+	// all the same way.
+	a.hosts.ShareProxies()
 	ed.proxy = a.proxyFieldsOf(h)
 	ed.tunnels = newTunnelEditor(h)
 	ed.folder, ed.tree = folder, tree
@@ -290,8 +292,16 @@ func (a *App) saveEditor() {
 		}
 	}
 	a.saveProxy(h, &ed.proxy)
+	a.saveProxyPasswords(&ed.proxy)
+	// The proxies the page added, changed and removed: every host that
+	// connects through one connects through it as it is now, and those of
+	// a proxy that is gone connect directly.
+	a.hosts.Proxies = ed.proxy.proxies
+	for _, id := range ed.proxy.removed {
+		a.hosts.ClearProxy(id)
+	}
+	a.hosts.SyncProxies()
 	h.Tunnels = ed.tunnels.result()
-	a.keepProxySecret(h, ed.remember, ed.readingProxySecret)
 	tree := ed.tree
 	if tree == nil {
 		tree = &a.manager
@@ -369,7 +379,7 @@ func (a *App) editorView(c *ui.Context) {
 			pages := []widgets.NavPage{
 				{ID: editorSSH, Title: locales.EditorPageSSH, View: func(c *ui.Context) { a.sshPage(c, ed, errs, input) }},
 				{ID: editorTerminal, Title: locales.EditorPageTerminal, View: func(c *ui.Context) { a.terminalPage(c, ed, errs, input) }},
-				{ID: editorProxy, Title: locales.EditorPageProxy, View: func(c *ui.Context) { a.proxyPage(c, ed, errs, input) }},
+				{ID: editorProxy, Title: locales.EditorPageProxy, View: func(c *ui.Context) { a.proxyPage(c, ed, errs) }},
 				{ID: editorTunnels, Title: locales.EditorPageTunnels, View: func(c *ui.Context) { a.tunnelsPage(c, ed) }},
 			}
 			widgets.NavPages(c, &ed.nav, pages).Grow(1).MinHeight(0)

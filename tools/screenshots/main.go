@@ -3,6 +3,11 @@
 //
 //	go run ./tools/screenshots
 //
+// With -run, as go test takes it, only the tests it names run, and only the
+// frames they save are copied: for the shots of one window changed.
+//
+//	go run ./tools/screenshots -run TestEditorProxy
+//
 // It runs the tests of internal/app with SHOT_DIR set, as they save the
 // frames they draw there, and copies the frames listed in shots into
 // docs/screenshots, cropped where a scene is a part of the window. The
@@ -14,6 +19,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"image"
 	"image/color"
@@ -52,7 +58,7 @@ var shots = []shot{
 	{from: "readme-transfers-%s", to: "transfers", title: locales.AppTitle, crop: image.Rect(560, 110, 1280, 590)},
 	{from: "readme-quick-commands-%s", to: "quick-commands", title: locales.AppTitle, crop: image.Rect(240, 487, 1280, 820)},
 	{from: "manager-%s", to: "connection-manager", title: locales.ManagerTitle},
-	{from: "editor-proxy-jump-%s", to: "connection-proxy", title: locales.EditConnection},
+	{from: "editor-proxy-chosen-%s", to: "connection-proxy", title: locales.EditConnection},
 	{from: "editor-tunnels-rows-%s", to: "connection-tunnels", title: locales.EditConnection},
 	{from: "import-%s", to: "import-finalshell", title: locales.ImportTitle},
 	// The editor's title is its file's host and path.
@@ -79,11 +85,18 @@ const (
 )
 
 func main() {
+	run := flag.String("run", "", "the tests to run, as go test -run: only the shots they save are made")
+	flag.Parse()
+
 	tmp, err := os.MkdirTemp("", "screenshots")
 	check(err)
 	defer os.RemoveAll(tmp)
 
-	cmd := exec.Command("go", "test", "-count=1", "./internal/app")
+	args := []string{"test", "-count=1"}
+	if *run != "" {
+		args = append(args, "-run", *run)
+	}
+	cmd := exec.Command("go", append(args, "./internal/app")...)
 	cmd.Env = append(os.Environ(), "SHOT_DIR="+tmp)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	check(cmd.Run())
@@ -100,6 +113,9 @@ func main() {
 				name = "zh"
 			}
 			src := filepath.Join(tmp, fmt.Sprintf(s.from, name)+".png")
+			if _, err := os.Stat(src); err != nil && *run != "" {
+				continue // a frame the tests not run do not save
+			}
 			dst := filepath.Join(out, s.to+"-"+l.out+".png")
 			check(copyShot(src, dst, s.title(), s.crop))
 			fmt.Println(dst)

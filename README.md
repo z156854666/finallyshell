@@ -80,11 +80,11 @@ The same tree stays in the main window too: the panel under the server stats swi
   <img src="docs/screenshots/connection-manager-en.png" width="720" alt="The connection manager with folders of hosts">
 </p>
 
-Each host can reach the server directly, through a SOCKS5 or HTTP proxy, or through a jump host (like `ssh -J`), and jump hosts can have proxies and jump hosts of their own. Port forwarding covers local (`-L`), remote (`-R`) and dynamic SOCKS5 (`-D`) tunnels, which start with the session and show their status, connections and traffic in the Tunnels tab.
+Each host can reach the server directly, through a SOCKS5 or HTTP proxy, or through a jump host (like `ssh -J`), and jump hosts can have proxies and jump hosts of their own; the lists mark the connections that don't go direct, and their tooltip says which way they take. Port forwarding covers local (`-L`), remote (`-R`) and dynamic SOCKS5 (`-D`) tunnels, which start with the session and show their status, connections and traffic in the Tunnels tab.
 
 <table>
   <tr>
-    <td><img src="docs/screenshots/connection-proxy-en.png" alt="Connecting through a jump host"></td>
+    <td><img src="docs/screenshots/connection-proxy-en.png" alt="Choosing a saved proxy"></td>
     <td><img src="docs/screenshots/connection-tunnels-en.png" alt="Local, remote and dynamic tunnels"></td>
   </tr>
 </table>

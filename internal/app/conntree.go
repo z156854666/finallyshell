@@ -212,7 +212,7 @@ func (a *App) connTreeRow(c *ui.Context, m *managerState, it managerItem, r ui.O
 		a.managerItemMenu(c, m, menu, it, later)
 	})
 	if h != nil {
-		row.Tooltip(hostTooltip(h))
+		row.Tooltip(a.hostTooltip(h))
 	}
 	row.Children(func() {
 		if r.Depth > 0 {
@@ -235,16 +235,20 @@ func (a *App) connTreeRow(c *ui.Context, m *managerState, it managerItem, r ui.O
 		}
 		ui.Icon(c, icons.Get(hostIcon(h))).FontSize(14).TextColor(color.Alpha(0.75))
 		ui.Text(c, h.Title()).SingleLine().MinWidth(0).TextColor(color)
+		hostRouteMark(c, h, muted, a.hostRouteLine(h))
 		if dot, ok := a.sessionDot(h); ok {
 			widgets.StatusDot(c, dot)
 		}
 	})
 }
 
-// hostTooltip is the tooltip of a host's row: where it connects, and the
-// first line of its notes.
-func hostTooltip(h *config.Host) string {
+// hostTooltip is the tooltip of a host's row: where it connects, how it
+// gets there, and the first line of its notes.
+func (a *App) hostTooltip(h *config.Host) string {
 	s := h.User + "@" + h.Addr + ":" + strconv.Itoa(h.PortOr22())
+	if route := a.hostRouteLine(h); route != "" {
+		s += "\n" + route
+	}
 	if notes, _, _ := strings.Cut(h.Notes, "\n"); strings.TrimSpace(notes) != "" {
 		s += "\n" + notes
 	}

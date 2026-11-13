@@ -707,6 +707,7 @@ func (a *App) managerTable(c *ui.Context, later *[]func()) {
 				}
 				ui.Icon(c, icons.Get(icon)).FontSize(14).TextColor(color.Alpha(0.75))
 				text(h.Title())
+				hostRouteMark(c, h, color.Alpha(0.7), a.hostRouteLine(h))
 			case 1:
 				text(h.Addr)
 			case 2:
@@ -721,6 +722,8 @@ func (a *App) managerTable(c *ui.Context, later *[]func()) {
 		})
 		if h.Deleted() {
 			cell.Tooltip(locales.DeletedAt(h.DeletedAt.Local().Format("2006-01-02 15:04")))
+		} else {
+			cell.Tooltip(a.hostTooltip(h))
 		}
 	}).Grow(1).Border(1, theme.Border).Radius(4)
 	dropZone(table, managerItem{}, m.filter)
@@ -1229,7 +1232,7 @@ func (a *App) deleteHostForever(h *config.Host) {
 func (a *App) forgetHost(h *config.Host) {
 	a.hosts.Remove(h.ID)
 	delete(a.passwords, h.ID)
-	delete(a.passwords, proxySecretKey(h.ID))
+	delete(a.passwords, legacyProxySecretKey(h.ID))
 	a.deleteHostSecrets(h.ID)
 	a.deleteHostHistory(h.ID)
 }
@@ -1248,7 +1251,9 @@ func (a *App) duplicateHost(m *managerState, h *config.Host) {
 	i := slices.Index(a.hosts.Hosts, h)
 	a.hosts.Hosts = slices.Insert(a.hosts.Hosts, i+1, dup)
 	a.copyHostSecrets(h, dup)
-	for from, to := range map[string]string{h.ID: dup.ID, proxySecretKey(h.ID): proxySecretKey(dup.ID)} {
+	// The proxy's password is the saved proxy's, which the copy goes
+	// through as the host does: it is not the copy's to keep.
+	for from, to := range map[string]string{h.ID: dup.ID, legacyProxySecretKey(h.ID): legacyProxySecretKey(dup.ID)} {
 		if pw, ok := a.passwords[from]; ok {
 			a.passwords[to] = pw
 		}

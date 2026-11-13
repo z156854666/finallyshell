@@ -492,7 +492,7 @@ func TestDeleteHostForgetsSecrets(t *testing.T) {
 	a.hosts.Add(gone)
 	a.hosts.Add(kept)
 	a.passwords["h1"] = "pw"
-	a.proxySecrets()[proxySecretKey("h1")] = "ppw"
+	a.proxySecrets()[legacyProxySecretKey("h1")] = "ppw"
 	p.put(hostSecretKey("h1", secretPassword), "pw")
 	p.put(hostSecretKey("h1", secretPassphrase), "phrase")
 	p.put(hostSecretKey("h1", secretProxyPassword), "ppw")
@@ -509,7 +509,7 @@ func TestDeleteHostForgetsSecrets(t *testing.T) {
 	if _, known := a.passwords["h1"]; known {
 		t.Error("password still known")
 	}
-	if _, known := a.proxySecrets()[proxySecretKey("h1")]; known {
+	if _, known := a.proxySecrets()[legacyProxySecretKey("h1")]; known {
 		t.Error("proxy password still known")
 	}
 }
@@ -541,7 +541,7 @@ func TestDuplicateCopiesSecrets(t *testing.T) {
 		t.Error("nothing to read for the copy")
 	}
 	p.until(t, "the copy's secrets read", func() bool {
-		return a.passwords[dup.ID] == "pw" && a.proxySecrets()[proxySecretKey(dup.ID)] == "ppw"
+		return a.passwords[dup.ID] == "pw" && a.proxySecrets()[legacyProxySecretKey(dup.ID)] == "ppw"
 	})
 
 	// Without "Remember password", nothing is copied.
@@ -659,58 +659,68 @@ func TestRefusedJumpHostOfTwoAlike(t *testing.T) {
 	p.until(t, "the password replaced", func() bool { return p.secrets()[hostSecretKey("j2", secretPassword)] == "secret" })
 }
 
-// A proxy's password is saved from the editor's Proxy page, under the
-// host's proxy-password, read before connecting, and deleted with
-// "Remember password" off.
+// A proxy's password is the proxy's: the dialog that adds or changes it
+// asks for it, stores it under the saved proxy, and every host that uses
+// the proxy connects with it. A build before saved proxies kept it for the
+// host, which the proxy adopts.
 func TestProxyPasswordStored(t *testing.T) {
 	a, p := testApp(t)
 	t.Cleanup(a.CloseAll)
-	h := &config.Host{ID: "h1", Addr: "127.0.0.1", Port: 1, User: "u", Auth: config.AuthKey, KeyPath: "k",
-		Proxy: &config.ProxyConfig{Kind: config.ProxySOCKS5, Addr: "127.0.0.1", Port: 1, User: "alice"}}
+	entry := &config.ProxyEntry{ID: "p1", Kind: config.ProxySOCKS5, Addr: "127.0.0.1", Port: 1, User: "alice"}
+	a.hosts.Proxies = []*config.ProxyEntry{entry}
+	h := &config.Host{ID: "h1", Addr: "127.0.0.1", Port: 1, User: "u", Auth: config.AuthKey, KeyPath: "k", Proxy: entry.Config()}
 	a.hosts.Add(h)
-	key := hostSecretKey("h1", secretProxyPassword)
+	key := proxySecretKey("p1")
 	a.editConnection(h)
 	tt := editorWindow(t, a, p)
-	p.until(t, "the store read", func() bool { return !a.editor.readingProxySecret })
 	if err := tt.Click(locales.EditorPageProxy()); err != nil {
 		t.Fatal(err)
 	}
-	tt.Frame()
+	if err := tt.Click(locales.ProxyEdit()); err != nil {
+		t.Fatal(err)
+	}
 	if !tt.HasText(locales.SecretStoredNote(storeName())) {
 		t.Errorf("no note; texts %q", tt.Texts())
 	}
 	typeInto(t, tt, locales.FieldPassword(), "pa55")
+	tt.Key(0, ui.KeyEnter) // the dialog's OK
 	if err := tt.Click(locales.Ok()); err != nil {
 		t.Fatal(err)
 	}
 	p.until(t, "the proxy password stored", func() bool { return p.secrets()[key] == "pa55" })
+	if _, ok := p.secrets()[hostSecretKey("h1", secretProxyPassword)]; ok {
+		t.Error("a password of the host's own")
+	}
 
 	// The next run reads it before connecting: nothing is asked.
 	p2 := newFakePlatform(t)
 	p2.fakeSecrets = p.fakeSecrets
 	b := New(p2)
 	t.Cleanup(b.CloseAll)
-	hb := &config.Host{ID: "h1", Addr: "127.0.0.1", Port: 1, User: "u", Auth: config.AuthKey, KeyPath: "k",
-		Proxy: &config.ProxyConfig{Kind: config.ProxySOCKS5, Addr: "127.0.0.1", Port: 1, User: "alice"}}
+	eb := &config.ProxyEntry{ID: "p1", Kind: config.ProxySOCKS5, Addr: "127.0.0.1", Port: 1, User: "alice"}
+	b.hosts.Proxies = []*config.ProxyEntry{eb}
+	hb := &config.Host{ID: "h2", Addr: "127.0.0.1", Port: 1, User: "u", Auth: config.AuthKey, KeyPath: "k", Proxy: eb.Config()}
 	b.hosts.Add(hb)
 	b.openSession(hb)
 	p2.until(t, "the session", func() bool { return b.pwOpen || settled(b.current())() })
-	if b.pwOpen || b.proxySecrets()[proxySecretKey("h1")] != "pa55" {
-		t.Fatalf("prompt %v %+v, proxy password %q", b.pwOpen, b.pwNeed, b.proxySecrets()[proxySecretKey("h1")])
+	if b.pwOpen || b.proxySecrets()[key] != "pa55" {
+		t.Fatalf("prompt %v %+v, proxy password %q", b.pwOpen, b.pwNeed, b.proxySecrets()[key])
 	}
 
-	// Without "Remember password", it leaves the store.
-	b.editConnection(hb)
-	tt = editorWindow(t, b, p2)
-	if err := tt.Click(locales.RememberPassphrase()); err != nil {
-		t.Fatal(err)
-	}
-	if err := tt.Click(locales.Ok()); err != nil {
-		t.Fatal(err)
-	}
-	p2.until(t, "the proxy password deleted", func() bool { _, ok := p.secrets()[key]; return !ok })
-	if b.proxySecrets()[proxySecretKey("h1")] != "pa55" {
-		t.Error("not kept in memory")
+	// Where a build before saved proxies kept it, for the host: the proxy
+	// adopts it, and stores it as its own.
+	p3 := newFakePlatform(t)
+	p3.put(hostSecretKey("h3", secretProxyPassword), "old")
+	c := New(p3)
+	t.Cleanup(c.CloseAll)
+	ec := &config.ProxyEntry{ID: "p2", Kind: config.ProxySOCKS5, Addr: "127.0.0.1", Port: 1, User: "alice"}
+	c.hosts.Proxies = []*config.ProxyEntry{ec}
+	hc := &config.Host{ID: "h3", Addr: "127.0.0.1", Port: 1, User: "u", Auth: config.AuthKey, KeyPath: "k", Proxy: ec.Config()}
+	c.hosts.Add(hc)
+	c.openSession(hc)
+	p3.until(t, "the old password adopted", func() bool { return p3.secrets()[proxySecretKey("p2")] == "old" })
+	if c.proxySecrets()[proxySecretKey("p2")] != "old" {
+		t.Errorf("the proxy's password %q", c.proxySecrets()[proxySecretKey("p2")])
 	}
 }
 

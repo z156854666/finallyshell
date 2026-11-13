@@ -5,6 +5,7 @@ import (
 	"errors"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 )
@@ -53,6 +54,130 @@ func TestProxyPorts(t *testing.T) {
 	}
 	if ProxyOf(&Host{}) != nil || ProxyOf(&Host{Proxy: &ProxyConfig{}}) != nil {
 		t.Error("a host without a proxy has one")
+	}
+}
+
+func TestProxyEntryJSON(t *testing.T) {
+	// Every field is read, and keys this build does not know are kept.
+	in := `{"id": "p1", "name": "cdt", "kind": "socks5", "addr": "cdt.example.com", "port": 20394, "user": "alice", "dns": "remote"}`
+	var e ProxyEntry
+	if err := json.Unmarshal([]byte(in), &e); err != nil {
+		t.Fatal(err)
+	}
+	want := ProxyEntry{ID: "p1", Name: "cdt", Kind: ProxySOCKS5, Addr: "cdt.example.com", Port: 20394, User: "alice"}
+	got := e
+	got.extra = nil
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("entry %+v, want %+v", got, want)
+	}
+	if e.Title() != "cdt" || e.PortOrDefault() != 20394 {
+		t.Errorf("title %q, port %d", e.Title(), e.PortOrDefault())
+	}
+	if c := e.Config(); c.ID != "p1" || c.Kind != ProxySOCKS5 || c.Addr != "cdt.example.com" || c.Port != 20394 || c.User != "alice" {
+		t.Errorf("config %+v", c)
+	}
+	data, _ := json.Marshal(e)
+	var back map[string]any
+	json.Unmarshal(data, &back)
+	if back["dns"] != "remote" || back["id"] != "p1" || back["port"] != 20394.0 {
+		t.Errorf("written %s", data)
+	}
+	// One without a name is named by its address and port.
+	if got := (&ProxyEntry{Kind: ProxyHTTP, Addr: "127.0.0.1"}).Title(); got != "127.0.0.1:8080" {
+		t.Errorf("title %q", got)
+	}
+}
+
+func TestShareProxies(t *testing.T) {
+	s := NewStore()
+	// The same proxy twice: at the usual port, which the entry writes
+	// out, and with another user, which is another proxy.
+	s.Add(&Host{ID: "a", Proxy: &ProxyConfig{Kind: ProxySOCKS5, Addr: "p", Port: 1080, User: "u"}})
+	s.Add(&Host{ID: "b", Proxy: &ProxyConfig{Kind: ProxySOCKS5, Addr: "p", User: "u"}})
+	s.Add(&Host{ID: "c", Proxy: &ProxyConfig{Kind: ProxySOCKS5, Addr: "p", User: "w"}})
+	s.Add(&Host{ID: "d"})
+	s.Add(&Host{ID: "e", Proxy: &ProxyConfig{Kind: ProxyJump, JumpHost: "a"}})
+	if !s.ShareProxies() {
+		t.Fatal("nothing shared")
+	}
+	if len(s.Proxies) != 2 {
+		t.Fatalf("proxies %+v", s.Proxies)
+	}
+	if a, b, c := s.Host("a").Proxy, s.Host("b").Proxy, s.Host("c").Proxy; a.ID == "" || a.ID != b.ID || c.ID == a.ID {
+		t.Errorf("shared %q %q %q", a.ID, b.ID, c.ID)
+	}
+	// The proxy is not changed of its address: the entry has it.
+	if p := s.Host("a").Proxy; p.Kind != ProxySOCKS5 || p.Addr != "p" || p.Port != 1080 || p.User != "u" {
+		t.Errorf("copy %+v", p)
+	}
+	if s.Host("d").Proxy != nil || s.Host("e").Proxy.ID != "" || s.Host("e").Proxy.JumpHost != "a" {
+		t.Errorf("hosts %+v %+v", s.Host("d").Proxy, s.Host("e").Proxy)
+	}
+	// Nothing left to share the second time.
+	if s.ShareProxies() {
+		t.Error("shared again")
+	}
+}
+
+func TestSyncProxies(t *testing.T) {
+	s := NewStore()
+	e := &ProxyEntry{ID: "p1", Kind: ProxySOCKS5, Addr: "p", Port: 1080, User: "u"}
+	s.Proxies = []*ProxyEntry{e}
+	s.Add(&Host{ID: "a", Proxy: e.Config()})
+	s.Add(&Host{ID: "b", Proxy: &ProxyConfig{ID: "p1", Kind: ProxySOCKS5, Addr: "old", Port: 1080}})
+	s.Add(&Host{ID: "c", Proxy: &ProxyConfig{ID: "gone", Kind: ProxySOCKS5, Addr: "lost", Port: 1080}})
+	s.Add(&Host{ID: "d", Proxy: &ProxyConfig{Kind: ProxySOCKS5, Addr: "own", Port: 1080}})
+
+	// A change of the entry reaches the hosts that use it, and only them.
+	e.Addr, e.Port, e.User = "new", 3128, "alice"
+	if !s.SyncProxies() {
+		t.Fatal("nothing synced")
+	}
+	if p := s.Host("a").Proxy; p.Addr != "new" || p.Port != 3128 || p.User != "alice" {
+		t.Errorf("a %+v", p)
+	}
+	if p := s.Host("b").Proxy; p.Addr != "new" || p.Port != 3128 {
+		t.Errorf("b %+v", p)
+	}
+	// One whose entry is gone keeps its copy: it still connects through it.
+	if p := s.Host("c").Proxy; p.Addr != "lost" {
+		t.Errorf("c %+v", p)
+	}
+	if p := s.Host("d").Proxy; p.Addr != "own" || p.ID != "" {
+		t.Errorf("d %+v", p)
+	}
+	if s.SyncProxies() {
+		t.Error("synced again")
+	}
+
+	// Removing the entry takes the hosts' proxies with it.
+	if !s.ClearProxy("p1") || s.Host("a").Proxy != nil || s.Host("b").Proxy != nil || s.Host("c").Proxy == nil {
+		t.Errorf("cleared %+v %+v %+v", s.Host("a").Proxy, s.Host("b").Proxy, s.Host("c").Proxy)
+	}
+}
+
+func TestStoreProxiesJSON(t *testing.T) {
+	s := NewStore()
+	s.Proxies = []*ProxyEntry{{ID: "p1", Name: "office", Kind: ProxyHTTP, Addr: "127.0.0.1", Port: 3128}}
+	data, err := json.Marshal(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	back, _, err := ParseHosts(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(back.Proxies) != 1 || !reflect.DeepEqual(*back.Proxies[0], *s.Proxies[0]) {
+		t.Errorf("read %+v", back.Proxies)
+	}
+	// A file without the list has none, and saves without it.
+	plain, _, err := ParseHosts([]byte(`{"version": 2, "folders": [], "hosts": []}`))
+	if err != nil || plain.Proxies != nil {
+		t.Fatalf("%+v %v", plain, err)
+	}
+	data, _ = json.Marshal(plain)
+	if strings.Contains(string(data), "proxies") {
+		t.Errorf("written %s", data)
 	}
 }
 

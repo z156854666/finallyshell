@@ -16,13 +16,23 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// proxySecretKey is where the password of the proxy of the host with the
-// ID is kept among proxySecrets.
-func proxySecretKey(hostID string) string { return "proxy/" + hostID }
+// proxySecretKey is where the password of the saved proxy with the ID is
+// kept among proxySecrets, and in the credential store: "proxy/<id>/password".
+// A proxy's password is the proxy's, not a host's: every host that uses the
+// proxy goes through it with that one.
+func proxySecretKey(id string) string { return "proxy/" + id + "/password" }
+
+// legacyProxySecretKey is where a build before saved proxies kept the
+// password of the proxy of the host with the ID, among proxySecrets: under
+// the host's.
+func legacyProxySecretKey(hostID string) string { return "proxy/" + hostID }
+
+// legacyProxyStoreKey is where such a build kept it in the credential store.
+func legacyProxyStoreKey(hostID string) string { return hostSecretKey(hostID, secretProxyPassword) }
 
 // proxySecrets holds the proxies' passwords, by proxySecretKey: with the
 // hosts' passwords, in memory for this run, never in hosts.json. In the
-// credential store each is the host's secretProxyPassword (secrets.go).
+// credential store each is under its proxySecretKey too.
 func (a *App) proxySecrets() map[string]string { return a.passwords }
 
 // usesProxyPassword says whether connecting to h takes the password of
@@ -30,6 +40,44 @@ func (a *App) proxySecrets() map[string]string { return a.passwords }
 func usesProxyPassword(h *config.Host) bool {
 	p := config.ProxyOf(h)
 	return p != nil && p.Kind != config.ProxyJump && p.User != ""
+}
+
+// proxyPassword is the password of p, h's proxy, as the app knows it: the
+// saved proxy's own, or, for a proxy saved for h alone before proxies had
+// passwords of their own, the one kept for h.
+func (a *App) proxyPassword(h *config.Host, p *config.ProxyConfig) string {
+	if p.ID != "" {
+		return a.proxySecrets()[proxySecretKey(p.ID)]
+	}
+	return a.proxySecrets()[legacyProxySecretKey(h.ID)]
+}
+
+// saveProxyPassword keeps pw as the password of the saved proxy with the
+// ID, for this run and in the credential store, or forgets it when empty:
+// the Proxy page saves it with the proxy, as the password is the proxy's.
+func (a *App) saveProxyPassword(id, pw string) {
+	if id == "" {
+		return
+	}
+	if pw == "" {
+		delete(a.proxySecrets(), proxySecretKey(id))
+		a.deleteSecret(proxySecretKey(id))
+		return
+	}
+	a.proxySecrets()[proxySecretKey(id)] = pw
+	a.setSecret(proxySecretKey(id), pw)
+}
+
+// readProxyPassword reads the saved password of the proxy with the ID from
+// the credential store, when the app does not have it, and calls then once
+// it might: the dialog shows it as it opens. It returns whether there is
+// something to read.
+func (a *App) readProxyPassword(id string, then func()) bool {
+	if id == "" {
+		return false
+	}
+	need := &secretNeed{key: proxySecretKey(id), proxy: true, store: proxySecretKey(id), title: locales.ProxyPasswordTitle}
+	return a.readSecret(need, then)
 }
 
 // hopOptions are the options that log in to h with secret, its password
@@ -47,7 +95,7 @@ func (a *App) hopOptions(h *config.Host, secret string, ask func(*sshx.HostKeyQu
 		opts.Password = secret
 	}
 	if usesProxyPassword(h) {
-		opts.ProxyPassword = a.proxySecrets()[proxySecretKey(h.ID)]
+		opts.ProxyPassword = a.proxyPassword(h, config.ProxyOf(h))
 	}
 	return opts
 }
@@ -88,9 +136,12 @@ type secretNeed struct {
 	via string
 
 	// host is whose secret it is, whose "Remember password" it follows;
-	// store is its key in the credential store (secrets.go).
-	host  *config.Host
-	store string
+	// store is its key in the credential store (secrets.go), and legacy
+	// where a build before saved proxies kept a proxy's, read when store
+	// has nothing, and adopted under store.
+	host   *config.Host
+	store  string
+	legacy string
 	// passphrase is set for the passphrase of host's key, which the app
 	// does not ask for before connecting: a key may have none. detail is
 	// the key's file.
@@ -117,12 +168,19 @@ func loginNeed(x, h *config.Host) *secretNeed {
 	return n
 }
 
-// proxyNeed is the password of x's proxy, as connecting to h takes it.
+// proxyNeed is the password of x's proxy, as connecting to h takes it: the
+// saved proxy's own, which x reads before connecting, or that of a proxy
+// saved for x alone before proxies had passwords of their own.
 func proxyNeed(x, h *config.Host) *secretNeed {
 	p := config.ProxyOf(x)
-	return &secretNeed{key: proxySecretKey(x.ID), proxy: true, title: locales.ProxyPasswordTitle,
-		who: p.User + "@" + sshx.ProxyAddr(p), via: h.Title(),
-		host: x, store: hostSecretKey(x.ID, secretProxyPassword)}
+	n := &secretNeed{proxy: true, title: locales.ProxyPasswordTitle,
+		who: p.User + "@" + sshx.ProxyAddr(p), via: h.Title(), host: x}
+	if p.ID != "" {
+		n.key, n.store, n.legacy = proxySecretKey(p.ID), proxySecretKey(p.ID), legacyProxyStoreKey(x.ID)
+		return n
+	}
+	n.key, n.store = legacyProxySecretKey(x.ID), legacyProxyStoreKey(x.ID)
+	return n
 }
 
 // chainSecrets are the secrets connecting to h takes, in the order they

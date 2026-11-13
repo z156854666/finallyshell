@@ -68,8 +68,11 @@ Finallyshell 把主机和设置存在普通的 JSON 文件里。密码从不写�
     "createdAt": "2026-10-01T09:00:00+08:00"
   }, {
     "id": "h2", "name": "bastion", "addr": "198.51.100.1", "user": "jump", "auth": "password",
-    "proxy": {"kind": "socks5", "addr": "127.0.0.1", "port": 1080, "user": "alice"}
-  }]
+    "proxy": {"id": "p1", "kind": "socks5", "addr": "127.0.0.1", "port": 1080, "user": "alice"}
+  }],
+  "proxies": [
+    {"id": "p1", "name": "公司", "kind": "socks5", "addr": "127.0.0.1", "port": 1080, "user": "alice"}
+  ]
 }
 ```
 
@@ -86,12 +89,14 @@ Finallyshell 把主机和设置存在普通的 JSON 文件里。密码从不写�
 
 ### 代理
 
+`proxies` 是保存的 SOCKS5 和 HTTP 代理，也就是连接编辑器的“代理”页列出的那些：每个有 `id`、`name`（`""` 表示显示地址和端口）、`kind`（`socks5` 或 `http`）、`addr`、`port`（`0` 表示这种代理常用的端口），需要认证时还有 `user`。
+
 `proxy` 是怎么连到这台主机：
 
-- `kind` 为 `socks5` 或 `http`，这两种有 `addr`、`port`，代理需要认证时有 `user`；
+- `id` 是这台主机用的 `proxies` 里的那个代理。`kind`、`addr`、`port` 和 `user` 重复了它的内容，这样读到没有 `proxies` 列表的文件（比如另一台设备同步来的）也照样经过它连接；它们随保存跟着保存的代理变（`config.Store.SyncProxies`）。
 - 或者 `kind` 为 `jump`，`jumpHost` 是跳板机的主机 ID。
 
-没有 `proxy` 就是直接连接。代理密码也不写进文件，和主机密码一样存在凭据存储里（见[密码存在哪里](#密码存在哪里)）。
+没有 `proxy` 就是直接连接。列表出现之前保存的主机没有 `id`：第一次编辑这台主机，或者程序读取这个文件时，它的代理就加进列表。代理密码也不写进文件：它是代理自己的，存在凭据存储的 `proxy/<代理 ID>/password` 里（见[密码存在哪里](#密码存在哪里)），用这个代理的主机都用它。
 
 ### 远程桌面 (RDP)
 
@@ -286,11 +291,12 @@ Finallyshell 把主机和设置存在普通的 JSON 文件里。密码从不写�
 
 - `host/<主机 ID>/password`：密码；
 - `host/<主机 ID>/passphrase`：私钥密码；
-- `host/<主机 ID>/proxy-password`：这台主机的 SOCKS5 或 HTTP 代理的密码；
+- `host/<主机 ID>/proxy-password`：保存的代理出现之前，这台主机的 SOCKS5 或 HTTP 代理的密码；第一次用到时代理会接过来；
+- `proxy/<代理 ID>/password`：保存的代理的密码，用它的主机都用它；
 - `sync/password`：同步密码（见[同步](features.md#同步)）；
 - `sync/<服务>/credential`：同步服务（`gist`、`webdav` 或 `s3`）的令牌、密码或私有访问密钥。
 
-“记住密码”按主机设置，管这台主机的这几个密码。
+“记住密码”按主机设置，管这台主机自己的密码；代理的密码是代理自己的，跟着代理留着。
 
 | 系统 | 存在哪里 | 怎么查看 |
 |---|---|---|

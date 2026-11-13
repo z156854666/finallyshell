@@ -370,13 +370,19 @@ func (f *Folder) UnmarshalJSON(data []byte) error {
 func NewFolderID() string { return fmt.Sprintf("f%d", newID()) }
 
 // Store is the content of hosts.json: the saved hosts, deleted ones
-// included, and their folders, both in the order the user keeps them.
+// included, their folders, and the SOCKS5 and HTTP proxies the hosts
+// connect through, all in the order the user keeps them.
 type Store struct {
 	// Version is the file's version: HostsVersion, or more for a file a
 	// newer build wrote, which saving keeps.
 	Version int       `json:"version"`
 	Folders []*Folder `json:"folders"`
 	Hosts   []*Host   `json:"hosts"`
+	// Proxies are the saved SOCKS5 and HTTP proxies, which hosts connect
+	// through by the ID in their proxy (ProxyConfig.ID). A host keeps a
+	// copy of what it says (SyncProxies), so that a file without this
+	// list, as an older build writes, still connects through them.
+	Proxies []*ProxyEntry `json:"proxies,omitempty"`
 
 	extra extras
 }
@@ -407,6 +413,7 @@ func (s *Store) UnmarshalJSON(data []byte) error {
 	s.extra = ex
 	s.Folders = dropNil(s.Folders)
 	s.Hosts = dropNil(s.Hosts)
+	s.Proxies = dropNil(s.Proxies)
 	if s.Version == 0 {
 		s.Version = HostsVersion
 	}

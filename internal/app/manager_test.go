@@ -129,6 +129,12 @@ func TestManagerWindow(t *testing.T) {
 	if box, ok := tt.AccessByRole(ui.RoleCheckBox, locales.CloseAfterConnect()); !ok || !box.Checked {
 		t.Errorf("close after connecting %+v", box)
 	}
+	// A saved proxy, so that the shot shows the mark of a host that does
+	// not connect directly (hostroute.go).
+	a.hosts.Proxies = []*config.ProxyEntry{{ID: "p1", Name: "office", Kind: config.ProxySOCKS5,
+		Addr: "127.0.0.1", Port: 1080, User: "alice"}}
+	a.hosts.Host("pg").Proxy = a.hosts.Proxies[0].Config()
+	tt.Frame()
 	saveShot(t, tt, "manager-en.png")
 
 	// Opening it again brings it to the front.
@@ -891,7 +897,7 @@ func TestManagerJumpHosts(t *testing.T) {
 	web.Proxy = &config.ProxyConfig{Kind: config.ProxyJump, JumpHost: "vps"}
 	pg := a.hosts.Host("pg")
 	pg.Proxy = &config.ProxyConfig{Kind: config.ProxySOCKS5, Addr: "127.0.0.1", Port: 1080, User: "u"}
-	a.passwords[proxySecretKey("pg")] = "proxy-pw"
+	a.passwords[legacyProxySecretKey("pg")] = "proxy-pw"
 	pg.Tunnels = []config.Tunnel{
 		{Kind: config.TunnelLocal, ListenPort: 15432, TargetHost: "127.0.0.1", TargetPort: 5432},
 		{Kind: config.TunnelDynamic, ListenPort: 1080, Disabled: true},
@@ -900,8 +906,8 @@ func TestManagerJumpHosts(t *testing.T) {
 	rowMenu(t, tt, "pg-main", locales.Duplicate())
 	dup := a.hosts.Hosts[slices.Index(a.hosts.Hosts, pg)+1]
 	if dup.Proxy == nil || dup.Proxy == pg.Proxy || dup.Proxy.Addr != "127.0.0.1" || dup.Proxy.User != "u" ||
-		a.passwords[proxySecretKey(dup.ID)] != "proxy-pw" {
-		t.Fatalf("copy's proxy %+v, password %q", dup.Proxy, a.passwords[proxySecretKey(dup.ID)])
+		a.passwords[legacyProxySecretKey(dup.ID)] != "proxy-pw" {
+		t.Fatalf("copy's proxy %+v, password %q", dup.Proxy, a.passwords[legacyProxySecretKey(dup.ID)])
 	}
 	// Its tunnels, of its own.
 	if !reflect.DeepEqual(dup.Tunnels, pg.Tunnels) {
@@ -944,7 +950,7 @@ func TestManagerJumpHosts(t *testing.T) {
 
 	// Deleting it for good says so too, and forgets its proxy password.
 	a.manager.showDeleted = true
-	a.passwords[proxySecretKey("vps")] = "x"
+	a.passwords[legacyProxySecretKey("vps")] = "x"
 	tt.Frame()
 	rowMenu(t, tt, "vps", locales.DeleteForever())
 	if !tt.HasText(locales.DeleteForeverBody() + " " + locales.JumpHostInUseForever(users)) {
@@ -953,7 +959,7 @@ func TestManagerJumpHosts(t *testing.T) {
 	if err := tt.Click(locales.DeleteForever()); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := a.passwords[proxySecretKey("vps")]; ok || a.hosts.Host("vps") != nil {
+	if _, ok := a.passwords[legacyProxySecretKey("vps")]; ok || a.hosts.Host("vps") != nil {
 		t.Error("the proxy password is kept")
 	}
 

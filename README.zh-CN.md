@@ -80,11 +80,11 @@ macOS 上按 <kbd>Cmd</kbd>+<kbd>O</kbd>，其他系统按 <kbd>Ctrl</kbd>+<kbd>
   <img src="docs/screenshots/connection-manager-zh-CN.png" width="720" alt="连接管理器，主机按文件夹排列">
 </p>
 
-每个主机可以直接连接，也可以经过 SOCKS5、HTTP 代理或跳板机（相当于 `ssh -J`）连接，跳板机自己也可以再走代理或跳板机。端口转发支持本地（`-L`）、远程（`-R`）和动态 SOCKS5（`-D`）隧道，随会话启动，在“隧道”页显示状态、连接数和流量。
+每个主机可以直接连接，也可以经过 SOCKS5、HTTP 代理或跳板机（相当于 `ssh -J`）连接，跳板机自己也可以再走代理或跳板机；不是直连的连接在列表里有标识，悬停可见走的是哪条路。端口转发支持本地（`-L`）、远程（`-R`）和动态 SOCKS5（`-D`）隧道，随会话启动，在“隧道”页显示状态、连接数和流量。
 
 <table>
   <tr>
-    <td><img src="docs/screenshots/connection-proxy-zh-CN.png" alt="经过跳板机连接"></td>
+    <td><img src="docs/screenshots/connection-proxy-zh-CN.png" alt="选择保存的代理"></td>
     <td><img src="docs/screenshots/connection-tunnels-zh-CN.png" alt="本地、远程和动态隧道"></td>
   </tr>
 </table>
