@@ -278,6 +278,7 @@ func (p *platform) EmbedRDP(cfg rdp.Config) (rdp.Desktop, error) {
 type uiDesktop struct{ desk rdp.Desktop }
 
 func (d uiDesktop) Place(r rdp.Rect) { mygo.RunOnMain(func() { d.desk.Place(r) }) }
+func (d uiDesktop) Start(r rdp.Rect) { mygo.RunOnMain(func() { d.desk.Start(r) }) }
 func (d uiDesktop) Hide()            { mygo.RunOnMain(d.desk.Hide) }
 func (d uiDesktop) Show()            { mygo.RunOnMain(d.desk.Show) }
 func (d uiDesktop) Close()           { mygo.RunOnMain(d.desk.Close) }

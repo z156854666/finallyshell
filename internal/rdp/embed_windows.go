@@ -408,6 +408,7 @@ func (e *Embedded) Place(r Rect) {
 	}
 	if !e.shown {
 		e.showAt(box)
+		e.focus() // now that it is there to take the keyboard
 	}
 	if box != e.pix {
 		e.move(box)
@@ -415,7 +416,27 @@ func (e *Embedded) Place(r Rect) {
 	if !e.started {
 		e.started = true
 		e.connect(box)
-		e.focus()
+	}
+}
+
+// Start connects the desktop at r without showing it, the box the tab draws
+// for it: a control that is connecting draws nothing, and the tab says where
+// the connection is until the desktop is up, which Place then shows.
+func (e *Embedded) Start(r Rect) {
+	if e.closed || e.hwnd == 0 {
+		return
+	}
+	e.at = r
+	box := e.screenRect(r)
+	if box.width() <= 0 || box.height() <= 0 {
+		return
+	}
+	if box != e.pix {
+		e.move(box) // sized, out of sight
+	}
+	if !e.started {
+		e.started = true
+		e.connect(box)
 	}
 }
 

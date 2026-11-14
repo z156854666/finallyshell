@@ -150,6 +150,14 @@ func (a *App) placeDesktops() {
 			s.embed.Hide()
 			continue
 		}
+		// A control that is connecting draws nothing, a blank box over
+		// the tab: it connects at its place without showing, so that the
+		// tab says where the connection is (embeddedArea), and Place
+		// shows the desktop once it is up.
+		if s.status != statusConnected {
+			s.embed.Start(s.deskRect)
+			continue
+		}
 		s.embed.Place(s.deskRect)
 	}
 }
@@ -170,23 +178,40 @@ func (a *App) rdpArea(c *ui.Context, s *Session) {
 }
 
 // embeddedArea is the main area of a desktop drawn in the tab: the place
-// the control draws over, which is the whole area from the first frame. A
-// banner above it would make the desktop connect to a smaller area, and the
-// control draws its own progress over the place anyway; what makes the
+// the control draws over, which is the whole area from the first frame, and
+// where the connection is until the desktop is up. The control draws nothing
+// while it connects, so the tab says so there rather than leaving a blank
+// box: a desktop that is up draws over it, and the tab paints nothing of the
+// area but its box (placeDesktops shows the control there). What makes the
 // connection fail is said by the tab once the control is gone (rdpTick).
 func (a *App) embeddedArea(c *ui.Context, s *Session) {
 	ui.Column(c).Key(s.ID).Fill().Background(theme.Background).Children(func() {
 		// Windows' control draws over this box, so the tab paints nothing
 		// of it but its box, which places the control while the frames
 		// after this one follow (Bounds is the previous frame's).
-		place := ui.Row(c).Key("rdp-desktop").Grow(1).MinHeight(0).MinWidth(0)
+		place := ui.Column(c).Key("rdp-desktop").Grow(1).MinHeight(0).MinWidth(0)
 		if b := place.Bounds(); b.W > 0 && b.H > 0 {
 			s.deskRect = rdp.Rect{X: b.X, Y: b.Y, W: b.W, H: b.H}
+		}
+		if s.status != statusConnected {
+			place.Children(func() { a.rdpConnecting(c, s) })
 		}
 	})
 	// The control connects and ends on its own: a frame now and then says
 	// where it is (rdpTick).
 	c.After(rdpTickEvery)
+}
+
+// rdpConnecting is where a desktop drawn in the tab connecting says so: the
+// desktop's name, a spinner and the host it connects to, in the middle of
+// the area the desktop takes once it is up.
+func (a *App) rdpConnecting(c *ui.Context, s *Session) {
+	ui.Column(c).Key("rdp-connecting").Grow(1).Center().Gap(12).Padding(0, 24).Children(func() {
+		ui.Icon(c, icons.Get("monitor")).FontSize(44).TextColor(theme.TextMuted)
+		ui.Text(c, s.label()).FontSize(16).Bold()
+		ui.Spinner(c)
+		widgets.Muted(c, locales.ConnectingTo(s.target()))
+	})
 }
 
 // clientArea is the main area of a desktop opened in a window of the

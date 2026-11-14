@@ -998,14 +998,17 @@ under [Options › General](#general):
   desktop draws inside its tab, by Windows' Remote Desktop control, the one
   Remote Desktop Connection itself uses: its desktop as big as the tab,
   which the session is reconnected at when the tab changes size, out of
-  sight while another tab shows, and ended by closing the tab. The
-  keyboard, the mouse, the clipboard and the client's own messages are the
-  control's, inside the tab; a connection that fails or ends closes the
-  desktop, and the tab says why, in the control's own words. It is a window
-  of the app's, without a title bar, drawn over the tab's area: it moves,
-  resizes and hides with the app's window, goes out of sight while another
-  tab shows, and so does while a dialog of the app's has it blocked. A
-  desktop still has no shell, so its tab has no files, monitor, processes
+  sight while another tab shows, and ended by closing the tab. While it
+  connects the control draws nothing, so the tab says where the connection
+  is, over the place the desktop takes: its name, a spinner and
+  "Connecting to user@address", which the desktop itself covers once it is
+  up. The keyboard, the mouse, the clipboard and the client's own messages
+  are the control's, inside the tab; a connection that fails or ends closes
+  the desktop, and the tab says why, in the control's own words. It is a
+  window of the app's, without a title bar, drawn over the tab's area: it
+  moves, resizes and hides with the app's window, goes out of sight while
+  another tab shows, and so does while a dialog of the app's has it blocked.
+  A desktop still has no shell, so its tab has no files, monitor, processes
   or tunnels, and no monitor panel is kept beside it.
 - Unchecked, and on every other system, the desktop is the system client's,
   in a window of its own, as FinalShell opens them. The paragraphs below

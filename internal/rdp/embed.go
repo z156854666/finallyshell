@@ -48,6 +48,12 @@ type Desktop interface {
 	// moves it there: the app calls it every frame, with the box of the
 	// frame before.
 	Place(r Rect)
+	// Start connects the desktop at r, the box the tab draws for it,
+	// without showing it: a control that is connecting draws nothing, so
+	// the tab says where the connection is, and Place shows the desktop
+	// once State says it is up. The app calls it every frame while it
+	// connects. Placing a desktop the app has not started starts it.
+	Start(r Rect)
 	// Hide takes the desktop out of sight while its tab is not the one
 	// shown; Show shows it where Place put it.
 	Hide()

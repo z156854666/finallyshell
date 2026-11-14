@@ -31,12 +31,14 @@ func rdpLauncher(t *testing.T, c *rdp.Config) func(rdp.Config) (rdp.Session, err
 
 // fakeEmbedded stands in for the system's remote desktop control, which a
 // test does not make: it keeps the connections it was asked to open, and
-// what the app did with each.
+// what the app did with each. Its desktops connect at once, unless late says
+// that they take the test's time to.
 type fakeEmbedded struct {
 	cfg   rdp.Config
 	desks []*fakeDesktop
 	err   error
 	opens int
+	late  bool
 }
 
 func (p *fakeEmbedded) EmbedRDP(cfg rdp.Config) (rdp.Desktop, error) {
@@ -44,7 +46,7 @@ func (p *fakeEmbedded) EmbedRDP(cfg rdp.Config) (rdp.Desktop, error) {
 		return nil, p.err
 	}
 	p.cfg, p.opens = cfg, p.opens+1
-	d := &fakeDesktop{connected: true}
+	d := &fakeDesktop{connected: !p.late}
 	p.desks = append(p.desks, d)
 	return d, nil
 }
@@ -57,10 +59,11 @@ func (p *fakeEmbedded) desk() *fakeDesktop {
 	return p.desks[len(p.desks)-1]
 }
 
-// fakeDesktop is a desktop drawn in a tab: where the app placed it, and
-// whether it shows.
+// fakeDesktop is a desktop drawn in a tab: where the app placed it, where it
+// started it out of sight, and whether it shows.
 type fakeDesktop struct {
 	places    []rdp.Rect
+	starts    []rdp.Rect
 	shown     bool
 	closed    bool
 	connected bool
@@ -68,6 +71,7 @@ type fakeDesktop struct {
 }
 
 func (d *fakeDesktop) Place(r rdp.Rect) { d.places = append(d.places, r); d.shown = true }
+func (d *fakeDesktop) Start(r rdp.Rect) { d.starts = append(d.starts, r) }
 func (d *fakeDesktop) Hide()            { d.shown = false }
 func (d *fakeDesktop) Show()            { d.shown = true }
 func (d *fakeDesktop) Close()           { d.closed = true }
@@ -80,6 +84,14 @@ func (d *fakeDesktop) place() rdp.Rect {
 		return rdp.Rect{}
 	}
 	return d.places[len(d.places)-1]
+}
+
+// start is where the app started the desktop last, out of sight.
+func (d *fakeDesktop) start() rdp.Rect {
+	if len(d.starts) == 0 {
+		return rdp.Rect{}
+	}
+	return d.starts[len(d.starts)-1]
 }
 
 // TestRDPSession opens a remote desktop: the client is started with the
@@ -204,6 +216,56 @@ func TestRDPInTab(t *testing.T) {
 	s.disconnect()
 	if !p.desk().closed {
 		t.Error("the desktop stayed open after its tab closed")
+	}
+}
+
+// A desktop that is still connecting draws nothing of the control's: the tab
+// says where the connection is over the place the desktop takes, and the
+// desktop shows up there once it is up.
+func TestRDPInTabConnecting(t *testing.T) {
+	a, p := testApp(t)
+	was := rdpEmbeds
+	rdpEmbeds = true
+	t.Cleanup(func() { rdpEmbeds = was })
+	p.late = true // the control takes its time to connect
+	h := rdpHost()
+	a.hosts.Add(h)
+	a.passwords[h.ID] = "pw"
+	tt := ui.NewTester(a.View, 1280, 820)
+	p.tt = tt
+	tt.Frame()
+	a.openSession(h)
+	s := a.current()
+	p.until(t, "the desktop to open", func() bool { return s.embed != nil })
+	d := p.desk()
+	if d == nil || s.status != statusConnecting {
+		t.Fatalf("desktop %v, status %v", d != nil, s.status)
+	}
+
+	// Connects at its place, out of sight, while the tab says so.
+	p.until(t, "the desktop to start", func() bool { return len(d.starts) > 0 })
+	if r := d.start(); r.W < 200 || r.H <= 0 {
+		t.Errorf("started at %+v", r)
+	}
+	if d.shown || len(d.places) > 0 {
+		t.Errorf("the connecting control shows: shown %v, places %v", d.shown, d.places)
+	}
+	if !tt.HasText(locales.ConnectingTo(s.target())) {
+		t.Errorf("no connecting area; texts %q", tt.Texts())
+	}
+
+	// Up: the desktop shows over the area, and the tab's words go.
+	d.connected = true
+	p.until(t, "the desktop to show", func() bool { return d.shown })
+	if r := d.place(); r.W < 200 || r.H <= 0 {
+		t.Errorf("placed at %+v", r)
+	}
+	if s.status != statusConnected {
+		t.Errorf("status %v, error %v", s.status, s.err)
+	}
+	tt.Frame()
+	if tt.HasText(locales.ConnectingTo(s.target())) {
+		t.Errorf("the connecting area stays; texts %q", tt.Texts())
 	}
 }
 
