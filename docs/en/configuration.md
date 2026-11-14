@@ -39,7 +39,7 @@ instead.
 | `keys.json` | The private keys saved in the app (see below). |
 | `settings.json` | The options (see below). |
 | `known_hosts` | Host keys you have trusted. |
-| `background-<time>.<extension>` | The copy of the terminal background image. |
+| `background-<time>.<extension>` | The copy of the terminal background image: the image is synced, and each computer keeps a copy under a name of its own. |
 | `icon-themes/` | File icon themes installed from VSIX files, as `<publisher>.<name>.vsix`. |
 | `sync-state.json` | What the last sync synced (see [Sync](#sync)). |
 | `hosts.before-sync.json` | `hosts.json` as it was before the last sync that changed it. |
@@ -332,7 +332,8 @@ local: `sidebarWidth`, `monitorPercent`, `terminalPercent`, `treeWidth`,
 `monitorHidden`, `bottomPanelHidden`, `bottomPanelSide`, `rightPanelWidth`,
 `monitorSide`, `rightMonitorPercent`, `commandEditorShown`,
 `commandEditorWidth`, `commandEditorPercent`, `commandEditorNoEnter`,
-`commandEditorClear`, `termBackground`, `localShell`, `sshAgent`, `downloadDir`,
+`commandEditorClear`, `termBackground` (the name of this computer's copy of the
+background image; the image itself is synced), `localShell`, `sshAgent`, `downloadDir`,
 `askDownloadDir`, `sync`,
 `geoLocations`, `geoLocationsV6`, `geoOnline` and
 `connectionTreeExpanded` (the folders open are where this computer's
@@ -356,16 +357,19 @@ Two more files belong to sync, next to `hosts.json`:
 The file on the service, `finallyshell-sync.json`, is JSON:
 `{"app": "finallyshell", "format": 1, "kdf": "argon2id", "salt": ..., "t": 3, "m": 65536, "p": 4, "cipher": "aes-256-gcm", "nonce": ..., "data": ...}`,
 the binary fields in base64. Decrypted, `data` is
-`{"schema": 3, "device": ..., "updatedAt": ..., "folders": [...], "hosts": [...], "proxies": [...], "commandGroups": [...], "commands": [...], "settings": {...}, "secrets": {...}, "keys": [...]}`,
+`{"schema": 4, "device": ..., "updatedAt": ..., "folders": [...], "hosts": [...], "proxies": [...], "commandGroups": [...], "commands": [...], "background": {...}, "settings": {...}, "secrets": {...}, "keys": [...]}`,
 where folders, hosts and proxies are those of `hosts.json`, commandGroups
-and commands the groups and commands of `quickcommands.json`, settings the
+and commands the groups and commands of `quickcommands.json`, background
+the terminal's background image, `{"name": ..., "data": ...}`, `name` the
+copy its writer keeps and `data` the image file in base64, settings the
 synced keys of `settings.json`, secrets the saved passwords by their key
 in the credential store, and keys the objects of `keys.json` with their
 private keys' text. Secrets and keys come from the computers with
 "Include saved passwords" checked, and those without it keep the file's
 as they are. `schema` is the file's version: 2 has the `proxies`, 3 the
-quick commands, and a build before it says to upgrade rather than merge a
-newer file, so that it does not drop what it does not know.
+quick commands, 4 the background image, and a build before it says to
+upgrade rather than merge a newer file, so that it does not drop what it
+does not know.
 
 ## Command history
 

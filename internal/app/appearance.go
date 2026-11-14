@@ -39,6 +39,11 @@ type appearance struct {
 	read     func(path string) (*ui.Bitmap, error)
 	choosing bool // the dialog choosing an image is open
 
+	// data is the copy's file as the sync carries it, with the name it
+	// was read from, so that every sync does not read the file again.
+	dataName string
+	data     []byte
+
 	families []string                   // the monospaced font families, once listed
 	themes   map[string]*terminal.Theme // the themes the color page showed
 

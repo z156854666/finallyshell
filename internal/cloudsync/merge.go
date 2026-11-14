@@ -12,8 +12,9 @@ import (
 // remote file with a newer one is not merged, as this build would drop
 // what it does not know. Version 2 adds the saved proxies, which a build
 // before it would drop on the next sync; version 3 the quick commands,
-// which a build before it would drop as well.
-const PayloadSchema = 3
+// which a build before it would drop as well; version 4 the terminal's
+// background image.
+const PayloadSchema = 4
 
 // Payload is what the envelope encrypts: what is synced. Folders, hosts,
 // proxies, command groups and commands are the objects of hosts.json and
@@ -36,6 +37,9 @@ type Payload struct {
 	// the ID in it, and shows under All when the group is gone.
 	CommandGroups []json.RawMessage `json:"commandGroups,omitempty"`
 	Commands      []json.RawMessage `json:"commands,omitempty"`
+	// Background is the terminal's background image, which every device
+	// shows: nil when this device has none.
+	Background *Background `json:"background,omitempty"`
 	// Settings are the settings that are synced, by their key in
 	// settings.json.
 	Settings map[string]json.RawMessage `json:"settings"`
@@ -48,6 +52,37 @@ type Payload struct {
 	Keys []json.RawMessage `json:"keys,omitempty"`
 }
 
+// Background is the terminal's background image: the image file itself,
+// and the name of the copy the device that wrote it keeps, whose extension
+// says the file's type. The image's bytes are what says two devices have
+// the same one: each keeps a copy of its own, named its own way, so Name
+// is not compared.
+type Background struct {
+	Name string `json:"name,omitempty"`
+	Data []byte `json:"data,omitempty"`
+}
+
+// None says whether b is no image: nil, or one without data.
+func (b *Background) None() bool { return b == nil || len(b.Data) == 0 }
+
+// Same says whether a and b are the same image, or both none.
+func (a *Background) Same(b *Background) bool {
+	if a.None() || b.None() {
+		return a.None() && b.None()
+	}
+	return bytes.Equal(a.Data, b.Data)
+}
+
+// Clone is a copy of b sharing no data with it.
+func (b *Background) Clone() *Background {
+	if b == nil {
+		return nil
+	}
+	c := *b
+	c.Data = bytes.Clone(b.Data)
+	return &c
+}
+
 // Clone is a copy of p sharing no maps or lists with it.
 func (p *Payload) Clone() *Payload {
 	c := *p
@@ -56,6 +91,7 @@ func (p *Payload) Clone() *Payload {
 	c.Proxies = slices.Clone(p.Proxies)
 	c.CommandGroups = slices.Clone(p.CommandGroups)
 	c.Commands = slices.Clone(p.Commands)
+	c.Background = p.Background.Clone()
 	c.Settings = maps.Clone(p.Settings)
 	c.Secrets = maps.Clone(p.Secrets)
 	c.Keys = slices.Clone(p.Keys)
@@ -63,20 +99,22 @@ func (p *Payload) Clone() *Payload {
 }
 
 // Equal says whether a and b hold the same folders, hosts, proxies, quick
-// commands, settings, secrets and keys. The order of the lists, the device
-// and the time do not count.
+// commands, background image, settings, secrets and keys. The order of the
+// lists, the device and the time do not count, and neither does the name
+// each device gives the copy of the background image.
 func Equal(a, b *Payload) bool {
 	return sameItems(a.Folders, b.Folders) && sameItems(a.Hosts, b.Hosts) &&
 		sameItems(a.Proxies, b.Proxies) &&
 		sameItems(a.CommandGroups, b.CommandGroups) && sameItems(a.Commands, b.Commands) &&
+		a.Background.Same(b.Background) &&
 		maps.EqualFunc(a.Settings, b.Settings, sameJSON) && maps.Equal(a.Secrets, b.Secrets) &&
 		sameItems(a.Keys, b.Keys)
 }
 
 // Merge merges local and remote three ways, against base, the payload
 // both last agreed on (nil when there is none). Each folder, host, saved
-// proxy, command group, command and saved key (by its ID), each setting
-// and each secret is merged on its own:
+// proxy, command group, command and saved key (by its ID), the background
+// image, each setting and each secret is merged on its own:
 //
 //   - changed on one side only, that side's is kept;
 //   - deleted on one side and unchanged on the other, it is deleted;
@@ -111,6 +149,8 @@ func Merge(base, local, remote *Payload) (merged *Payload, conflicts int) {
 	if len(m.Commands) == 0 {
 		m.Commands = nil
 	}
+	m.Background, n = mergeBackground(base.Background, local.Background, remote.Background)
+	conflicts += n
 	m.Settings, n = mergeMap(base.Settings, local.Settings, remote.Settings, sameJSON)
 	conflicts += n
 	m.Secrets, n = mergeMap(base.Secrets, local.Secrets, remote.Secrets, func(a, b string) bool { return a == b })
@@ -124,6 +164,28 @@ func Merge(base, local, remote *Payload) (merged *Payload, conflicts int) {
 		m.Keys = nil
 	}
 	return m, conflicts
+}
+
+// mergeBackground merges the background image, as the other items: nil is
+// no image, and only the image's bytes are compared, as each device names
+// its copy its own way. The chosen side's copy is kept, its name and all.
+func mergeBackground(base, local, remote *Background) (*Background, int) {
+	keep, useLocal, conflict := pick(!base.None(), !local.None(), !remote.None(),
+		func() bool { return local.Same(base) },
+		func() bool { return remote.Same(base) },
+		func() bool { return local.Same(remote) })
+	n := 0
+	if conflict {
+		n = 1
+	}
+	chosen := remote
+	if useLocal {
+		chosen = local
+	}
+	if !keep || chosen.None() {
+		return nil, n
+	}
+	return chosen.Clone(), n
 }
 
 // pick is the three-way decision for one item: whether to keep it, and

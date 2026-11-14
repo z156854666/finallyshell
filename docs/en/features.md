@@ -1463,6 +1463,10 @@ Background image:
 - An image larger than 3840 pixels on its long side is scaled down before
   it is kept in memory (the copy on disk is still the original file).
   JPEG images are rotated according to their EXIF orientation.
+- With [Sync](#sync) on, the image travels to the other computers, inside
+  the encrypted sync file: each keeps a copy of its own, under a name of
+  its own. A new image here replaces theirs, and removing it here removes
+  theirs.
 
 How it is drawn: every terminal is created with `Transparent: true`, and
 the app draws the background under it. First the color scheme's
@@ -2503,12 +2507,16 @@ What is synced:
   of every computer shows the same buttons. A command deleted on one is
   deleted on the others, and one whose group another computer lacks moves
   into that computer's first group.
+- The terminal's background image, so that every computer shows the same
+  one: each computer keeps a copy of it of its own, under a name of its
+  own, and the copy an image replaces is deleted. A new image here reaches
+  the other computers, and removing it here removes it there.
 - Settings that mean the same on another computer: language, appearance,
   the General, Mouse, Shortcuts and Terminal pages, the font, the color
   scheme, the background's fit and opacity, and the file icon theme when
   it is one every copy has (Material, Seti or minimal). Pane sizes, the
-  download folder, the background image itself and icon themes installed
-  from a VSIX stay on each computer.
+  download folder, the name of each computer's copy of the background
+  image and icon themes installed from a VSIX stay on each computer.
 - With "Include saved passwords" checked, off by default, the passwords and
   key passphrases of the hosts that remember theirs, the passwords of the
   saved proxies, and the private keys saved in the app. A computer that has
@@ -2519,7 +2527,7 @@ What is synced:
 Each sync merges three ways: this computer's data, the file's, and the
 data both had after the last sync, kept in `sync-state.json`, still
 encrypted. Each folder, host, saved proxy, command, command group, setting,
-password and key is merged on its own. What changed on one side only is kept; what was deleted
+background image, password and key is merged on its own. What changed on one side only is kept; what was deleted
 on one side and not changed on the other is deleted; what changed on both
 sides keeps this computer's version, and the status says how many there
 were. The first sync with a service (or after the sync password changed)
@@ -2546,7 +2554,8 @@ enter the new one on the other computers). Without "Include saved
 passwords", the file then has no passwords and no keys.
 
 "Pull to This Computer…" asks first too, then takes the file's connections,
-quick commands, settings, passwords and keys in place of this computer's,
+quick commands, settings, background image, passwords and keys in place of
+this computer's,
 without merging, and writes nothing: the file has to exist already. What only this computer
 had is replaced, and `hosts.json` is copied first. When the file has no
 passwords or keys, this computer's are kept.

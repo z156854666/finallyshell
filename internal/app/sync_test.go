@@ -676,3 +676,100 @@ func TestSyncPull(t *testing.T) {
 		t.Error("a missing file is not explained")
 	}
 }
+
+// setImage gives d a background image of w×h pixels, as choosing one on
+// the Background image page does, and returns the image file's bytes.
+func (d *device) setImage(t *testing.T, w, h int) []byte {
+	t.Helper()
+	d.use(t)
+	src := filepath.Join(t.TempDir(), "sea.png")
+	data := writeImage(t, src, w, h)
+	name, err := config.SaveBackground(data, src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := d.a.settings.TermBackground
+	d.a.changeTerminalSettings(func() { d.a.settings.TermBackground = name })
+	if old != "" && old != name {
+		config.RemoveBackground(old)
+	}
+	return data
+}
+
+// imageOf is the copy of d's background image, as its name says.
+func (d *device) imageOf(t *testing.T) []byte {
+	t.Helper()
+	name := d.a.settings.TermBackground
+	if name == "" {
+		t.Fatal("no background image")
+	}
+	path, err := config.BackgroundPath(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
+}
+
+// The background image travels with the settings: the other computer shows
+// the same image, from a copy of its own, and changing or removing it here
+// changes it there, with its copy.
+func TestSyncBackgroundImage(t *testing.T) {
+	r := &memRemote{}
+	one := newDevice(t, r)
+	data := one.setImage(t, 32, 20)
+	one.sync(t)
+
+	two := newDevice(t, r)
+	two.sync(t)
+	name := two.a.settings.TermBackground
+	if name == "" {
+		t.Fatal("the second computer has no background image")
+	}
+	if name == one.a.settings.TermBackground {
+		t.Errorf("the copy is the first computer's, %q", name)
+	}
+	if got := two.imageOf(t); !bytes.Equal(got, data) {
+		t.Fatalf("the copy: %d bytes, want %d", len(got), len(data))
+	}
+	if cs := copies(t); !slices.Equal(cs, []string{name}) {
+		t.Fatalf("copies %v", cs)
+	}
+	if got := config.LoadSettings().TermBackground; got != name {
+		t.Errorf("the setting saved is %q", got)
+	}
+
+	// The same image under a name of its own: nothing is written.
+	puts := r.writes()
+	two.sync(t)
+	one.sync(t)
+	if r.writes() != puts {
+		t.Errorf("syncs with the same image wrote the remote %d times", r.writes()-puts)
+	}
+
+	// Another image replaces it on the other computer, copy and all.
+	data = two.setImage(t, 40, 24)
+	two.sync(t)
+	one.sync(t)
+	if got := one.imageOf(t); !bytes.Equal(got, data) {
+		t.Fatalf("the other image: %d bytes, want %d", len(got), len(data))
+	}
+	if cs := copies(t); len(cs) != 1 || cs[0] != one.a.settings.TermBackground {
+		t.Fatalf("copies %v, setting %q", cs, one.a.settings.TermBackground)
+	}
+
+	// Removed here, it is removed there, with its copy.
+	one.use(t)
+	one.a.removeBackground()
+	one.sync(t)
+	two.sync(t)
+	if two.a.settings.TermBackground != "" {
+		t.Errorf("the second computer kept %q", two.a.settings.TermBackground)
+	}
+	if cs := copies(t); len(cs) != 0 {
+		t.Errorf("copies left %v", cs)
+	}
+}

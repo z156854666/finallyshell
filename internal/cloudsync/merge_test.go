@@ -167,6 +167,49 @@ func TestMergeQuickCommands(t *testing.T) {
 	}
 }
 
+func TestMergeBackground(t *testing.T) {
+	img := func(data string) *Background { return &Background{Name: "background-1.png", Data: []byte(data)} }
+	base := img("one")
+	// Changed on one side only: that side's is kept.
+	m, conflicts := Merge(&Payload{Background: base}, &Payload{Background: base}, &Payload{Background: img("two")})
+	if !m.Background.Same(img("two")) || conflicts != 0 {
+		t.Errorf("the other side's image: %v, %d conflicts", m.Background, conflicts)
+	}
+	m, _ = Merge(&Payload{Background: base}, &Payload{Background: img("two")}, &Payload{Background: base})
+	if !m.Background.Same(img("two")) {
+		t.Errorf("this side's image: %v", m.Background)
+	}
+	// Deleted on one side, unchanged on the other: deleted.
+	m, _ = Merge(&Payload{Background: base}, &Payload{}, &Payload{Background: base})
+	if !m.Background.None() {
+		t.Errorf("deleted here: %v", m.Background)
+	}
+	m, _ = Merge(&Payload{Background: base}, &Payload{Background: base}, &Payload{})
+	if !m.Background.None() {
+		t.Errorf("deleted there: %v", m.Background)
+	}
+	// Changed on both sides differently: this side's is kept, and counted.
+	m, conflicts = Merge(&Payload{Background: base}, &Payload{Background: img("here")}, &Payload{Background: img("there")})
+	if !m.Background.Same(img("here")) || conflicts != 1 {
+		t.Errorf("both changed: %v, %d conflicts", m.Background, conflicts)
+	}
+	// A first sync keeps what either side has.
+	m, conflicts = Merge(nil, &Payload{}, &Payload{Background: img("there")})
+	if !m.Background.Same(img("there")) || conflicts != 0 {
+		t.Errorf("a first sync: %v, %d conflicts", m.Background, conflicts)
+	}
+	// The name each device gives its copy is not compared, and the copy
+	// this side keeps is the one named.
+	mine := &Background{Name: "background-2.png", Data: []byte("same")}
+	m, conflicts = Merge(nil, &Payload{Background: mine}, &Payload{Background: &Background{Name: "background-3.png", Data: []byte("same")}})
+	if !m.Background.Same(mine) || m.Background.Name != mine.Name || conflicts != 0 {
+		t.Errorf("the same image: %v, %d conflicts", m.Background, conflicts)
+	}
+	if !Equal(&Payload{Background: mine}, &Payload{Background: &Background{Name: "background-4.png", Data: []byte("same")}}) {
+		t.Error("the same image under another name is not equal")
+	}
+}
+
 func TestEqualIgnoresOrder(t *testing.T) {
 	a := &Payload{Hosts: []json.RawMessage{host("a", "A"), host("b", "B")}, Device: "one"}
 	b := &Payload{Hosts: []json.RawMessage{json.RawMessage(`{"name":"B", "id":"b"}`), host("a", "A")}, Device: "two"}

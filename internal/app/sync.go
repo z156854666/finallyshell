@@ -202,11 +202,12 @@ func (a *App) keepSyncSecret(key, v string) {
 
 // localPayload is this device's payload, without secrets: its folders,
 // hosts, saved proxies and quick commands, each host without the time it
-// last connected, which stays on this device, the settings that are synced
-// and, when the saved passwords travel, the private keys saved in the app,
-// which travel with them.
+// last connected, which stays on this device, its background image, the
+// settings that are synced and, when the saved passwords travel, the
+// private keys saved in the app, which travel with them.
 func (a *App) localPayload() *cloudsync.Payload {
 	p := &cloudsync.Payload{Schema: cloudsync.PayloadSchema, Settings: config.SyncedSettings(a.settings)}
+	p.Background = a.backgroundPayload()
 	if a.settings.Sync.Passwords {
 		p.Keys = a.keysPayload()
 	}
@@ -239,6 +240,62 @@ func (a *App) localPayload() *cloudsync.Payload {
 		}
 	}
 	return p
+}
+
+// backgroundPayload is the terminal's background image as the sync
+// carries it: the copy's file and the copy's name, whose extension says
+// the file's type; nil when this device has no image, or its copy is gone,
+// which the Background image page shows. The file is read once per copy,
+// as the payload is built at every sync and every check for changes.
+func (a *App) backgroundPayload() *cloudsync.Background {
+	name := a.settings.TermBackground
+	st := &a.look
+	if name == "" {
+		st.dataName, st.data = "", nil
+		return nil
+	}
+	if st.dataName != name {
+		st.dataName, st.data = name, nil
+	}
+	if st.data == nil {
+		if path, err := config.BackgroundPath(name); err == nil {
+			st.data, _ = readImageFile(path)
+		}
+	}
+	if len(st.data) == 0 {
+		return nil
+	}
+	return &cloudsync.Background{Name: name, Data: st.data}
+}
+
+// applySyncedBackground makes the background image the merge brought this
+// device's: a copy of the image is kept here, as choosing one keeps it,
+// and the copy it replaces is deleted. Nothing happens when it is the
+// image this device already has, as each copy has a name of its own. An
+// image that cannot be copied shows on the Background image page as one
+// that could not be chosen.
+func (a *App) applySyncedBackground(bg *cloudsync.Background) {
+	if a.backgroundPayload().Same(bg) {
+		return
+	}
+	name, data := "", []byte(nil)
+	if !bg.None() {
+		n, err := config.SaveBackground(bg.Data, bg.Name)
+		if err != nil {
+			a.look.imageErr = &saveImageError{err}
+			return
+		}
+		name, data = n, bg.Data
+	}
+	old := a.settings.TermBackground
+	a.changeTerminalSettings(func() {
+		a.settings.TermBackground = name
+		st := &a.look
+		st.dataName, st.data = name, data
+	})
+	if old != "" && old != name {
+		config.RemoveBackground(old)
+	}
 }
 
 // keysPayload are the private keys saved in the app, as the sync carries
@@ -513,9 +570,9 @@ func (a *App) syncDone(res *cloudsync.Result, err error, run syncRun) {
 }
 
 // applyPayload makes this device's folders, hosts, saved proxies, quick
-// commands and synced settings those of p. Hosts keep the time they last
-// connected here, and their Host values, which sessions point at.
-// hosts.json is copied first.
+// commands, background image and synced settings those of p. Hosts keep the
+// time they last connected here, and their Host values, which sessions
+// point at. hosts.json is copied first.
 func (a *App) applyPayload(p *cloudsync.Payload) {
 	local := a.localPayload()
 	hostsChanged := !sameSet(local.Folders, p.Folders) || !sameSet(local.Hosts, p.Hosts)
@@ -577,6 +634,7 @@ func (a *App) applyPayload(p *cloudsync.Payload) {
 		a.applyTerminalSettings()
 		a.applyAgentIcons()
 	}
+	a.applySyncedBackground(p.Background)
 }
 
 // sameSet says whether two lists hold the same objects in any order.
