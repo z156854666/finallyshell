@@ -403,7 +403,8 @@ unselected as it does new tabs. There is no default shortcut.
   while it is the tab shown.
 - When the program exits the tab says "Exited", and Reconnect, a
   double click on its row or Enter in the terminal area (the Reconnect
-  shortcut) starts it again in the same tab. A program that cannot be
+  shortcut) starts it again in the same tab, keeping what it showed
+  above the new program's output. A program that cannot be
   found shows "Could not start …" with the error; one that is found but
   cannot run writes its error in the terminal and exits.
 - Quitting asks first while a local terminal's program runs, as with
@@ -1211,7 +1212,14 @@ script that also runs on BusyBox. When tools such as `lscpu`, `nproc` or
 ## Terminal
 
 The top right is the terminal. When a session disconnects, the last screen
-stays, and a "Reconnect" bar appears at the top.
+stays, and a red bar at the top says what happened, with Reconnect.
+Reconnecting keeps what the terminals showed and their scrollback above
+what the new shells print, in every pane, rather than starting from an
+empty screen: while it connects, the bar is orange and says "Reconnecting…"
+over the last screen, and the output the user was reading is still there
+once it is back, scrolling back to it included. After "Disconnect" in the
+session's menu the terminal shows the state instead, and what it showed
+comes back with the connection.
 
 ### Find
 
@@ -1303,7 +1311,8 @@ connection, a new channel on it: no new login. A pane of a
   neighbor takes its room, and the focus.
 - **Connection lost**: when the connection drops, every pane ends, and
   the session shows "Connection lost" as with one terminal. Reconnect
-  opens a shell in every pane again, in the same layout.
+  opens a shell in every pane again, in the same layout, each keeping
+  what its terminal showed above the new shell's output.
 - **A server that refuses**: a server allows a number of sessions on a
   connection (OpenSSH's `MaxSessions`, 10 by default; the monitor and
   SFTP take one each). A split it refuses adds no pane, and a toast says

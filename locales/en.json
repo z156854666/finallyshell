@@ -113,6 +113,7 @@
   "statusConnected": "Connected",
   "connectionLost": "Connection lost",
   "connectingTo": "Connecting to {target}",
+  "reconnecting": "Reconnecting…",
   "welcomeHint": "{key} opens the connection manager",
   "newTab": "New tab",
   "quickConnect": "Quick connect",

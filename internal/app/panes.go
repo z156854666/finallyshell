@@ -68,6 +68,10 @@ type pane struct {
 	// in the high 32 bits, and their number in the low. The UI thread
 	// sets it as panes open and close; the follower reads it.
 	pick atomic.Uint64
+	// keep is what its terminal showed when the session connected again,
+	// for the terminal that takes its place: nil while it shows nothing
+	// kept (restore.go).
+	keep *paneKeep
 }
 
 func newPane() *pane { return &pane{id: nextPaneID.Add(1)} }

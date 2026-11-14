@@ -288,6 +288,9 @@ func (a *App) sessionTabMenu(row ui.Element, s *Session, closing *tabClosing) {
 		}
 		if m.Item(locales.Disconnect()).Disabled(s.status != statusConnected && s.status != statusConnecting).Chosen() {
 			a.transfers.cancelSession(s)
+			// What the terminals show stays for the connection that
+			// takes their places (restore.go).
+			s.keepShown()
 			s.disconnect()
 			s.status, s.err = statusClosed, nil
 		}

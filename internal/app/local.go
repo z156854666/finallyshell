@@ -98,21 +98,21 @@ func (a *App) connectLocal(s *Session) {
 	}
 	for _, p := range s.panes.panes() {
 		p.title = ""
-		term, err := a.openLocalPane(s, p)
+		term, err := a.openLocalPane(s, p, p.keep)
 		if err != nil {
 			s.status, s.err = statusFailed, err
-			return
+			return // the pane keeps what it showed, for the next start
 		}
-		p.term = term
+		p.show(term)
 		s.panes.opened(p)
 	}
 	s.panes.refocus = true
 	s.status, s.err = statusConnected, nil
 }
 
-// openLocalPane starts s's program for p, one of its panes, in a
-// terminal of its own.
-func (a *App) openLocalPane(s *Session, p *pane) (*terminal.Terminal, error) {
+// openLocalPane starts s's program for p, one of its panes, in a terminal of
+// its own, after what the pane showed before when keep has it (restore.go).
+func (a *App) openLocalPane(s *Session, p *pane, keep *paneKeep) (*terminal.Terminal, error) {
 	cmd, err := a.settings.LocalShellCommand()
 	if err != nil {
 		return nil, &localStartError{program: a.settings.LocalShell, err: err}
@@ -138,6 +138,9 @@ func (a *App) openLocalPane(s *Session, p *pane) (*terminal.Terminal, error) {
 		}
 		return nil, &localStartError{program: program, err: err}
 	}
+	// The program starts once a view shows the terminal: what the pane
+	// showed before is in it before that.
+	replay(term, keep)
 	return term, nil
 }
 

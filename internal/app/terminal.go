@@ -54,17 +54,23 @@ func (a *App) terminalArea(c *ui.Context) {
 }
 
 // statusBanner is the bar over the terminal of a session that is not
-// connected, with what went wrong and a button to connect again.
+// connected, with what went wrong and a button to connect again. A session
+// connecting again keeps the screen it showed under it, which says
+// "Reconnecting" in orange above that rather than going blank.
 func (a *App) statusBanner(c *ui.Context, s *Session) {
-	if s.status == statusConnecting && s.term() == nil {
+	connecting := s.status == statusConnecting
+	if connecting && s.term() == nil {
 		return
 	}
 	bg := ui.Hex("#7f1d1d")
-	if s.status == statusConnecting {
-		bg = ui.Hex("#713f12")
+	if connecting {
+		bg = ui.Hex("#c2410c")
 	}
 	ui.Row(c).Background(bg).Padding(6, 10).Gap(10).Children(func() {
 		msg := s.statusText()
+		if connecting {
+			msg = locales.Reconnecting()
+		}
 		if s.err != nil {
 			msg = describeError(s.err)
 		}

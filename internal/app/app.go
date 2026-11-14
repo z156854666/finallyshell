@@ -559,6 +559,9 @@ func (a *App) reconnect(s *Session) {
 		return
 	}
 	if s.isLocal() { // its program again, in the same tab
+		// The program starts again at once: the pane keeps what it
+		// showed, which its new terminal shows (restore.go).
+		s.keepShown()
 		a.connectLocal(s)
 		return
 	}
@@ -571,7 +574,9 @@ func (a *App) reconnect(s *Session) {
 		a.askSecret(need, func() { a.reconnect(s) })
 		return
 	}
-	s.disconnect()
+	// The panes keep what they show while it connects, above the new
+	// shells' output, rather than showing an empty screen (restore.go).
+	s.disconnectForReconnect()
 	a.connect(s, a.passwords[s.Host.ID])
 }
 

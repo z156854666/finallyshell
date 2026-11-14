@@ -154,6 +154,12 @@ func (a *App) connect(s *Session, secret string) {
 		s.panes.reset(newPane())
 	}
 	panes := s.panes.panes()
+	// What the panes showed before, which the terminals that replace them
+	// show first: connecting again keeps the output above the new shells'.
+	keeps := make([]*paneKeep, len(panes))
+	for i, p := range panes {
+		keeps[i] = p.keep
+	}
 	fail := func(err error) {
 		a.post(func() {
 			s.status, s.err = statusFailed, err
@@ -184,7 +190,7 @@ func (a *App) connect(s *Session, secret string) {
 		terms := make([]*terminal.Terminal, len(panes))
 		var refused error
 		for i, p := range panes {
-			term, err := a.openPaneShell(s, p, client, spec)
+			term, err := a.openPaneShell(s, p, client, spec, keeps[i])
 			if err != nil && i == 0 {
 				client.Close()
 				fail(err)
@@ -214,12 +220,13 @@ func (a *App) connect(s *Session, secret string) {
 				switch {
 				case terms[i] == nil:
 					s.panes.remove(p)
+					p.end() // its shell, and the terminal it showed meanwhile
 					continue
 				case !s.panes.has(p): // closed while connecting
 					terms[i].Close()
 					continue
 				}
-				p.term = terms[i]
+				p.show(terms[i])
 				s.panes.opened(p)
 				a.startPane(s, p, spec)
 			}
@@ -287,15 +294,19 @@ func (a *App) shellSpec(h *config.Host) shellSpec {
 }
 
 // openPaneShell opens a shell for p on client, as spec says, and the
-// terminal that shows it. It runs on a goroutine: it blocks until the
-// server answers.
-func (a *App) openPaneShell(s *Session, p *pane, client *ssh.Client, spec shellSpec) (*terminal.Terminal, error) {
+// terminal that shows it, after what the pane showed before when keep has
+// it (restore.go). It runs on a goroutine: it blocks until the server
+// answers.
+func (a *App) openPaneShell(s *Session, p *pane, client *ssh.Client, spec shellSpec, keep *paneKeep) (*terminal.Terminal, error) {
 	shell, err := sshx.OpenShell(client, spec.pty)
 	if err != nil {
 		return nil, &stepError{"shell", err}
 	}
+	// The terminal reads the shell as it is made: held until the pane's
+	// last output is in it, the shell's comes after that.
+	conn := &heldConn{ReadWriteCloser: termenc.Wrap(shell, spec.enc), ready: make(chan struct{})}
 	topts := spec.topts
-	topts.Conn = termenc.Wrap(shell, spec.enc)
+	topts.Conn = conn
 	keys := keySequences(spec.bs, spec.del, func() *terminal.Terminal { return p.term })
 	topts.OnKey = func(mods ui.Modifiers, key ui.Key) bool {
 		p.shellKey(mods, key) // for the file panel to follow a cd, and the tab its agent
@@ -304,9 +315,12 @@ func (a *App) openPaneShell(s *Session, p *pane, client *ssh.Client, spec shellS
 	topts.OnExit = func(int) { a.post(func() { a.paneExited(s, p) }) }
 	term, err := terminal.New(topts)
 	if err != nil {
+		close(conn.ready)
 		shell.Close()
 		return nil, &stepError{"terminal", err}
 	}
+	replay(term, keep)
+	close(conn.ready)
 	return term, nil
 }
 
@@ -369,7 +383,22 @@ func (a *App) noteConnected(h *config.Host) {
 
 // disconnect ends s's connection, keeping its tab and the layout of its
 // panes, whose shells end.
-func (s *Session) disconnect() {
+func (s *Session) disconnect() { s.endConnection(false) }
+
+// disconnectForReconnect ends s's connection for the one that takes its
+// place, with the panes keeping their terminals: they go on showing what
+// they showed while it connects, and the new connection's take their places
+// (restore.go). Their shells end with the connection all the same.
+func (s *Session) disconnectForReconnect() {
+	s.keepShown()
+	s.endConnection(true)
+}
+
+// endConnection ends s's connection, with its shells: those of the panes,
+// which end with it, and the followers of their folders and programs. A
+// connection that another takes the place of keeps the panes' terminals
+// (keepShown), for one that shows the last screen while it connects.
+func (s *Session) endConnection(keepShown bool) {
 	if s.cancel != nil {
 		s.cancel()
 		s.cancel = nil
@@ -391,6 +420,10 @@ func (s *Session) disconnect() {
 		s.sftp = nil
 	}
 	for _, p := range s.panes.panes() {
+		if keepShown {
+			p.stopFollower()
+			continue
+		}
 		p.end()
 	}
 	s.panes.order = nil

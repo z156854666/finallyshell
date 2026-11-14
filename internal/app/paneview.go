@@ -52,13 +52,13 @@ func (a *App) splitPane(s *Session, dir splitDir) {
 	}
 	at, p := s.pane(), newPane()
 	if s.isLocal() {
-		term, err := a.openLocalPane(s, p)
+		term, err := a.openLocalPane(s, p, nil)
 		a.paneOpened(s, at, p, dir, nil, shellSpec{}, term, err)
 		return
 	}
 	client, spec := s.client, a.shellSpec(s.Host)
 	go func() {
-		term, err := a.openPaneShell(s, p, client, spec)
+		term, err := a.openPaneShell(s, p, client, spec, nil)
 		a.post(func() { a.paneOpened(s, at, p, dir, client, spec, term, err) })
 	}()
 }
@@ -112,13 +112,19 @@ func (a *App) startPane(s *Session, p *pane, spec shellSpec) {
 
 // end ends p's shell and its follower, keeping its place in the tree.
 func (p *pane) end() {
-	if p.stop != nil {
-		p.stop()
-		p.stop = nil
-	}
+	p.stopFollower()
 	if p.term != nil {
 		p.term.Close()
 		p.term = nil
+	}
+}
+
+// stopFollower ends what follows p's shell, its folder and foreground
+// program, which a connection that ends takes with the shell.
+func (p *pane) stopFollower() {
+	if p.stop != nil {
+		p.stop()
+		p.stop = nil
 	}
 }
 

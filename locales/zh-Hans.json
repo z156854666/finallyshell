@@ -73,6 +73,7 @@
   "statusConnected": "已连接",
   "connectionLost": "连接已断开",
   "connectingTo": "正在连接 {target}",
+  "reconnecting": "正在重连…",
   "welcomeHint": "{key} 打开连接管理器",
   "newTab": "新标签页",
   "quickConnect": "快速连接",

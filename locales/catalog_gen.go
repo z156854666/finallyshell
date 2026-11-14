@@ -782,6 +782,16 @@ func (msgs Messages) ConnectingTo(target string) string {
 	return Catalog.Format(msgs.locale, "connectingTo", map[string]any{"target": target})
 }
 
+// Reconnecting says "Reconnecting…"
+// in the language the app shows.
+func Reconnecting() string { return In(i18n.Locale()).Reconnecting() }
+
+// Reconnecting says "Reconnecting…"
+// in the language of msgs.
+func (msgs Messages) Reconnecting() string {
+	return Catalog.Format(msgs.locale, "reconnecting", nil)
+}
+
 // WelcomeHint says "{key} opens the connection manager"
 // in the language the app shows.
 func WelcomeHint(key string) string { return In(i18n.Locale()).WelcomeHint(key) }
