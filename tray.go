@@ -70,6 +70,10 @@ func (p *platform) HideToTray() bool {
 // icon stays.
 func (p *platform) showMain() {
 	p.hidden = false
+	// Restore before Show: Show puts a window minimized in the taskbar in
+	// front without restoring it, and App.Focus then counts the app as in
+	// front, so nothing restores it.
+	p.win.Restore()
 	p.win.Show()
 	mygo.App.Focus()
 }
