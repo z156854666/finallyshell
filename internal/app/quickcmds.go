@@ -19,7 +19,9 @@ import (
 // The Commands tab of the bottom panel is FinalShell's quick command
 // panel: the user's groups on the left, the commands of the group chosen
 // as buttons on the right, a click on one sending it to the session
-// shown. The commands are the same for every host, in quickcommands.json
+// shown. Every command is in a group: a file with none gets a default
+// group, and one whose group is gone joins the first (quickSettle). The
+// commands are the same for every host, in quickcommands.json
 // (config/quickcommands.go), read the first time the tab shows and
 // written, as hosts.json is, on the UI thread as they change.
 //
@@ -42,7 +44,7 @@ type quickState struct {
 	noSave  bool
 	saveErr error // why the last save failed, nil once one works
 
-	group  string // the group shown, "" for All
+	group  string // the group shown; "" until the first frame picks one
 	query  string // the search
 	naming *groupNaming
 	ed     *quickEditor // the editor window's fields, while it is open
@@ -73,8 +75,28 @@ func (a *App) quick() *config.QuickCommands {
 			var broken *config.BrokenFileError
 			q.loadErr, q.noSave = err, !errors.As(err, &broken)
 		}
+		// A file from before every command had a group keeps its
+		// commands, in the default one, from the next save on.
+		quickSettle(q.store)
 	}
 	return q.store
+}
+
+// quickSettle gives every command a group that exists: the first one, or
+// a default group made for a file with none. Nothing is saved here, so it
+// is safe to call as the tab draws.
+func quickSettle(q *config.QuickCommands) {
+	var g *config.QuickGroup
+	if len(q.Groups) == 0 {
+		g = q.AddGroup(locales.QuickDefaultGroup())
+	} else {
+		g = q.Groups[0]
+	}
+	for _, c := range q.Commands {
+		if q.Group(c.Group) == nil {
+			c.Group = g.ID
+		}
+	}
 }
 
 // saveQuick writes the quick commands, and redraws the windows that show
@@ -147,8 +169,12 @@ func (a *App) putInBar(c *ui.Context, s *Session, line string) {
 func (a *App) quickPanel(c *ui.Context) {
 	q := &a.quickUI
 	store := a.quick()
+	// A command the file left in no group joins the first one, and a file
+	// with no group at all gets the default one, so that no command is
+	// hidden.
+	quickSettle(store)
 	if store.Group(q.group) == nil {
-		q.group = ""
+		q.group = store.Groups[0].ID
 	}
 	s, live := a.quickSession()
 	tab := ui.Column(c.Key("quick-commands")).Grow(1).MinHeight(0)
@@ -202,13 +228,12 @@ func (a *App) quickBanner(c *ui.Context) {
 // quickGroupsWidth is the width of the list of groups, in DIPs.
 const quickGroupsWidth = 170
 
-// quickGroups is the list of groups at the tab's left: All, the user's
-// groups, and New group.
+// quickGroups is the list of groups at the tab's left: the user's groups,
+// then New group.
 func (a *App) quickGroups(c *ui.Context, store *config.QuickCommands) {
 	q := &a.quickUI
 	ui.Column(c).Width(quickGroupsWidth).Shrink(0).BorderWidth(0, 1, 0, 0).BorderColor(colors.line).Children(func() {
 		ui.Scroll(c).Grow(1).MinHeight(0).Padding(6).Gap(2).Children(func() {
-			a.quickGroupRow(c, store, nil)
 			for _, g := range store.Groups {
 				a.quickGroupRow(c, store, g)
 			}
@@ -228,18 +253,15 @@ func (a *App) quickGroups(c *ui.Context, store *config.QuickCommands) {
 	})
 }
 
-// quickGroupRow is the row of g, or of All for nil: a click shows its
-// commands, a command dropped on a group moves into it, and a group's
-// context menu renames or deletes it.
+// quickGroupRow is the row of g: a click shows its commands, a command
+// dropped on a group moves into it, and a group's context menu renames or
+// deletes it.
 func (a *App) quickGroupRow(c *ui.Context, store *config.QuickCommands, g *config.QuickGroup) {
 	q := &a.quickUI
-	id, name, count := "", locales.QuickAll(), len(store.Commands)
-	if g != nil {
-		id, name, count = g.ID, g.Name, len(store.InGroup(g.ID))
-		if q.naming != nil && q.naming.id == id {
-			a.groupNameField(c)
-			return
-		}
+	id, name, count := g.ID, g.Name, len(store.InGroup(g.ID))
+	if q.naming != nil && q.naming.id == id {
+		a.groupNameField(c)
+		return
 	}
 	on := q.group == id
 	row := ui.Row(c.Key("group-"+id)).Gap(6).Padding(5, 8).Radius(5).AlignItems(ui.Center).
@@ -249,26 +271,24 @@ func (a *App) quickGroupRow(c *ui.Context, store *config.QuickCommands, g *confi
 	} else if row.Hovered() {
 		row.Background(theme.SurfaceHover)
 	}
-	if g != nil {
-		if _, over := ui.DragOver[quickDrag](row); over {
-			row.Border(1, theme.Accent)
-		}
-		if d, ok := ui.Drop[quickDrag](row); ok {
-			if cmd := store.Command(d.id); cmd != nil && cmd.Group != g.ID {
-				cmd.Group = g.ID
-				a.saveQuick()
-			}
-		}
-		row.ContextMenu(func(m *ui.Menu) {
-			if m.Item(locales.Rename()).Chosen() {
-				q.naming = &groupNaming{id: g.ID, text: g.Name, fresh: true}
-			}
-			m.Separator()
-			if m.Item(locales.Delete()).Danger().Chosen() {
-				a.askDeleteGroup(g)
-			}
-		})
+	if _, over := ui.DragOver[quickDrag](row); over {
+		row.Border(1, theme.Accent)
 	}
+	if d, ok := ui.Drop[quickDrag](row); ok {
+		if cmd := store.Command(d.id); cmd != nil && cmd.Group != g.ID {
+			cmd.Group = g.ID
+			a.saveQuick()
+		}
+	}
+	row.ContextMenu(func(m *ui.Menu) {
+		if m.Item(locales.Rename()).Chosen() {
+			q.naming = &groupNaming{id: g.ID, text: g.Name, fresh: true}
+		}
+		m.Separator()
+		if m.Item(locales.Delete()).Danger().Chosen() {
+			a.askDeleteGroup(g)
+		}
+	})
 	row.Children(func() {
 		t := ui.Text(c, name).SingleLine().Ellipsis("…").Grow(1).MinWidth(0)
 		if on {
@@ -333,7 +353,8 @@ func oneLine(s string) string {
 	}, s))
 }
 
-// askDeleteGroup asks, then deletes g; its commands stay, in no group.
+// askDeleteGroup asks, then deletes g; its commands move into the first
+// group, the default one made when g was the last.
 func (a *App) askDeleteGroup(g *config.QuickGroup) {
 	q := Confirmation{
 		Title:   locales.AppTitle(),
@@ -347,6 +368,7 @@ func (a *App) askDeleteGroup(g *config.QuickGroup) {
 		if a.plat.Confirm(q) {
 			a.post(func() {
 				if a.quick().RemoveGroup(id) {
+					quickSettle(a.quick())
 					a.saveQuick()
 				}
 			})
@@ -410,9 +432,9 @@ func (a *App) quickToolbar(c *ui.Context, s *Session, live bool) {
 // searchMinWidth is the least width of the toolbar's search, in DIPs.
 const searchMinWidth = 100
 
-// shownQuick are the commands the buttons show: the group's, or every
-// one under All, that the search finds in their names or their text,
-// ignoring case.
+// shownQuick are the commands the buttons show: those of the group
+// shown that the search finds in their names or their text, ignoring
+// case.
 func (a *App) shownQuick(store *config.QuickCommands) []*config.QuickCommand {
 	cmds := store.InGroup(a.quickUI.group)
 	query := strings.ToLower(strings.TrimSpace(a.quickUI.query))
@@ -430,7 +452,7 @@ func (a *App) shownQuick(store *config.QuickCommands) []*config.QuickCommand {
 
 // quickButtons are the commands shown, as buttons in rows that wrap. A
 // command dropped on another takes its place; dropped after the last, it
-// goes to the end.
+// goes to the end, in the group shown.
 func (a *App) quickButtons(c *ui.Context, store *config.QuickCommands, s *Session, live bool) {
 	cmds := a.shownQuick(store)
 	// What the buttons ask that changes the list is done after it is
@@ -455,7 +477,14 @@ func (a *App) quickButtons(c *ui.Context, store *config.QuickCommands, s *Sessio
 	})
 	if d, ok := ui.Drop[quickDrag](area); ok {
 		act = func() {
+			changed := false
+			if cmd := store.Command(d.id); cmd != nil && cmd.Group != a.quickUI.group {
+				cmd.Group, changed = a.quickUI.group, true
+			}
 			if store.MoveCommand(d.id, "") {
+				changed = true
+			}
+			if changed {
 				a.saveQuick()
 			}
 		}
@@ -514,9 +543,6 @@ func (a *App) quickButton(c *ui.Context, store *config.QuickCommands, s *Session
 						a.saveQuick()
 					}
 				}
-			}
-			if m.Item(locales.QuickNoGroup()).ID("no-group").Radio(store.Group(cmd.Group) == nil).Chosen() {
-				to("")
 			}
 			for _, g := range store.Groups {
 				if m.Item(g.Name).ID("group-" + g.ID).Radio(cmd.Group == g.ID).Chosen() {

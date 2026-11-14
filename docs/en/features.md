@@ -2078,11 +2078,13 @@ and kept in `quickcommands.json` (see
 [configuration.md](configuration.md#quickcommandsjson)); [Sync](#sync)
 keeps them the same on your computers, as it does the connections.
 
-- The groups are on the left: "All", which shows every command, then
-  your groups in their order, each with how many commands it has, and
-  "New group", which names a new group in place (Enter keeps the name,
-  Esc gives it up). A group's context menu renames it or deletes it,
-  after asking; its commands are kept, in no group, under "All".
+- The groups are on the left, in their order, each with how many commands
+  it has, then "New group", which names a new group in place (Enter keeps
+  the name, Esc gives it up). Every command is in a group: a list with no
+  group has a "Default" one, and a command left in no group joins it. A
+  group's context menu renames it or deletes it, after asking; its
+  commands move into the first group, and deleting every group makes a
+  "Default" one.
 - The commands of the group chosen are buttons on the right, in rows
   that wrap. A button shows the command's name alone; its tooltip is the
   whole command. The search box above them filters by name and by
@@ -2135,8 +2137,8 @@ keeps them the same on your computers, as it does the connections.
   [above](#bottom-panel-in-a-tab-of-its-own)), for a board of commands
   as high as the window; its buttons send to its session.
 
-Not supported: commands with parameters to fill in, commands of one host only, syncing the
-commands, and a shortcut per command.
+Not supported: commands with parameters to fill in, commands of one
+host only, and a shortcut per command.
 
 ### Command editor
 
@@ -2499,8 +2501,8 @@ What is synced:
   than only the copy each connection carries.
 - The quick commands and their groups, in their order: the Commands tab
   of every computer shows the same buttons. A command deleted on one is
-  deleted on the others, and one whose group another computer lacks shows
-  under All.
+  deleted on the others, and one whose group another computer lacks moves
+  into that computer's first group.
 - Settings that mean the same on another computer: language, appearance,
   the General, Mouse, Shortcuts and Terminal pages, the font, the color
   scheme, the background's fit and opacity, and the file icon theme when

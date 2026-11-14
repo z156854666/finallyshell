@@ -42,8 +42,9 @@ type QuickGroup struct {
 // QuickCommand is a saved command.
 type QuickCommand struct {
 	ID string `json:"id"`
-	// Group is the ID of its group, "" for none: it shows under All only,
-	// as does one whose group is gone.
+	// Group is the ID of its group. A command in none, or one whose group
+	// is gone, is shown in the first group: the app puts it there as the
+	// tab draws (quickcmds.go).
 	Group string `json:"group,omitempty"`
 	// Name is what its button says; "" for the first line of Text.
 	Name string `json:"name"`
@@ -255,7 +256,8 @@ func (q *QuickCommands) AddGroup(name string) *QuickGroup {
 }
 
 // RemoveGroup removes the group with the ID; its commands stay, in no
-// group. It reports whether there was one.
+// group, for the app to put in the first one. It reports whether there
+// was one.
 func (q *QuickCommands) RemoveGroup(id string) bool {
 	i := slices.IndexFunc(q.Groups, func(g *QuickGroup) bool { return g.ID == id })
 	if i < 0 {

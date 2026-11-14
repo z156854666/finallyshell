@@ -397,14 +397,16 @@ for every host:
   "groups": [{"id": "g1", "name": "Common"}],
   "commands": [
     {"id": "c1", "group": "g1", "name": "Update system", "text": "apt update\napt -y upgrade", "enter": true},
-    {"id": "c2", "name": "", "text": "tail -f /var/log/syslog", "enter": false}
+    {"id": "c2", "group": "g1", "name": "", "text": "tail -f /var/log/syslog", "enter": false}
   ]
 }
 ```
 
-- `groups` and `commands` are in the order the tab shows them. A
-  command's `group` is a group's `id`; a command without one, or whose
-  group is gone, is in no group and shows under "All" only.
+- `groups` and `commands` are in the order the tab shows them. Every
+  command is in a group: its `group` is a group's `id`. A command without
+  one, or whose group is gone, is put in the first group when the tab
+  shows (a "Default" group is made when the file has none), and saved
+  there with the next change.
 - `name` is the button's text; an empty one shows the first line of
   `text`. `text` is the command, its lines separated by `\n`; empty
   lines at its end are not sent.

@@ -627,6 +627,9 @@ func (a *App) applySyncedCommands(groups, commands []json.RawMessage) {
 		taken[c.ID] = true
 		next.Commands = append(next.Commands, c)
 	}
+	// A command whose group the other computer lacks joins the first, as
+	// one whose group is deleted here does.
+	quickSettle(next)
 	a.quickUI.store = next
 	a.saveQuick()
 }

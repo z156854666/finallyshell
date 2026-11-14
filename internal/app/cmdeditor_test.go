@@ -634,9 +634,9 @@ func TestCmdEditorRightColumn(t *testing.T) {
 	if !ok || head.Y < groups.Y {
 		t.Fatalf("Save as command at %+v, New group at %+v", head, groups)
 	}
-	all, _ := tt.Find(locales.QuickAll())
-	if all.X < left || all.X > left+20 {
-		t.Errorf("All at %+v; the column starts at %v", all, left)
+	groups2, _ := tt.Find("Common")
+	if groups2.X < left || groups2.X > left+20 {
+		t.Errorf("the first group at %+v; the column starts at %v", groups2, left)
 	}
 	// Send keeps its row, at the end.
 	send, ok := tt.AccessByRole(ui.RoleButton, locales.QuickSend())

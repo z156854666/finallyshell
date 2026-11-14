@@ -1562,7 +1562,7 @@
   "scToggleBottomPanel": "Show or hide the bottom panel",
   "panelTabLabel": "{session} | {tab}",
   "tabCommands": "Commands",
-  "quickAll": "All",
+  "quickDefaultGroup": "Default",
   "quickNewCommand": "New command",
   "quickEditCommand": "Edit command",
   "quickNewGroup": "New group",
@@ -1582,7 +1582,6 @@
   "quickEdit": "Edit…",
   "quickDuplicate": "Duplicate",
   "quickMoveTo": "Move to group",
-  "quickNoGroup": "No group",
   "quickCopyName": "{name} (copy)",
   "@quickCopyName": {
     "placeholders": {
@@ -1608,7 +1607,7 @@
       }
     }
   },
-  "quickDeleteGroupDetail": "Its commands are kept, under All.",
+  "quickDeleteGroupDetail": "Its commands move to the first group.",
   "quickNone": "No quick commands yet. New command saves one; a click on it then sends it to the session.",
   "quickNoneInGroup": "No commands in this group. Drag one onto the group, or make a new one.",
   "quickNoMatches": "No commands match.",

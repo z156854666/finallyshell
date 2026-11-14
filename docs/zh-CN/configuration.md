@@ -267,12 +267,12 @@ Finallyshell 把主机和设置存在普通的 JSON 文件里。密码从不写�
   "groups": [{"id": "g1", "name": "常用"}],
   "commands": [
     {"id": "c1", "group": "g1", "name": "更新系统", "text": "apt update\napt -y upgrade", "enter": true},
-    {"id": "c2", "name": "", "text": "tail -f /var/log/syslog", "enter": false}
+    {"id": "c2", "group": "g1", "name": "", "text": "tail -f /var/log/syslog", "enter": false}
   ]
 }
 ```
 
-- `groups` 和 `commands` 的顺序就是页面上显示的顺序。命令的 `group` 是某个分组的 `id`；没有它，或者分组已经不在了的命令，不属于任何分组，只显示在“全部”下。
+- `groups` 和 `commands` 的顺序就是页面上显示的顺序。每条命令都在一个分组里：命令的 `group` 是分组的 `id`。没有它、或者分组已经不在了的命令，在打开命令页时移到第一个分组（文件里一个分组都没有时新建一个“默认”分组），下次修改时写回文件。
 - `name` 是按钮上的文字，为空时显示 `text` 的第一行。`text` 是命令，各行用 `\n` 分隔；末尾的空行不发送。
 - `enter` 表示每行后面发送回车；为 `false` 时最后一行后面不发送。没有这个键的命令视为开启。
 - 程序不认识的键在保存时原样保留，更高的 `version` 也一样。

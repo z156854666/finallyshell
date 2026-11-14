@@ -42,7 +42,7 @@ func demoQuick(a *App, zh bool) (common, logs *config.QuickGroup) {
 	add("Clean logs", logs.ID, "journalctl --vacuum-time=7d\nfind /var/log -name '*.gz' -mtime +30 -delete\nrm -f /var/log/*.old", true)
 	add("Restart nginx", common.ID, "systemctl restart nginx", true)
 	add("Update system", common.ID, "apt update\napt -y upgrade", true)
-	add("Big files", "", "du -ah / | sort -rh | head", true)
+	add("Big files", logs.ID, "du -ah / | sort -rh | head", true)
 	add("Follow syslog", logs.ID, "tail -f /var/log/syslog", false)
 	add("", docker.ID, "docker ps -a", true)
 	a.quickUI.store = q
@@ -81,7 +81,7 @@ func savedQuick(t *testing.T) *config.QuickCommands {
 // Each line run is kept in the host's history, as the bar's are.
 func TestQuickCommandsSend(t *testing.T) {
 	a, p, s, conn, tt := barTerm(t)
-	demoQuick(a, false)
+	common, _ := demoQuick(a, false)
 	quickTab(t, tt)
 	// A button says the command's name alone: not its text, nor how many
 	// lines it has.
@@ -114,7 +114,7 @@ func TestQuickCommandsSend(t *testing.T) {
 
 	// With Enter off and several lines, the lines before the last run.
 	store := a.quick()
-	cmd := store.InGroup("")[0]
+	cmd := store.InGroup(common.ID)[0]
 	cmd.Text, cmd.Enter = "cd /srv\ngit pull ", false
 	tt.Frame()
 	if err := tt.Click("Disk"); err != nil {
@@ -296,16 +296,16 @@ func TestQuickCommandsEditorSameNames(t *testing.T) {
 	g1, g2, g3 := q.AddGroup("Logs"), q.AddGroup("Logs"), q.AddGroup("Logs (2)")
 	a.quickUI.store = q
 	ids, labels := quickGroupChoices(q)
-	want := []string{locales.QuickNoGroup(), "Logs", "Logs (2)", "Logs (2) (2)"}
-	if !slices.Equal(labels, want) || !slices.Equal(ids, []string{"", g1.ID, g2.ID, g3.ID}) {
+	want := []string{"Logs", "Logs (2)", "Logs (2) (2)"}
+	if !slices.Equal(labels, want) || !slices.Equal(ids, []string{g1.ID, g2.ID, g3.ID}) {
 		t.Fatalf("labels %q, ids %q", labels, ids)
 	}
 	for i, g := range []*config.QuickGroup{g1, g2, g3} {
 		a.newQuickCommand()
 		ed := p.show(t, WindowQuickCommand)
-		choose(t, ed, locales.QuickFieldGroup(), want[i+1])
+		choose(t, ed, locales.QuickFieldGroup(), want[i])
 		if a.quickUI.ed.group != g.ID {
-			t.Errorf("%q picked group %q, want %q", want[i+1], a.quickUI.ed.group, g.ID)
+			t.Errorf("%q picked group %q, want %q", want[i], a.quickUI.ed.group, g.ID)
 		}
 		a.quickUI.ed.text = "ls"
 		if err := ed.Click(locales.Save()); err != nil {
@@ -321,11 +321,11 @@ func TestQuickCommandsEditorSameNames(t *testing.T) {
 }
 
 // Groups: New group names one in place and shows it; a group's menu
-// renames it and deletes it, after asking, its commands kept under All.
-// A command dropped on a group moves into it.
+// renames it and deletes it, after asking, its commands moved into the
+// first group. A command dropped on a group moves into it.
 func TestQuickCommandsGroups(t *testing.T) {
 	a, p, _, _, tt := barTerm(t)
-	common, _ := demoQuick(a, false)
+	common, logs := demoQuick(a, false)
 	quickTab(t, tt)
 	if err := tt.Click(locales.QuickNewGroup()); err != nil {
 		t.Fatal(err)
@@ -349,7 +349,7 @@ func TestQuickCommandsGroups(t *testing.T) {
 	}
 
 	// Drop Restart nginx on the group.
-	tt.Click(locales.QuickAll())
+	tt.Click("Common")
 	from, ok1 := tt.Find("Restart nginx")
 	to, ok2 := tt.Find("Nginx")
 	if !ok1 || !ok2 {
@@ -373,7 +373,8 @@ func TestQuickCommandsGroups(t *testing.T) {
 		t.Errorf("renamed %+v", g)
 	}
 
-	// Delete Common, after asking; its commands stay, in no group.
+	// Delete Common, after asking; its commands move into the first
+	// group, Logs.
 	p.answer = true
 	if err := tt.RightClick("Common"); err != nil {
 		t.Fatal(err)
@@ -385,7 +386,7 @@ func TestQuickCommandsGroups(t *testing.T) {
 	if q := p.questions(); len(q) != 1 || q[0].Message != locales.QuickDeleteGroupTitle("Common") {
 		t.Errorf("asked %+v", q)
 	}
-	if c := store.InGroup("")[0]; c.Title() != "Disk" || c.Group != "" {
+	if c := store.InGroup(logs.ID)[0]; c.Title() != "Disk" || c.Group != logs.ID {
 		t.Errorf("Disk is now %+v", c)
 	}
 	if len(store.Commands) != 10 || savedQuick(t).Group(common.ID) != nil {
@@ -569,8 +570,9 @@ func TestQuickCommandsBrokenFile(t *testing.T) {
 	tt.Click(locales.QuickNewGroup())
 	tt.Type("Mine")
 	tt.Key(0, ui.KeyEnter)
-	if len(savedQuick(t).Groups) != 1 {
-		t.Error("the new group was not saved")
+	// The default group the empty list starts with, and the new one.
+	if saved := savedQuick(t).Groups; len(saved) != 2 || saved[0].Name != locales.QuickDefaultGroup() || saved[1].Name != "Mine" {
+		t.Errorf("groups %+v", saved)
 	}
 	copies, _ := filepath.Glob(filepath.Join(config.Dir(), "quickcommands.json.broken-*"))
 	if len(copies) != 1 {

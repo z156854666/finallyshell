@@ -67,7 +67,8 @@ func (ed *quickEditor) problem() string {
 
 // saveQuickEditor keeps the editor's command and closes it, unless its
 // text is empty or saving fails. A command deleted while the editor was
-// open comes back.
+// open comes back. Every command is in a group: one whose group is gone
+// goes to the first.
 func (a *App) saveQuickEditor() {
 	ed := a.quickUI.ed
 	ed.checked = true
@@ -75,6 +76,7 @@ func (a *App) saveQuickEditor() {
 		return
 	}
 	store := a.quick()
+	quickSettle(store)
 	cmd := store.Command(ed.id)
 	if cmd == nil {
 		cmd = &config.QuickCommand{}
@@ -82,9 +84,9 @@ func (a *App) saveQuickEditor() {
 		ed.id = cmd.ID
 	}
 	cmd.Name = oneLine(ed.name)
-	cmd.Group = ""
-	if store.Group(ed.group) != nil {
-		cmd.Group = ed.group
+	cmd.Group = ed.group
+	if store.Group(cmd.Group) == nil {
+		cmd.Group = store.Groups[0].ID
 	}
 	// Trailing blanks are kept: a command typed without Enter may end in
 	// one, for what the user types after it.
@@ -96,14 +98,13 @@ func (a *App) saveQuickEditor() {
 	a.closeWindow(WindowQuickCommand)
 }
 
-// quickGroupChoices are the editor's group choices: No group, then the
-// groups. The select picks by label, so every label is unique: a name
+// quickGroupChoices are the editor's group choices: the groups, in their
+// order. The select picks by label, so every label is unique: a name
 // already taken, by another group or by a label made before it, gets the
 // first " (n)" that no other label has, as Logs, Logs (2) and a group
 // named Logs (2), which becomes Logs (2) (2).
 func quickGroupChoices(store *config.QuickCommands) (ids, labels []string) {
-	ids, labels = []string{""}, []string{locales.QuickNoGroup()}
-	used := map[string]bool{labels[0]: true}
+	used := map[string]bool{}
 	for _, g := range store.Groups {
 		label := g.Name
 		for n := 2; used[label]; n++ {
@@ -123,6 +124,7 @@ func (a *App) quickEditorView(c *ui.Context) {
 		return
 	}
 	store := a.quick()
+	quickSettle(store) // every command is in a group, so there is one to pick
 	submit := false
 	var problem string
 	if ed.checked {
@@ -145,6 +147,11 @@ func (a *App) quickEditorView(c *ui.Context) {
 						if id == ed.group {
 							chosen = labels[i]
 						}
+					}
+					if store.Group(ed.group) == nil {
+						// Shown first: a new command, or one whose group
+						// is gone.
+						ed.group = ids[0]
 					}
 					if ui.Select(c, &chosen, labels).FillWidth().Changed() {
 						for i, l := range labels {

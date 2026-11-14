@@ -9406,14 +9406,14 @@ func (msgs Messages) TabCommands() string {
 	return Catalog.Format(msgs.locale, "tabCommands", nil)
 }
 
-// QuickAll says "All"
+// QuickDefaultGroup says "Default"
 // in the language the app shows.
-func QuickAll() string { return In(i18n.Locale()).QuickAll() }
+func QuickDefaultGroup() string { return In(i18n.Locale()).QuickDefaultGroup() }
 
-// QuickAll says "All"
+// QuickDefaultGroup says "Default"
 // in the language of msgs.
-func (msgs Messages) QuickAll() string {
-	return Catalog.Format(msgs.locale, "quickAll", nil)
+func (msgs Messages) QuickDefaultGroup() string {
+	return Catalog.Format(msgs.locale, "quickDefaultGroup", nil)
 }
 
 // QuickNewCommand says "New command"
@@ -9536,16 +9536,6 @@ func (msgs Messages) QuickMoveTo() string {
 	return Catalog.Format(msgs.locale, "quickMoveTo", nil)
 }
 
-// QuickNoGroup says "No group"
-// in the language the app shows.
-func QuickNoGroup() string { return In(i18n.Locale()).QuickNoGroup() }
-
-// QuickNoGroup says "No group"
-// in the language of msgs.
-func (msgs Messages) QuickNoGroup() string {
-	return Catalog.Format(msgs.locale, "quickNoGroup", nil)
-}
-
 // QuickCopyName says "{name} (copy)"
 // in the language the app shows.
 func QuickCopyName(name string) string { return In(i18n.Locale()).QuickCopyName(name) }
@@ -9586,11 +9576,11 @@ func (msgs Messages) QuickDeleteGroupTitle(name string) string {
 	return Catalog.Format(msgs.locale, "quickDeleteGroupTitle", map[string]any{"name": name})
 }
 
-// QuickDeleteGroupDetail says "Its commands are kept, under All."
+// QuickDeleteGroupDetail says "Its commands move to the first group."
 // in the language the app shows.
 func QuickDeleteGroupDetail() string { return In(i18n.Locale()).QuickDeleteGroupDetail() }
 
-// QuickDeleteGroupDetail says "Its commands are kept, under All."
+// QuickDeleteGroupDetail says "Its commands move to the first group."
 // in the language of msgs.
 func (msgs Messages) QuickDeleteGroupDetail() string {
 	return Catalog.Format(msgs.locale, "quickDeleteGroupDetail", nil)
