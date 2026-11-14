@@ -40,6 +40,7 @@ type fakePlatform struct {
 	fakeDownloads
 	fakeVSIXPicker
 	fakeAppearance
+	fakeEmbedded
 	*fakeSecrets
 	fakeUpdates
 }

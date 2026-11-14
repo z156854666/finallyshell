@@ -172,6 +172,7 @@ Finallyshell 把主机和设置存在普通的 JSON 文件里。密码从不写�
 | `noAutoSelectTab` | `true` 时新会话在后台打开。 | 选中新会话。 |
 | `minimizeToTray` | `true` 时关闭主窗口会把它隐藏到托盘。 | 关闭就退出。 |
 | `noConfirmClose` | `true` 时有会话打开也不问，直接关闭、退出。 | 先问。 |
+| `rdpInWindow` | `true` 时远程桌面在系统的 RDP 客户端的窗口里打开，和 FinalShell 一样；不写就在自己的标签页里打开（Windows 的远程桌面控件画的）。只有 Windows 有这个控件，其他系统上仍然是系统的客户端打开。 | Windows 上在标签页里；其他系统上用系统的客户端。 |
 | `keepAliveSeconds` | 每个连接发送 SSH 保活消息的间隔秒数，1 到 3600（更大按 3600）；`-1`（任何负数）关闭保活，选项里显示为 0。对新建的连接生效。 | 30（`0` 也是） |
 | `sshAgent` | `"auth": "agent"` 的主机用的 SSH Agent：Unix socket 的路径（`~` 表示主目录），比如 `~/.bitwarden-ssh-agent.sock`，Windows 上也可以是命名管道 `\\.\pipe\<名字>`。这台电脑自己的，不同步。对新建的连接生效。 | `SSH_AUTH_SOCK`；Windows 上是 `\\.\pipe\openssh-ssh-agent`。 |
 | `downloadDir` | 下载存到的文件夹。 | 系统的下载文件夹。 |

@@ -2066,6 +2066,26 @@ func (msgs Messages) ErrNoRDPClient() string {
 	return Catalog.Format(msgs.locale, "errNoRDPClient", nil)
 }
 
+// ErrNoRDPControl says "No remote desktop control on this computer: the desktop cannot open in its tab."
+// in the language the app shows.
+func ErrNoRDPControl() string { return In(i18n.Locale()).ErrNoRDPControl() }
+
+// ErrNoRDPControl says "No remote desktop control on this computer: the desktop cannot open in its tab."
+// in the language of msgs.
+func (msgs Messages) ErrNoRDPControl() string {
+	return Catalog.Format(msgs.locale, "errNoRDPControl", nil)
+}
+
+// RdpEnded says "The remote desktop disconnected."
+// in the language the app shows.
+func RdpEnded() string { return In(i18n.Locale()).RdpEnded() }
+
+// RdpEnded says "The remote desktop disconnected."
+// in the language of msgs.
+func (msgs Messages) RdpEnded() string {
+	return Catalog.Format(msgs.locale, "rdpEnded", nil)
+}
+
 // SectionGeneral says "General"
 // in the language the app shows.
 func SectionGeneral() string { return In(i18n.Locale()).SectionGeneral() }
@@ -4664,6 +4684,26 @@ func OptionKeepAliveNote() string { return In(i18n.Locale()).OptionKeepAliveNote
 // in the language of msgs.
 func (msgs Messages) OptionKeepAliveNote() string {
 	return Catalog.Format(msgs.locale, "optionKeepAliveNote", nil)
+}
+
+// OptionRDPInTab says "Open remote desktops in their tab"
+// in the language the app shows.
+func OptionRDPInTab() string { return In(i18n.Locale()).OptionRDPInTab() }
+
+// OptionRDPInTab says "Open remote desktops in their tab"
+// in the language of msgs.
+func (msgs Messages) OptionRDPInTab() string {
+	return Catalog.Format(msgs.locale, "optionRDPInTab", nil)
+}
+
+// OptionRDPInTabNote says "Draws the desktop in its tab, with Windows' own Remote Desktop control, as big as the tab and reconnected when it cha…"
+// in the language the app shows.
+func OptionRDPInTabNote() string { return In(i18n.Locale()).OptionRDPInTabNote() }
+
+// OptionRDPInTabNote says "Draws the desktop in its tab, with Windows' own Remote Desktop control, as big as the tab and reconnected when it cha…"
+// in the language of msgs.
+func (msgs Messages) OptionRDPInTabNote() string {
+	return Catalog.Format(msgs.locale, "optionRDPInTabNote", nil)
 }
 
 // MouseSelection says "Selection"

@@ -350,7 +350,7 @@ internal/
   termenc/           converting a terminal's connection between the server's encoding (GBK, Big5, ...) and the UTF-8 the terminal reads
   sshtest/           in-process SSH server for tests: password login, an empty shell that keeps what it reads, port forwarding, a MaxSessions limit; StartSFTP also serves SFTP (the local file system)
   monitor/           collecting and parsing server status; net.go is every network interface's speeds and history, and the sum of those chosen; netstat.go is the Network tab's sockets (ss, or /proc/net and /proc/<pid>/fd), their rates and rows; trace.go is trace route over an exec channel (NextTrace's RAW output, traceroute, tracepath); shelldir.go reads a shell of a connection from /proc (which one, of a connection with several, its ShellPick says): its folder and the program in its foreground; agents.go tells the coding agent a program is
-  rdp/               opening a remote desktop in the system's client: its command line and the password in Windows' credential store, an .rdp file for macOS, FreeRDP's arguments, and the client's process
+  rdp/               remote desktops: the system's client, which it opens with a command line and the password in Windows' credential store (an .rdp file for macOS, FreeRDP's arguments) and whose process it keeps, and, on Windows, the Remote Desktop control the app hosts itself for a desktop that draws in its tab (embed*.go, com_windows.go, ole_windows.go, events_windows.go)
   geo/               where IP addresses are: ip2region's data through its Go binding (xdb.go), downloading it from GitHub or jsDelivr against its checksum (download.go), the online lookups on ip-api.com and ip.sb (online.go) and their cache (cache.go); geotest/ makes small .xdb files for tests
   remotefs/          SFTP listing, upload, download (with progress and cancel), rename, mkdir, create and delete (ops.go); textfile.go is the editor's reading (detecting binary files) and safe saving; archive.go is archive transfers: packing and safely unpacking tar.gz streams, and running tar over an exec channel
   icons/             embedded SVG icons (Lucide, ISC license); agents/ has the coding agents' logos (LobeHub Icons, MIT license)
@@ -359,7 +359,7 @@ internal/
   app/               UI and state
     app.go           App state, overall layout, opening and closing sessions
     session.go       one session: connection, terminal, monitor, SFTP; translating error messages
-    rdp.go           remote desktop sessions: starting the system's client, the tab that says where it opened, the monitor's place and the row's icon
+    rdp.go           remote desktop sessions: the system's client, or the desktop the tab draws itself, where each is placed every frame, the monitor's place and the row's icon
     sidebar.go       left side: the monitor panel over the connections panel
     conntree.go      the connections panel: its header, the connection manager's tree in one column, the folders kept open
     sessiontabs.go   the session tabs over the terminal: choosing, closing, renaming and dragging them, and the buttons at their right end

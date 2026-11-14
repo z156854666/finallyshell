@@ -29,10 +29,64 @@ func rdpLauncher(t *testing.T, c *rdp.Config) func(rdp.Config) (rdp.Session, err
 	}
 }
 
+// fakeEmbedded stands in for the system's remote desktop control, which a
+// test does not make: it keeps the connections it was asked to open, and
+// what the app did with each.
+type fakeEmbedded struct {
+	cfg   rdp.Config
+	desks []*fakeDesktop
+	err   error
+	opens int
+}
+
+func (p *fakeEmbedded) EmbedRDP(cfg rdp.Config) (rdp.Desktop, error) {
+	if p.err != nil {
+		return nil, p.err
+	}
+	p.cfg, p.opens = cfg, p.opens+1
+	d := &fakeDesktop{connected: true}
+	p.desks = append(p.desks, d)
+	return d, nil
+}
+
+// desk is the desktop opened last, nil for none.
+func (p *fakeEmbedded) desk() *fakeDesktop {
+	if len(p.desks) == 0 {
+		return nil
+	}
+	return p.desks[len(p.desks)-1]
+}
+
+// fakeDesktop is a desktop drawn in a tab: where the app placed it, and
+// whether it shows.
+type fakeDesktop struct {
+	places    []rdp.Rect
+	shown     bool
+	closed    bool
+	connected bool
+	err       error
+}
+
+func (d *fakeDesktop) Place(r rdp.Rect) { d.places = append(d.places, r); d.shown = true }
+func (d *fakeDesktop) Hide()            { d.shown = false }
+func (d *fakeDesktop) Show()            { d.shown = true }
+func (d *fakeDesktop) Close()           { d.closed = true }
+
+func (d *fakeDesktop) State() (bool, error) { return d.connected, d.err }
+
+// place is where the app put the desktop last.
+func (d *fakeDesktop) place() rdp.Rect {
+	if len(d.places) == 0 {
+		return rdp.Rect{}
+	}
+	return d.places[len(d.places)-1]
+}
+
 // TestRDPSession opens a remote desktop: the client is started with the
 // host's address, login and settings, and the tab shows where it opened.
 func TestRDPSession(t *testing.T) {
 	a, p := testApp(t)
+	a.settings.RDPInWindow = true // the client's window, as the settings may ask
 	var got rdp.Config
 	a.launchRDP = rdpLauncher(t, &got)
 	h := rdpHost()
@@ -79,10 +133,85 @@ func TestRDPSession(t *testing.T) {
 	}
 }
 
+// TestRDPInTab opens a remote desktop in its tab, where the settings say so
+// and the system has the control: no client of the system's starts, the
+// desktop is placed in the tab's area while the tab shows, and closing the
+// tab closes it.
+func TestRDPInTab(t *testing.T) {
+	a, p := testApp(t)
+	was := rdpEmbeds
+	rdpEmbeds = true
+	t.Cleanup(func() { rdpEmbeds = was })
+	a.launchRDP = func(rdp.Config) (rdp.Session, error) {
+		t.Fatal("the system's client started a desktop that belongs in its tab")
+		return rdp.Session{}, nil
+	}
+	h := rdpHost()
+	a.hosts.Add(h)
+	a.passwords[h.ID] = "pw"
+	tt := ui.NewTester(a.View, 1280, 820)
+	p.tt = tt
+	tt.Frame()
+	a.openSession(h)
+	s := a.current()
+	p.until(t, "the desktop to open", func() bool { return s.embed != nil })
+	d := p.desk()
+	if d == nil {
+		t.Fatal("no desktop")
+	}
+	want := rdp.Config{Host: "10.0.0.7", Port: 3389, User: "Administrator", Domain: "CORP", Password: "pw",
+		Width: 1280, Height: 800, Clipboard: true, Drives: true}
+	if p.cfg != want {
+		t.Errorf("opened %+v, want %+v", p.cfg, want)
+	}
+	// It draws where the tab draws it, which takes a frame to know.
+	p.until(t, "the desktop to be placed", func() bool { return d.place().W > 0 })
+	if r := d.place(); r.H <= 0 || r.W < 200 {
+		t.Errorf("placed at %+v", r)
+	}
+	if s.status != statusConnected {
+		t.Errorf("status %v, error %v", s.status, s.err)
+	}
+	if s.desk != nil {
+		t.Errorf("a desktop of the system's client: %+v", s.desk)
+	}
+	if tt.HasText(locales.RdpOpenedIn("Test Client")) {
+		t.Errorf("the tab shows a client's desktop; texts %q", tt.Texts())
+	}
+
+	// Its tab alone shows it: another tab takes it out of sight, and back.
+	a.NewTab()
+	p.until(t, "the desktop to hide", func() bool { return !d.shown })
+	a.active = 0
+	p.until(t, "the desktop to show", func() bool { return d.shown })
+
+	// A desktop that ends says so, and leaves the tab to the client's
+	// place: the buttons open it again.
+	d.connected = false
+	p.until(t, "the desktop to end", func() bool { return s.status == statusFailed })
+	if describeError(s.err) != locales.RdpEnded() || !d.closed || s.embed != nil {
+		t.Errorf("error %q, closed %v, desktop %v", describeError(s.err), d.closed, s.embed)
+	}
+	if !tt.HasText(locales.RdpEnded()) || !tt.HasText(locales.RdpOpenAgain()) {
+		t.Errorf("texts %q", tt.Texts())
+	}
+
+	// Closing the tab closes the desktop too.
+	if err := tt.Click(locales.RdpOpenAgain()); err != nil {
+		t.Fatal(err)
+	}
+	p.until(t, "the desktop to open again", func() bool { return s.embed != nil && p.opens == 2 })
+	s.disconnect()
+	if !p.desk().closed {
+		t.Error("the desktop stayed open after its tab closed")
+	}
+}
+
 // TestRDPNoClient fails the session on a computer without an RDP client,
 // saying so, and offers Reconnect.
 func TestRDPNoClient(t *testing.T) {
 	a, p := testApp(t)
+	a.settings.RDPInWindow = true // the client's window, as the settings may ask
 	a.launchRDP = func(rdp.Config) (rdp.Session, error) { return rdp.Session{}, rdp.ErrNoClient }
 	h := rdpHost()
 	a.hosts.Add(h)

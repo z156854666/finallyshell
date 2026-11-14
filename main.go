@@ -10,6 +10,7 @@ import (
 
 	"finallyshell/internal/app"
 	"finallyshell/internal/config"
+	"finallyshell/internal/rdp"
 	"finallyshell/locales"
 
 	"github.com/egoist/mygo"
@@ -255,6 +256,36 @@ func (p *platform) TempDir() string {
 // screen, for the app's (internal/app/fullscreen.go).
 func (p *platform) SetFullScreen(on bool) { p.win.SetFullScreen(on) }
 func (p *platform) IsFullScreen() bool    { return p.win.IsFullScreen() }
+
+// EmbedRDP draws cfg's desktop in the main window, which the tab shows it
+// in, in Windows' Remote Desktop control: see rdp.Embed, which has none
+// elsewhere.
+func (p *platform) EmbedRDP(cfg rdp.Config) (rdp.Desktop, error) {
+	var (
+		desk rdp.Desktop
+		err  error
+	)
+	mygo.RunOnMain(func() { desk, err = rdp.Embed(p.win.NativeHandle(), cfg) })
+	if err != nil {
+		return nil, err
+	}
+	return uiDesktop{desk}, nil
+}
+
+// uiDesktop runs an embedded desktop's methods on the UI thread, where the
+// control that draws it lives, whoever asks: the app draws and closes in
+// the window's thread, but a goroutine may close a session too.
+type uiDesktop struct{ desk rdp.Desktop }
+
+func (d uiDesktop) Place(r rdp.Rect) { mygo.RunOnMain(func() { d.desk.Place(r) }) }
+func (d uiDesktop) Hide()            { mygo.RunOnMain(d.desk.Hide) }
+func (d uiDesktop) Show()            { mygo.RunOnMain(d.desk.Show) }
+func (d uiDesktop) Close()           { mygo.RunOnMain(d.desk.Close) }
+
+func (d uiDesktop) State() (connected bool, err error) {
+	mygo.RunOnMain(func() { connected, err = d.desk.State() })
+	return connected, err
+}
 
 func main() {
 	// Before the first window: MyGo reads MYGO_GPU when it makes one.

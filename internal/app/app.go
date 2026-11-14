@@ -121,6 +121,12 @@ type Platform interface {
 	SecretSet(key, value string) error
 	SecretDelete(key string) error
 
+	// EmbedRDP opens cfg's remote desktop in a window of the app's own,
+	// as a Desktop: a Remote Desktop control of Windows (rdp.Embed),
+	// which rdp.ErrNoEmbed fails with elsewhere. It is called on the UI
+	// thread, and so are the Desktop's methods.
+	EmbedRDP(cfg rdp.Config) (rdp.Desktop, error)
+
 	// Updates reports what the updater knows now (options_updates.go). It
 	// is cheap: views call it as they draw. When it changes, as a check
 	// finds a version, the platform calls Redraw.
@@ -278,6 +284,9 @@ type App struct {
 	// launchRDP opens a remote desktop in the system's client (rdp.go):
 	// nil for rdp.Launch, which tests replace.
 	launchRDP func(rdp.Config) (rdp.Session, error)
+	// embedDesktop opens a remote desktop in the tab, in the system's
+	// control (rdp.go): nil for the platform's, which tests replace.
+	embedDesktop func(rdp.Config) (rdp.Desktop, error)
 
 	// The command bar's history of each host (commandbar_data.go).
 	history cmdHistories
@@ -359,6 +368,7 @@ func (a *App) current() *Session {
 // View builds the window.
 func (a *App) View(c *ui.Context) {
 	defer a.stopUnseenPolls()
+	defer a.placeDesktops() // the remote desktops the tabs draw (rdp.go)
 	a.retentionTick(c)
 	useTheme(c)
 	a.showNotices(c)
@@ -424,10 +434,10 @@ func (a *App) mainContent(c *ui.Context) {
 		a.withRightColumn(c, func() { a.panelArea(c, s) }, monitor, nil)
 		return
 	}
-	// A remote desktop has no bottom panel: its area is the terminal
-	// area's place, the monitor beside it when it is on the right.
+	// A remote desktop has no shell: no bottom panel, and no monitor,
+	// which would have nothing to read, beside it or anywhere.
 	if s := a.current(); s.isRDP() {
-		a.withRightColumn(c, func() { a.rdpArea(c, s) }, monitor, nil)
+		a.withRightColumn(c, func() { a.rdpArea(c, s) }, nil, nil)
 		return
 	}
 	if a.panelOnRight() {

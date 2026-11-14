@@ -977,8 +977,8 @@ page alone: a desktop has no shell, so it has no terminal, proxy or
 tunnels pages. Edit connection opens the window of the kind of the
 connection edited.
 
-A remote desktop is FinalShell's RDP link: it opens in the system's RDP
-client rather than in a terminal of this app.
+A remote desktop is FinalShell's RDP link: it draws in a window of its
+own, rather than in a terminal of this app.
 
 - Name, Host, Port (3389), Notes.
 - User, Password, "Remember password", and Domain: the Windows domain or
@@ -989,6 +989,29 @@ client rather than in a terminal of this app.
   Share local drives, the last two on by default.
 
 Its tab has no file panel and no command bar either.
+
+Where the desktop draws is a setting, "Open remote desktops in their tab"
+under [Options › General](#general):
+
+- Checked, as it is by default on Windows, which alone has the control, the
+  desktop draws inside its tab, by Windows' Remote Desktop control, the one
+  Remote Desktop Connection itself uses: its desktop as big as the tab,
+  which the session is reconnected at when the tab changes size, out of
+  sight while another tab shows, and ended by closing the tab. The
+  keyboard, the mouse, the clipboard and the client's own messages are the
+  control's, inside the tab; a connection that fails or ends closes the
+  desktop, and the tab says why, in the control's own words. It is a window
+  of the app's, without a title bar, drawn over the tab's area: it moves,
+  resizes and hides with the app's window, goes out of sight while another
+  tab shows, and so does while a dialog of the app's has it blocked. A
+  desktop still has no shell, so its tab has no files, monitor, processes
+  or tunnels, and no monitor panel is kept beside it.
+- Unchecked, and on every other system, the desktop is the system client's,
+  in a window of its own, as FinalShell opens them. The paragraphs below
+  are about that way.
+
+The setting is saved as `rdpInWindow`, which asks for the client's window
+instead, so a `settings.json` without it opens desktops in their tab.
 
 Connecting starts the system's client: Remote Desktop Connection (mstsc)
 on Windows, FreeRDP's `xfreerdp` where it is installed (Linux, and macOS
@@ -1014,7 +1037,9 @@ the tab, or quitting, closes the desktop, as ending a shell's tab ends its
 shell. The desktop's window is the system client's, not part of this app.
 
 When the computer has no RDP client, the tab says so, with Reconnect to
-try again once one is installed. In `hosts.json` a remote desktop is
+try again once one is installed; with desktops set to open in their tab,
+a computer without the control says it cannot open there, and unchecking
+the setting goes back to the client. In `hosts.json` a remote desktop is
 `"type": "rdp"`, with its settings under `rdp` (see
 [configuration.md](configuration.md#remote-desktop-rdp)).
 
@@ -2226,6 +2251,10 @@ file icon theme page under [File icon themes](#file-icon-themes).
   macOS Dock does not get variables set in `.zshrc`, so an agent set up
   there must be entered here. Saved as `sshAgent`, for this computer only
   (not synced).
+- Connections: "Open remote desktops in their tab" (on by default, and on
+  Windows alone), which draws a desktop in its tab rather than in the
+  system's client; see [Remote desktop](#remote-desktop). Saved as
+  `rdpInWindow`, which asks for the client's window instead.
 - Updates: the version running, "Check for Updates…", "Check for updates
   automatically" (on by default) and the newer version a check found, or
   why this copy cannot update itself; see [Updates](#updates).

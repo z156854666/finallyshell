@@ -1,13 +1,15 @@
-// Package rdp opens a remote desktop connection in the system's own RDP
-// client, as FinalShell's RDP links do: Remote Desktop Connection
-// (mstsc) on Windows, FreeRDP where it is installed, Microsoft Remote
-// Desktop on macOS.
+// Package rdp opens a remote desktop connection, as FinalShell's RDP links
+// do: in the system's own RDP client — Remote Desktop Connection (mstsc) on
+// Windows, FreeRDP where it is installed, Microsoft Remote Desktop on macOS
+// — or, on Windows, in a control this package hosts itself and draws in a
+// window of the app's, which is how a desktop shows inside its tab (Embed).
 //
-// The RDP protocol is not spoken here: a client that speaks it runs in a
-// window of its own, with the address, the user and the password the
-// connection saved, and what is shared with the remote desktop. The app
-// keeps the session's row and tab as for a shell; closing the tab ends
-// nothing, as the window is the system's.
+// The RDP protocol is not spoken here: a client that speaks it draws the
+// desktop, in a window of its own or in one of the app's, with the address,
+// the user and the password the connection saved, and what is shared with
+// the remote desktop. The app keeps the session's row and tab as for a
+// shell; closing the tab ends nothing of the system's client, as its window
+// is the system's, and ends the desktop the app hosts.
 package rdp
 
 import (
@@ -63,11 +65,16 @@ func For(h *config.Host, password string) Config {
 // Address is the host and the port as the clients take them, host:port,
 // the port DefaultPort when the config names none.
 func (c Config) Address() string {
-	port := c.Port
-	if port == 0 {
-		port = DefaultPort
+	return net.JoinHostPort(c.Host, strconv.Itoa(c.port()))
+}
+
+// port is the port the desktop listens on: c.Port, DefaultPort when it
+// names none.
+func (c Config) port() int {
+	if c.Port == 0 {
+		return DefaultPort
 	}
-	return net.JoinHostPort(c.Host, strconv.Itoa(port))
+	return c.Port
 }
 
 // depth is the color depth the clients are asked for: 32 when the

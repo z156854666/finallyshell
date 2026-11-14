@@ -101,6 +101,12 @@ type Settings struct {
 	// NoConfirmClose quits without asking while sessions are open; by
 	// default closing the window, or quitting, asks first.
 	NoConfirmClose bool `json:"noConfirmClose,omitempty"`
+	// RDPInWindow opens a remote desktop in a window of the system's
+	// client, as FinalShell does, rather than in its tab, which Windows'
+	// Remote Desktop control draws: a desktop opens in its tab by
+	// default. Only Windows has the control, so the client opens it
+	// everywhere else either way.
+	RDPInWindow bool `json:"rdpInWindow,omitempty"`
 	// KeepAliveSeconds is the seconds between the keepalives sent on
 	// each connection: 0, as a file without it reads, for
 	// DefaultKeepAliveSeconds, and KeepAliveOff (any negative number)

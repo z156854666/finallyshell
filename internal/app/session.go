@@ -69,6 +69,12 @@ type Session struct {
 	// desk is the remote desktop a session of an RDP host opened, in a
 	// window of the system's client (rdp.go): nil for a shell.
 	desk *rdp.Session
+	// embed is the remote desktop the tab draws itself, in Windows'
+	// control (rdp.go), and deskRect the box the tab drew its place in,
+	// of the last frame: nil and empty for a desktop of the system's
+	// client.
+	embed    rdp.Desktop
+	deskRect rdp.Rect
 
 	// name is the tab's name for this run, "" for the host's title: never
 	// saved (rename.go).
@@ -379,6 +385,7 @@ func (s *Session) disconnect() {
 		s.desk.Close()
 		s.desk = nil
 	}
+	s.closeEmbed()
 	if s.sftp != nil {
 		s.sftp.Close()
 		s.sftp = nil
@@ -391,6 +398,16 @@ func (s *Session) disconnect() {
 		s.client.Close()
 		s.client = nil
 	}
+}
+
+// closeEmbed takes s's embedded desktop out of the window and ends its
+// connection; nil afterwards (rdp.go).
+func (s *Session) closeEmbed() {
+	if s.embed != nil {
+		s.embed.Close()
+		s.embed = nil
+	}
+	s.deskRect = rdp.Rect{}
 }
 
 func (s *Session) statusColor(t *ui.Theme) ui.Color {
@@ -472,6 +489,16 @@ func describeError(err error) string {
 		return locales.ErrOpenShell(step.err.Error())
 	case errors.Is(err, rdp.ErrNoClient):
 		return locales.ErrNoRDPClient()
+	case errors.Is(err, rdp.ErrNoEmbed):
+		return locales.ErrNoRDPControl()
+	case errors.Is(err, rdp.ErrEnded):
+		// The control has its own words for why a desktop ended, which
+		// the tab shows as they are.
+		var end rdp.EndError
+		if errors.As(err, &end) && end.Text != "" {
+			return end.Text
+		}
+		return locales.RdpEnded()
 	}
 	switch sshx.Classify(err) {
 	case "auth":

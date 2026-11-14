@@ -176,6 +176,15 @@ func (a *App) generalPage(c *ui.Context) {
 			ui.Text(c, locales.OptionKeepAliveAfter())
 		})
 		widgets.Muted(c, locales.OptionKeepAliveNote()).FontSize(12)
+		// Where a remote desktop opens: in its tab, which only Windows'
+		// control draws, or in the system's client (rdp.go).
+		if rdpEmbeds {
+			inTab := !a.settings.RDPInWindow
+			if ui.Checkbox(c, &inTab, locales.OptionRDPInTab()).Changed() {
+				a.changeSettings(func() { a.settings.RDPInWindow = !inTab })
+			}
+			widgets.Muted(c, locales.OptionRDPInTabNote()).FontSize(12).PaddingStart(18)
+		}
 		a.agentOption(c)
 	})
 
