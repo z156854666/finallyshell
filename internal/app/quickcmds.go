@@ -465,11 +465,10 @@ func (a *App) quickButtons(c *ui.Context, store *config.QuickCommands, s *Sessio
 	}
 }
 
-// quickButton is cmd's button: its name and, in gray, its one line, or
-// how many lines it has. A click sends it; it drags, and takes a command
-// dropped on it; its context menu has the rest.
+// quickButton is cmd's button: its name alone, the whole command in its
+// tooltip. A click sends it; it drags, and takes a command dropped on it;
+// its context menu has the rest.
 func (a *App) quickButton(c *ui.Context, store *config.QuickCommands, s *Session, live bool, cmd *config.QuickCommand, act *func()) {
-	lines := config.QuickCommandLines(cmd.Text)
 	title := cmd.Title()
 	btn := ui.Button(c.Key(cmd.ID), "").Label(title).Tooltip(cmd.Text).AccessDisabled(!live).
 		MaxWidth(420).MinWidth(0).Border(1, theme.Border).Drag(quickDrag{cmd.ID})
@@ -484,14 +483,6 @@ func (a *App) quickButton(c *ui.Context, store *config.QuickCommands, s *Session
 	}
 	btn.Children(func() {
 		ui.Text(c, title).SingleLine().Ellipsis("…").MinWidth(0).Shrink(1)
-		switch {
-		case len(lines) > 1:
-			ui.Text(c, locales.QuickLines(len(lines))).FontSize(11).TextColor(theme.TextMuted).
-				Padding(0, 4).Border(1, theme.Border).Radius(3).SingleLine().Shrink(0)
-		case len(lines) == 1 && strings.TrimSpace(cmd.Name) != "":
-			ui.Text(c, strings.TrimSpace(lines[0])).Font("monospace").FontSize(12).TextColor(theme.TextMuted).
-				SingleLine().Ellipsis("…").MinWidth(0).Shrink(1)
-		}
 	})
 	btn.ContextMenu(func(m *ui.Menu) {
 		if m.Item(locales.QuickSend()).Disabled(!live).Chosen() {

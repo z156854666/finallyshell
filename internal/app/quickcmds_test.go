@@ -83,7 +83,9 @@ func TestQuickCommandsSend(t *testing.T) {
 	a, p, s, conn, tt := barTerm(t)
 	demoQuick(a, false)
 	quickTab(t, tt)
-	if !tt.HasText("Disk") || !tt.HasText("Common") || !tt.HasText(locales.QuickLines(3)) || !tt.HasText("df -h") {
+	// A button says the command's name alone: not its text, nor how many
+	// lines it has.
+	if !tt.HasText("Disk") || !tt.HasText("Common") || tt.HasText("df -h") || tt.HasText(locales.QuickLines(3)) {
 		t.Fatalf("tab: %q", tt.Texts())
 	}
 	saveShot(t, tt, "quick-commands-en.png")
@@ -136,7 +138,7 @@ func TestQuickCommandsSend(t *testing.T) {
 	}
 	p.SetLocale("zh-Hans")
 	tt.Frame()
-	if !tt.HasText("命令") || !tt.HasText(locales.QuickLines(3)) {
+	if !tt.HasText("命令") || !tt.HasText("Disk") || !tt.HasText(locales.QuickNewCommand()) || tt.HasText(locales.QuickLines(3)) {
 		t.Errorf("Chinese: %q", tt.Texts())
 	}
 	p.SetLocale("en")

@@ -2083,8 +2083,7 @@ and kept in `quickcommands.json` (see
   Esc gives it up). A group's context menu renames it or deletes it,
   after asking; its commands are kept, in no group, under "All".
 - The commands of the group chosen are buttons on the right, in rows
-  that wrap. A button shows the command's name and, in gray, the command
-  when it is one line, or how many lines it has; its tooltip is the
+  that wrap. A button shows the command's name alone; its tooltip is the
   whole command. The search box above them filters by name and by
   command, ignoring case.
 - A click sends the command to the session, through the same path as
