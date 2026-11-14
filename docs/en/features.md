@@ -2075,7 +2075,8 @@ The "Commands" tab at the bottom right holds quick commands, as
 FinalShell's quick command panel: commands you keep, as buttons, to send
 to the current session with a click. They are the same for every host,
 and kept in `quickcommands.json` (see
-[configuration.md](configuration.md#quickcommandsjson)).
+[configuration.md](configuration.md#quickcommandsjson)); [Sync](#sync)
+keeps them the same on your computers, as it does the connections.
 
 - The groups are on the left: "All", which shows every command, then
   your groups in their order, each with how many commands it has, and
@@ -2496,6 +2497,10 @@ What is synced:
   Proxy page lists, with their names, kinds, addresses, ports and users.
   Another computer's Proxy page therefore lists the same proxies, rather
   than only the copy each connection carries.
+- The quick commands and their groups, in their order: the Commands tab
+  of every computer shows the same buttons. A command deleted on one is
+  deleted on the others, and one whose group another computer lacks shows
+  under All.
 - Settings that mean the same on another computer: language, appearance,
   the General, Mouse, Shortcuts and Terminal pages, the font, the color
   scheme, the background's fit and opacity, and the file icon theme when
@@ -2511,8 +2516,8 @@ What is synced:
 
 Each sync merges three ways: this computer's data, the file's, and the
 data both had after the last sync, kept in `sync-state.json`, still
-encrypted. Each folder, host, saved proxy, setting, password and key is
-merged on its own. What changed on one side only is kept; what was deleted
+encrypted. Each folder, host, saved proxy, command, command group, setting,
+password and key is merged on its own. What changed on one side only is kept; what was deleted
 on one side and not changed on the other is deleted; what changed on both
 sides keeps this computer's version, and the status says how many there
 were. The first sync with a service (or after the sync password changed)
@@ -2539,8 +2544,8 @@ enter the new one on the other computers). Without "Include saved
 passwords", the file then has no passwords and no keys.
 
 "Pull to This Computer…" asks first too, then takes the file's connections,
-settings, passwords and keys in place of this computer's, without merging,
-and writes nothing: the file has to exist already. What only this computer
+quick commands, settings, passwords and keys in place of this computer's,
+without merging, and writes nothing: the file has to exist already. What only this computer
 had is replaced, and `hosts.json` is copied first. When the file has no
 passwords or keys, this computer's are kept.
 

@@ -2,7 +2,7 @@
   "name": "Finallyshell",
   "identifier": "dev.finallyshell.app",
   "icon": "resources/icon.png",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "out": "build",
   "i18n": { "dir": "locales", "source": "en" },
   "updates": {

@@ -126,6 +126,47 @@ func TestMergeProxies(t *testing.T) {
 	}
 }
 
+func TestMergeQuickCommands(t *testing.T) {
+	group := func(id, name string) json.RawMessage {
+		b, _ := json.Marshal(map[string]any{"id": id, "name": name})
+		return b
+	}
+	cmd := func(id, text string) json.RawMessage {
+		b, _ := json.Marshal(map[string]any{"id": id, "text": text})
+		return b
+	}
+	base := &Payload{
+		CommandGroups: []json.RawMessage{group("g1", "Ops")},
+		Commands:      []json.RawMessage{cmd("c1", "df -h"), cmd("c2", "free -m")},
+	}
+	local := &Payload{
+		CommandGroups: []json.RawMessage{group("g1", "Ops")},
+		Commands:      []json.RawMessage{cmd("c1", "df -h /var")}, // c2 deleted here
+	}
+	remote := &Payload{
+		CommandGroups: []json.RawMessage{group("g1", "Ops"), group("g2", "Logs")},
+		Commands:      []json.RawMessage{cmd("c1", "df -h"), cmd("c2", "free -m"), cmd("c3", "tail -f x")},
+	}
+	m, conflicts := Merge(base, local, remote)
+	if len(m.CommandGroups) != 2 || idOf(m.CommandGroups[0]) != "g1" || idOf(m.CommandGroups[1]) != "g2" {
+		t.Fatalf("groups = %s", m.CommandGroups)
+	}
+	if len(m.Commands) != 2 || idOf(m.Commands[0]) != "c1" || !sameJSON(m.Commands[0], cmd("c1", "df -h /var")) || idOf(m.Commands[1]) != "c3" {
+		t.Fatalf("commands = %s", m.Commands)
+	}
+	if conflicts != 0 {
+		t.Errorf("conflicts = %d, want 0", conflicts)
+	}
+	if m.Schema != PayloadSchema {
+		t.Errorf("schema = %d", m.Schema)
+	}
+	// A first sync keeps what either side has.
+	m, _ = Merge(nil, local, remote)
+	if len(m.Commands) != 3 {
+		t.Errorf("a first sync has %s", m.Commands)
+	}
+}
+
 func TestEqualIgnoresOrder(t *testing.T) {
 	a := &Payload{Hosts: []json.RawMessage{host("a", "A"), host("b", "B")}, Device: "one"}
 	b := &Payload{Hosts: []json.RawMessage{json.RawMessage(`{"name":"B", "id":"b"}`), host("a", "A")}, Device: "two"}

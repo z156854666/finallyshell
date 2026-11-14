@@ -356,15 +356,16 @@ Two more files belong to sync, next to `hosts.json`:
 The file on the service, `finallyshell-sync.json`, is JSON:
 `{"app": "finallyshell", "format": 1, "kdf": "argon2id", "salt": ..., "t": 3, "m": 65536, "p": 4, "cipher": "aes-256-gcm", "nonce": ..., "data": ...}`,
 the binary fields in base64. Decrypted, `data` is
-`{"schema": 2, "device": ..., "updatedAt": ..., "folders": [...], "hosts": [...], "proxies": [...], "settings": {...}, "secrets": {...}, "keys": [...]}`,
-where folders, hosts and proxies are those of `hosts.json`, settings the
+`{"schema": 3, "device": ..., "updatedAt": ..., "folders": [...], "hosts": [...], "proxies": [...], "commandGroups": [...], "commands": [...], "settings": {...}, "secrets": {...}, "keys": [...]}`,
+where folders, hosts and proxies are those of `hosts.json`, commandGroups
+and commands the groups and commands of `quickcommands.json`, settings the
 synced keys of `settings.json`, secrets the saved passwords by their key
 in the credential store, and keys the objects of `keys.json` with their
 private keys' text. Secrets and keys come from the computers with
 "Include saved passwords" checked, and those without it keep the file's
-as they are. `schema` is the file's version: 2 has the `proxies`, and a
-build before it says to upgrade rather than merge a version 2 file, so
-that it does not drop the proxies it does not know.
+as they are. `schema` is the file's version: 2 has the `proxies`, 3 the
+quick commands, and a build before it says to upgrade rather than merge a
+newer file, so that it does not drop what it does not know.
 
 ## Command history
 

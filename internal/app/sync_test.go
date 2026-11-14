@@ -350,6 +350,56 @@ func TestSyncSavedProxies(t *testing.T) {
 	}
 }
 
+// The quick commands travel as the connections do: a computer receives the
+// file's groups and commands, keeps the ones only it has, and a command
+// deleted on one is deleted on the others.
+func TestSyncQuickCommands(t *testing.T) {
+	r := &memRemote{}
+	one := newDevice(t, r)
+	store := one.a.quick()
+	g := store.AddGroup("Ops")
+	disk := &config.QuickCommand{Group: g.ID, Name: "Disk", Text: "df -h", Enter: true}
+	store.AddCommand(disk, "")
+	one.a.saveQuick()
+	one.sync(t)
+
+	two := newDevice(t, r)
+	two.sync(t)
+	got := two.a.quick()
+	if g2 := got.Group(g.ID); g2 == nil || g2.Name != "Ops" {
+		t.Fatalf("groups %+v", got.Groups)
+	}
+	if c := got.Command(disk.ID); c == nil || c.Name != "Disk" || c.Text != "df -h" || c.Group != g.ID || !c.Enter {
+		t.Fatalf("command %+v", c)
+	}
+	if saved, err := config.LoadQuickCommands(); err != nil || saved.Command(disk.ID) == nil || saved.Group(g.ID) == nil {
+		t.Fatalf("quickcommands.json: %+v %v", saved, err)
+	}
+
+	// A command added here reaches the other, which keeps its own.
+	two.use(t)
+	mem := &config.QuickCommand{Name: "Memory", Text: "free -m", Enter: true}
+	two.a.quick().AddCommand(mem, "")
+	two.a.saveQuick()
+	two.sync(t)
+	one.sync(t)
+	if c := one.a.quick().Command(mem.ID); c == nil || c.Name != "Memory" || one.a.quick().Command(disk.ID) == nil {
+		t.Fatalf("commands here %+v", one.a.quick().Commands)
+	}
+
+	// Deleted there, it is deleted here.
+	two.use(t)
+	two.a.quick().RemoveCommand(disk.ID)
+	two.sync(t)
+	one.sync(t)
+	if c := one.a.quick().Command(disk.ID); c != nil || one.a.quick().Command(mem.ID) == nil {
+		t.Fatalf("commands here after the delete %+v", one.a.quick().Commands)
+	}
+	if saved, err := config.LoadQuickCommands(); err != nil || saved.Command(disk.ID) != nil {
+		t.Fatalf("quickcommands.json here: %+v %v", saved, err)
+	}
+}
+
 // The private keys saved in the app travel with the passwords: a device
 // without them receives those the file has, sends none of its own, and
 // keeps what it has; a key deleted on a device that sends them is deleted

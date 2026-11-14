@@ -201,10 +201,10 @@ func (a *App) keepSyncSecret(key, v string) {
 }
 
 // localPayload is this device's payload, without secrets: its folders,
-// hosts and saved proxies, each host without the time it last connected,
-// which stays on this device, the settings that are synced and, when the
-// saved passwords travel, the private keys saved in the app, which travel
-// with them.
+// hosts, saved proxies and quick commands, each host without the time it
+// last connected, which stays on this device, the settings that are synced
+// and, when the saved passwords travel, the private keys saved in the app,
+// which travel with them.
 func (a *App) localPayload() *cloudsync.Payload {
 	p := &cloudsync.Payload{Schema: cloudsync.PayloadSchema, Settings: config.SyncedSettings(a.settings)}
 	if a.settings.Sync.Passwords {
@@ -225,6 +225,17 @@ func (a *App) localPayload() *cloudsync.Payload {
 		c.LastConnectedAt = time.Time{}
 		if b, err := json.Marshal(c); err == nil {
 			p.Hosts = append(p.Hosts, b)
+		}
+	}
+	q := a.quick()
+	for _, g := range q.Groups {
+		if b, err := json.Marshal(g); err == nil {
+			p.CommandGroups = append(p.CommandGroups, b)
+		}
+	}
+	for _, c := range q.Commands {
+		if b, err := json.Marshal(c); err == nil {
+			p.Commands = append(p.Commands, b)
 		}
 	}
 	return p
@@ -501,14 +512,15 @@ func (a *App) syncDone(res *cloudsync.Result, err error, run syncRun) {
 	}
 }
 
-// applyPayload makes this device's folders, hosts, saved proxies and
-// synced settings those of p. Hosts keep the time they last connected
-// here, and their Host values, which sessions point at. hosts.json is
-// copied first.
+// applyPayload makes this device's folders, hosts, saved proxies, quick
+// commands and synced settings those of p. Hosts keep the time they last
+// connected here, and their Host values, which sessions point at.
+// hosts.json is copied first.
 func (a *App) applyPayload(p *cloudsync.Payload) {
 	local := a.localPayload()
 	hostsChanged := !sameSet(local.Folders, p.Folders) || !sameSet(local.Hosts, p.Hosts)
 	proxiesChanged := !sameSet(local.Proxies, p.Proxies)
+	commandsChanged := !sameSet(local.CommandGroups, p.CommandGroups) || !sameSet(local.Commands, p.Commands)
 	if hostsChanged || proxiesChanged {
 		config.BackupHostsBeforeSync(a.hosts)
 		if hostsChanged {
@@ -549,6 +561,9 @@ func (a *App) applyPayload(p *cloudsync.Payload) {
 		a.hosts.SyncProxies()
 		a.saveHosts(a.hosts)
 	}
+	if commandsChanged {
+		a.applySyncedCommands(p.CommandGroups, p.Commands)
+	}
 	if !cloudsync.Equal(&cloudsync.Payload{Settings: local.Settings}, &cloudsync.Payload{Settings: p.Settings}) {
 		before := a.settings
 		a.settings = config.WithSyncedSettings(a.settings, p.Settings)
@@ -586,6 +601,34 @@ func syncedProxies(raw []json.RawMessage) []*config.ProxyEntry {
 		out = append(out, e)
 	}
 	return out
+}
+
+// applySyncedCommands makes this device's quick commands those of a merged
+// payload, groups and commands, written to quickcommands.json: the tab
+// shows them at once, and the command editor's command comes back by its
+// ID.
+func (a *App) applySyncedCommands(groups, commands []json.RawMessage) {
+	next := &config.QuickCommands{Version: config.QuickCommandsVersion}
+	taken := map[string]bool{}
+	for _, raw := range groups {
+		g := &config.QuickGroup{}
+		if json.Unmarshal(raw, g) != nil || g.ID == "" || taken[g.ID] {
+			continue
+		}
+		taken[g.ID] = true
+		next.Groups = append(next.Groups, g)
+	}
+	taken = map[string]bool{}
+	for _, raw := range commands {
+		c := &config.QuickCommand{}
+		if json.Unmarshal(raw, c) != nil || c.ID == "" || taken[c.ID] {
+			continue
+		}
+		taken[c.ID] = true
+		next.Commands = append(next.Commands, c)
+	}
+	a.quickUI.store = next
+	a.saveQuick()
 }
 
 // applySyncedSecrets keeps in the credential store, and for this run,

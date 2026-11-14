@@ -249,7 +249,7 @@ Finallyshell 把主机和设置存在普通的 JSON 文件里。密码从不写�
 - `sync-state.json`：上次同步到哪里（`remote`）、什么时候（`at`）、读到的文件是哪台电脑写的（`device`），以及那次同步后的文件（`base`），仍用同步密码加密：下次同步拿它和两边比较；以及那次同步是否包括了本机已保存的密码（`secrets`）和私钥（`keys`）：没包括时，下次同步不拿基准里的密码和私钥做比较，所以后来再勾上“包括已保存的密码”会收到它们，而不是把它们删掉。删掉这个文件，下次同步会像第一次同步一样保留两边都有的内容。
 - `hosts.before-sync.json`：上次改动了 `hosts.json` 的同步之前的 `hosts.json`。
 
-服务上的文件 `finallyshell-sync.json` 是 JSON：`{"app": "finallyshell", "format": 1, "kdf": "argon2id", "salt": ..., "t": 3, "m": 65536, "p": 4, "cipher": "aes-256-gcm", "nonce": ..., "data": ...}`，二进制字段是 base64。`data` 解密后是 `{"schema": 2, "device": ..., "updatedAt": ..., "folders": [...], "hosts": [...], "proxies": [...], "settings": {...}, "secrets": {...}, "keys": [...]}`：folders、hosts 和 proxies 就是 `hosts.json` 里的，settings 是 `settings.json` 里同步的键，secrets 是已保存的密码，按它们在凭据存储里的键存放，keys 是 `keys.json` 里的对象，带私钥的内容。secrets 和 keys 只来自勾了“包括已保存的密码”的电脑，没勾的电脑保持文件里的原样。`schema` 是文件的版本：2 起有 `proxies`，更早的版本读到版本 2 的文件会提示升级而不是合并，免得把不认识的代理丢掉。
+服务上的文件 `finallyshell-sync.json` 是 JSON：`{"app": "finallyshell", "format": 1, "kdf": "argon2id", "salt": ..., "t": 3, "m": 65536, "p": 4, "cipher": "aes-256-gcm", "nonce": ..., "data": ...}`，二进制字段是 base64。`data` 解密后是 `{"schema": 3, "device": ..., "updatedAt": ..., "folders": [...], "hosts": [...], "proxies": [...], "commandGroups": [...], "commands": [...], "settings": {...}, "secrets": {...}, "keys": [...]}`：folders、hosts 和 proxies 就是 `hosts.json` 里的，commandGroups 和 commands 是 `quickcommands.json` 里的分组和命令，settings 是 `settings.json` 里同步的键，secrets 是已保存的密码，按它们在凭据存储里的键存放，keys 是 `keys.json` 里的对象，带私钥的内容。secrets 和 keys 只来自勾了“包括已保存的密码”的电脑，没勾的电脑保持文件里的原样。`schema` 是文件的版本：2 起有 `proxies`，3 起有快捷命令，更早的版本读到更新的文件会提示升级而不是合并，免得把不认识的代理或命令丢掉。
 
 ## 命令历史
 
