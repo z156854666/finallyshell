@@ -3,6 +3,7 @@
   "appTitle": "Finallyshell",
   "notConnected": "Not connected",
   "copy": "Copy",
+  "copied": "Copied",
   "readingServerInfo": "Reading server info…",
   "uptimeDays": "{days, plural, one {Up # day} other {Up # days}}",
   "@uptimeDays": {

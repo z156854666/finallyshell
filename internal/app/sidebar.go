@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"time"
 
 	"finallyshell/internal/monitor"
 	"finallyshell/internal/widgets"
@@ -48,10 +49,7 @@ func (a *App) serverView(c *ui.Context, s *Session) {
 			}
 			ui.Text(c, "IP "+ip).SingleLine().Grow(1).MinWidth(0)
 			if s != nil {
-				cp := ui.Text(c, locales.Copy()).TextColor(theme.Accent).Cursor(ui.CursorPointer)
-				if cp.Clicked() {
-					c.WriteClipboard(ip)
-				}
+				a.copyIPLink(c, ip)
 			}
 		})
 		a.sysInfoButton(c, s)
@@ -69,6 +67,24 @@ func (a *App) serverView(c *ui.Context, s *Session) {
 		}
 		serverStats(c, st, a.monitorHidden(), a.netPicker(s), a.openProcesses)
 	})
+}
+
+// ipCopyNote is how long the copy link says that it copied the IP.
+const ipCopyNote = 2 * time.Second
+
+// copyIPLink is the side panel's copy link: a click copies ip, and the
+// link says it did in its place for a moment, so that the copy shows.
+func (a *App) copyIPLink(c *ui.Context, ip string) {
+	if ip == a.ipCopied && c.Now().Sub(a.ipCopiedAt) < ipCopyNote {
+		ui.Text(c, locales.Copied()).TextColor(colors.success).Shrink(0)
+		return
+	}
+	l := ui.Text(c, locales.Copy()).TextColor(theme.Accent).Cursor(ui.CursorPointer).Shrink(0)
+	if l.Clicked() {
+		c.WriteClipboard(ip)
+		a.ipCopied, a.ipCopiedAt = ip, c.Now()
+		c.After(ipCopyNote)
+	}
 }
 
 // serverStats shows st, or the skeleton for nil, without the parts in

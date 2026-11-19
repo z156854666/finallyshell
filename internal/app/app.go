@@ -164,6 +164,10 @@ type App struct {
 	// notices are toasts asked for between frames, as by a goroutine,
 	// which the next frame shows (paneview.go).
 	notices []string
+	// ipCopied is the IP the side panel's copy link copied, and when, for
+	// the note in its place that says it did (sidebar.go).
+	ipCopied   string
+	ipCopiedAt time.Time
 	// moving is the pane whose grip is pressed, to drag it, and the last
 	// line of its screen, which the copy following the pointer shows
 	// (paneview.go): nil while none is.

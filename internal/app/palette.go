@@ -65,6 +65,9 @@ type palette struct {
 	cpu, mem, swap ui.Color
 	// tx and rx are the upload and download speeds.
 	tx, rx ui.Color
+	// success says that something worked, as the side panel's note that
+	// the IP was copied.
+	success ui.Color
 	// tableHead is the header row of the start page's table; note is the
 	// box of details in a dialog.
 	tableHead, note ui.Color
@@ -93,6 +96,7 @@ var lightColors = palette{
 	swap:          ui.Hex("#93c5fd"),
 	tx:            ui.Hex("#ea580c"),
 	rx:            ui.Hex("#16a34a"),
+	success:       ui.Hex("#16a34a"),
 	tableHead:     ui.Hex("#f9fafb"),
 	note:          ui.Hex("#f3f4f6"),
 	dangerBanner:  ui.Hex("#fef2f2"),
@@ -120,6 +124,7 @@ var darkColors = palette{
 	swap:          ui.Hex("#1e40af"),
 	tx:            ui.Hex("#fb923c"),
 	rx:            ui.Hex("#4ade80"),
+	success:       ui.Hex("#4ade80"),
 	tableHead:     ui.Hex("#202024"),
 	note:          ui.Hex("#27272a"),
 	dangerBanner:  ui.Hex("#3b1d1f"),
