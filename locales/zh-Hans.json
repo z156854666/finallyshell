@@ -108,6 +108,7 @@
   "refresh": "刷新",
   "homeFolder": "主目录",
   "followTerminalDir": "跟随终端目录",
+  "editPath": "编辑路径",
   "copyPath": "复制路径",
   "paste": "粘贴",
   "pasteUnavailable": "复制的文件已不可用。",

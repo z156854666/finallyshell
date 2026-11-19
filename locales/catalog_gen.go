@@ -1132,6 +1132,16 @@ func (msgs Messages) FollowTerminalDir() string {
 	return Catalog.Format(msgs.locale, "followTerminalDir", nil)
 }
 
+// EditPath says "Edit path"
+// in the language the app shows.
+func EditPath() string { return In(i18n.Locale()).EditPath() }
+
+// EditPath says "Edit path"
+// in the language of msgs.
+func (msgs Messages) EditPath() string {
+	return Catalog.Format(msgs.locale, "editPath", nil)
+}
+
 // CopyPath says "Copy path"
 // in the language the app shows.
 func CopyPath() string { return In(i18n.Locale()).CopyPath() }

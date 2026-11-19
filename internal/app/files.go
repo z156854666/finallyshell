@@ -18,12 +18,18 @@ import (
 type fileState struct {
 	cwd      string
 	pathEdit string
-	entries  []remotefs.Entry
-	loading  bool
-	err      error
-	table    ui.ListState
-	chosen   ui.Selection[string] // names in cwd
-	row      int
+
+	// pathEditing shows the path as a field to type in, in place of its
+	// crumbs; pathSelect selects the field's text once, as it opens.
+	pathEditing bool
+	pathSelect  bool
+
+	entries []remotefs.Entry
+	loading bool
+	err     error
+	table   ui.ListState
+	chosen  ui.Selection[string] // names in cwd
+	row     int
 	// rowName is the file of that row, which the row follows as a sort
 	// moves the rows.
 	rowName string
@@ -285,9 +291,7 @@ func (a *App) filePanel(c *ui.Context) {
 	f := &s.files
 	ui.Column(c.Key(s.ID)).Grow(1).Children(func() {
 		ui.Row(c).Padding(4, 8).Gap(4).BorderWidth(0, 0, 1, 0).BorderColor(colors.line).Children(func() {
-			if ui.TextInput(c, &f.pathEdit).Grow(1).Submitted() {
-				a.openDir(s, f.pathEdit)
-			}
+			a.pathBar(c, s)
 			if widgets.IconButton(c, "arrow-up", locales.ParentFolder()).Clicked() && f.cwd != "" {
 				a.openDir(s, path.Dir(f.cwd))
 			}

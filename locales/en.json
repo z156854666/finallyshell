@@ -155,6 +155,7 @@
   "refresh": "Refresh",
   "homeFolder": "Home folder",
   "followTerminalDir": "Follow the terminal's folder",
+  "editPath": "Edit path",
   "copyPath": "Copy path",
   "paste": "Paste",
   "pasteUnavailable": "The copied files are no longer available.",
