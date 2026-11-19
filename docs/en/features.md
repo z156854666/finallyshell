@@ -1497,7 +1497,9 @@ In `settings.json` these are `termFontFamily`, `termFontSize`,
 
 The "Files" tab at the bottom right browses the server over SFTP: a folder
 tree on the left, a file table on the right (with multiple selection), and
-a path bar where a path can be typed directly.
+a path bar where a path can be typed directly. A click on a header sorts
+the table by that column, a second click reverses it; folders stay first,
+and the table starts in the listing's own order (folders, then by name).
 
 ### Following the terminal's folder
 

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"cmp"
 	"fmt"
 	"path"
 	"slices"
@@ -23,6 +24,18 @@ type fileState struct {
 	table    ui.ListState
 	chosen   ui.Selection[string] // names in cwd
 	row      int
+	// rowName is the file of that row, which the row follows as a sort
+	// moves the rows.
+	rowName string
+
+	// sort is the sort a click on a header chose; the zero value keeps
+	// the listing's order, folders first, then by name.
+	sort ui.SortOrder
+	// view is the rows shown: entries sorted as sort says, and what they
+	// were made from.
+	view   []remotefs.Entry
+	viewOf []remotefs.Entry
+	viewBy ui.SortOrder
 
 	// reveal is a name to choose in the table once cwd is read again: a
 	// file just renamed or made.
@@ -106,17 +119,21 @@ func (a *App) listDir(s *Session, dir string, quiet bool) {
 			f.err = nil
 			if dir != f.cwd {
 				f.chosen.Clear()
-				f.row = -1
+				f.row, f.rowName = -1, ""
 			}
 			f.cwd, f.pathEdit, f.entries = dir, dir, entries
 			f.subdirs[dir] = dirNames(dir, entries)
-			if i := slices.IndexFunc(entries, func(e remotefs.Entry) bool { return e.Name == f.reveal }); f.reveal != "" && i >= 0 {
-				f.chosen.Clear()
-				f.chosen.Add(f.reveal)
-				f.row = i
-				f.table.ScrollIntoView(i)
+			if f.reveal != "" {
+				// Where the sort puts it, not where the listing does.
+				view := f.shown()
+				if i := slices.IndexFunc(view, func(e remotefs.Entry) bool { return e.Name == f.reveal }); i >= 0 {
+					f.chosen.Clear()
+					f.chosen.Add(f.reveal)
+					f.row, f.rowName = i, f.reveal
+					f.table.ScrollIntoView(i)
+				}
+				f.reveal = ""
 			}
-			f.reveal = ""
 			// Open the tree down to the directory.
 			for p := dir; ; p = path.Dir(p) {
 				f.tree.Open.Add(p)
@@ -188,15 +205,71 @@ func entryKind(e remotefs.Entry) string {
 	return locales.KindFile()
 }
 
+// fileColumns are the table's columns; their IDs are the sort's.
 func fileColumns() []ui.TableColumn {
 	return []ui.TableColumn{
-		{ID: "name", Title: locales.ColName(), MinWidth: 160},
-		{ID: "size", Title: locales.ColSize(), Width: 90, Align: ui.End},
-		{ID: "type", Title: locales.ColType(), Width: 90},
-		{ID: "modified", Title: locales.ColModified(), Width: 140},
-		{ID: "perms", Title: locales.ColPermissions(), Width: 100},
-		{ID: "owner", Title: locales.ColOwner(), Width: 96},
+		{ID: "name", Title: locales.ColName(), MinWidth: 160, Sortable: true},
+		{ID: "size", Title: locales.ColSize(), Width: 90, Align: ui.End, Sortable: true},
+		{ID: "type", Title: locales.ColType(), Width: 90, Sortable: true},
+		{ID: "modified", Title: locales.ColModified(), Width: 140, Sortable: true},
+		{ID: "perms", Title: locales.ColPermissions(), Width: 100, Sortable: true},
+		{ID: "owner", Title: locales.ColOwner(), Width: 96, Sortable: true},
 	}
+}
+
+// sortEntries is entries as by says: folders first, as the listing and
+// Explorer put them, then the column, ties by name. The zero by keeps the
+// listing's order.
+func sortEntries(entries []remotefs.Entry, by ui.SortOrder) []remotefs.Entry {
+	if by.Column == "" {
+		return entries
+	}
+	out := slices.Clone(entries)
+	slices.SortStableFunc(out, func(x, y remotefs.Entry) int {
+		if x.IsDir() != y.IsDir() {
+			if x.IsDir() {
+				return -1
+			}
+			return 1
+		}
+		var r int
+		switch by.Column {
+		case "size":
+			r = cmp.Compare(x.Size, y.Size)
+		case "type":
+			r = cmp.Compare(strings.ToLower(entryKind(x)), strings.ToLower(entryKind(y)))
+		case "modified":
+			r = x.ModTime.Compare(y.ModTime)
+		case "perms":
+			r = strings.Compare(x.Mode.Perm().String(), y.Mode.Perm().String())
+		case "owner":
+			r = cmp.Or(cmp.Compare(x.UID, y.UID), cmp.Compare(x.GID, y.GID))
+		default: // name
+			r = cmp.Compare(strings.ToLower(x.Name), strings.ToLower(y.Name))
+		}
+		if by.Descending {
+			r = -r
+		}
+		if r == 0 && by.Column != "name" {
+			r = cmp.Compare(strings.ToLower(x.Name), strings.ToLower(y.Name))
+			if by.Descending {
+				r = -r
+			}
+		}
+		return r
+	})
+	return out
+}
+
+// shown is the rows the table shows, made again when the listing or the
+// sort changed.
+func (f *fileState) shown() []remotefs.Entry {
+	same := len(f.viewOf) == len(f.entries) && (len(f.entries) == 0 || &f.viewOf[0] == &f.entries[0])
+	if !same || f.viewBy != f.sort {
+		f.view = sortEntries(f.entries, f.sort)
+		f.viewOf, f.viewBy = f.entries, f.sort
+	}
+	return f.view
 }
 
 // filePanel browses the active session's server over SFTP.
@@ -309,8 +382,11 @@ func (a *App) dirTree(c *ui.Context, s *Session) {
 
 func (a *App) fileTable(c *ui.Context, s *Session) {
 	f := &s.files
-	entries := f.entries
+	entries := f.shown()
+	// The choice follows its file as the sort moves the rows.
+	f.row = slices.IndexFunc(entries, func(e remotefs.Entry) bool { return e.Name == f.rowName })
 	f.table.Selected = &f.row
+	f.table.Sort = &f.sort
 	f.table.Selection = &f.chosen
 	f.table.Key = func(i int) any { return entries[i].Name }
 	f.table.Label = func(i int) string { return entries[i].Name }
@@ -354,6 +430,9 @@ func (a *App) fileTable(c *ui.Context, s *Session) {
 				ui.Text(c, fmt.Sprintf("%d/%d", e.UID, e.GID))
 			}
 		}).Grow(1)
+		if f.row >= 0 && f.row < len(entries) {
+			f.rowName = entries[f.row].Name
+		}
 		// A double click or Enter opens a folder, or a file in the editor.
 		if t.Submitted() && f.row >= 0 && f.row < len(entries) {
 			if e := entries[f.row]; e.IsDir() {
