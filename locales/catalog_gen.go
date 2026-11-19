@@ -7976,6 +7976,76 @@ func (msgs Messages) OpenFolder() string {
 	return Catalog.Format(msgs.locale, "openFolder", nil)
 }
 
+// ChangePermissions says "Change permissions"
+// in the language the app shows.
+func ChangePermissions() string { return In(i18n.Locale()).ChangePermissions() }
+
+// ChangePermissions says "Change permissions"
+// in the language of msgs.
+func (msgs Messages) ChangePermissions() string {
+	return Catalog.Format(msgs.locale, "changePermissions", nil)
+}
+
+// PermOwner says "Owner"
+// in the language the app shows.
+func PermOwner() string { return In(i18n.Locale()).PermOwner() }
+
+// PermOwner says "Owner"
+// in the language of msgs.
+func (msgs Messages) PermOwner() string {
+	return Catalog.Format(msgs.locale, "permOwner", nil)
+}
+
+// PermGroup says "Group"
+// in the language the app shows.
+func PermGroup() string { return In(i18n.Locale()).PermGroup() }
+
+// PermGroup says "Group"
+// in the language of msgs.
+func (msgs Messages) PermGroup() string {
+	return Catalog.Format(msgs.locale, "permGroup", nil)
+}
+
+// PermOther says "Other"
+// in the language the app shows.
+func PermOther() string { return In(i18n.Locale()).PermOther() }
+
+// PermOther says "Other"
+// in the language of msgs.
+func (msgs Messages) PermOther() string {
+	return Catalog.Format(msgs.locale, "permOther", nil)
+}
+
+// PermRead says "Read"
+// in the language the app shows.
+func PermRead() string { return In(i18n.Locale()).PermRead() }
+
+// PermRead says "Read"
+// in the language of msgs.
+func (msgs Messages) PermRead() string {
+	return Catalog.Format(msgs.locale, "permRead", nil)
+}
+
+// PermWrite says "Write"
+// in the language the app shows.
+func PermWrite() string { return In(i18n.Locale()).PermWrite() }
+
+// PermWrite says "Write"
+// in the language of msgs.
+func (msgs Messages) PermWrite() string {
+	return Catalog.Format(msgs.locale, "permWrite", nil)
+}
+
+// PermExecute says "Execute"
+// in the language the app shows.
+func PermExecute() string { return In(i18n.Locale()).PermExecute() }
+
+// PermExecute says "Execute"
+// in the language of msgs.
+func (msgs Messages) PermExecute() string {
+	return Catalog.Format(msgs.locale, "permExecute", nil)
+}
+
 // RenameFileTitle says "Rename “{name}”"
 // in the language the app shows.
 func RenameFileTitle(name string) string { return In(i18n.Locale()).RenameFileTitle(name) }

@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"io/fs"
 	"path"
 	"slices"
 	"strings"
@@ -23,6 +24,7 @@ const (
 	opMkdir
 	opCreate
 	opDelete
+	opChmod
 )
 
 // fileDialog asks for the name of a rename, a new folder or a new file,
@@ -36,6 +38,8 @@ type fileDialog struct {
 	names []string // the names in dir a delete removes
 	dirs  bool     // a delete removes folders, with what they hold
 	name  string
+	// mode is the permission a chmod sets.
+	mode fs.FileMode
 	// selectStem selects the name without its extension as the dialog
 	// opens, as Finder and Explorer do for a rename.
 	selectStem bool
@@ -53,6 +57,8 @@ func (d *fileDialog) title() string {
 		return locales.NewFolder()
 	case opCreate:
 		return locales.NewFile()
+	case opChmod:
+		return locales.ChangePermissions()
 	}
 	if len(d.names) == 1 {
 		return locales.DeleteFileTitle(d.names[0])
@@ -100,6 +106,18 @@ func (a *App) askDeleteChosen(s *Session) {
 	a.askDelete(s, f.cwd, names, dirs)
 }
 
+// askChmod asks for the permissions of the file or folder at p, which
+// has mode. The setuid, setgid and sticky bits are kept: the dialog sets
+// only the permissions.
+func (a *App) askChmod(s *Session, p string, mode fs.FileMode) {
+	if s.sftp == nil || p == "/" || p == "" {
+		return
+	}
+	const special = fs.ModeSetuid | fs.ModeSetgid | fs.ModeSticky
+	mode &= fs.ModePerm | special
+	a.fileDlg = &fileDialog{sess: s, op: opChmod, dir: path.Dir(p), old: path.Base(p), mode: mode}
+}
+
 func (a *App) closeFileDialog(d *fileDialog) {
 	if d.cancel != nil {
 		d.cancel()
@@ -117,7 +135,7 @@ func (a *App) runFileDialog(d *fileDialog) {
 		return
 	}
 	name := strings.TrimSpace(d.name)
-	if d.op != opDelete && !remotefs.ValidName(name) {
+	if d.op != opDelete && d.op != opChmod && !remotefs.ValidName(name) {
 		d.err = remotefs.ErrBadName
 		return
 	}
@@ -134,6 +152,8 @@ func (a *App) runFileDialog(d *fileDialog) {
 			made, err = remotefs.Mkdir(sc, d.dir, name)
 		case opCreate:
 			made, err = remotefs.CreateFile(sc, d.dir, name)
+		case opChmod:
+			err = sc.Chmod(path.Join(d.dir, d.old), d.mode)
 		case opDelete:
 			for _, n := range d.names {
 				p := path.Join(d.dir, n)
@@ -266,6 +286,8 @@ func (a *App) fileDialogView(c *ui.Context, d *fileDialog) {
 				body = locales.DeleteFoldersBody(len(d.names))
 			}
 			ui.Text(c, body)
+		} else if d.op == opChmod {
+			a.permissionsView(c, d)
 		} else {
 			before := d.name
 			in := ui.TextInput(c, &d.name).Label(locales.FolderName()).AutoFocus()
@@ -305,6 +327,33 @@ func (a *App) fileDialogView(c *ui.Context, d *fileDialog) {
 			a.runFileDialog(d)
 		}
 	})
+}
+
+// permissionsView draws the permissions of the file d names, as boxes of
+// read, write and execute for its owner, its group and the others, which
+// set the bits d.mode chmods.
+func (a *App) permissionsView(c *ui.Context, d *fileDialog) {
+	ui.Text(c, d.old).Font("monospace").SingleLine().Selectable()
+	group := func(legend string, bits [3]fs.FileMode) {
+		ui.Fieldset(c, legend, func() {
+			ui.Row(c).Gap(14).Children(func() {
+				labels := [3]string{locales.PermRead(), locales.PermWrite(), locales.PermExecute()}
+				for i, label := range labels {
+					on := d.mode&bits[i] != 0
+					if ui.Checkbox(c, &on, label).Changed() {
+						if on {
+							d.mode |= bits[i]
+						} else {
+							d.mode &^= bits[i]
+						}
+					}
+				}
+			})
+		})
+	}
+	group(locales.PermOwner(), [3]fs.FileMode{0o400, 0o200, 0o100})
+	group(locales.PermGroup(), [3]fs.FileMode{0o040, 0o020, 0o010})
+	group(locales.PermOther(), [3]fs.FileMode{0o004, 0o002, 0o001})
 }
 
 // treeMenu is the context menu of the folder dir in the folder tree: it

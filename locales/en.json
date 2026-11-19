@@ -1315,6 +1315,13 @@
   "fileIconsThemes": "Themes",
   "newFile": "New file",
   "openFolder": "Open",
+  "changePermissions": "Change permissions",
+  "permOwner": "Owner",
+  "permGroup": "Group",
+  "permOther": "Other",
+  "permRead": "Read",
+  "permWrite": "Write",
+  "permExecute": "Execute",
   "renameFileTitle": "Rename “{name}”",
   "@renameFileTitle": {
     "placeholders": {

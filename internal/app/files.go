@@ -478,6 +478,9 @@ func (a *App) fileTable(c *ui.Context, s *Session) {
 			if m.Item(locales.Delete()).Shortcut(0, ui.KeyDelete).Disabled(len(names) == 0).Chosen() && len(names) > 0 {
 				a.askDeleteChosen(s)
 			}
+			if m.Item(locales.ChangePermissions()).Disabled(!one).Chosen() && one {
+				a.askChmod(s, path.Join(f.cwd, e.Name), e.Mode)
+			}
 			m.Separator()
 			if m.Item(locales.Refresh()).Chosen() {
 				a.openDir(s, f.cwd)

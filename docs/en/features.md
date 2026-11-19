@@ -1608,7 +1608,8 @@ Files and folders can be renamed, deleted and created from the context
 menus of the file table and of the folder tree:
 
 - The file table's menu has New folder, New file, Rename (one item
-  chosen) and Delete (one or more chosen). With the table focused, F2
+  chosen), Delete (one or more chosen) and Change permissions (one item
+  chosen). With the table focused, F2
   renames the chosen item and Delete (or Cmd+Backspace on macOS) deletes
   the chosen items.
 - The folder tree's menu acts on the folder right-clicked, without
@@ -1629,6 +1630,12 @@ folder it points to. Up to 16 files of a folder are removed at the same
 time, so large folders don't wait for each round trip. Canceling the
 dialog stops a delete that is still running; what was already removed
 stays removed.
+
+Change permissions shows the read, write and execute bits of the file's
+owner, its group and the others, checked as the file has them, and sets
+them with `chmod` when OK is clicked: the bits are those of the file, and
+its setuid, setgid and sticky bits are left as they are. The permissions
+column shows the new ones once the folder is listed again.
 
 After a change the folder is listed again and a renamed or new item is
 chosen in the table. When the current folder, or one it is in, is
