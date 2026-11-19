@@ -24,6 +24,9 @@ type direction int
 const (
 	upload direction = iota
 	download
+	// remoteCopy copies a file or folder from one server to another: of
+	// another session, or of the same one, into another folder.
+	remoteCopy
 )
 
 type transferState int
@@ -45,9 +48,20 @@ type transferJob struct {
 	sess   *Session
 	sftp   *sftp.Client
 	dir    direction
-	src    string // a local path to upload, or a remote one to download
+	src    string // a local path to upload, or a remote one to download or copy
 	dstDir string // the remote or local directory it goes into
 	local  string // the local copy of a finished download
+
+	// A copy reads src over from, the client of srcSess, which is sess
+	// itself for a copy in place, and names what it copies as, or as the
+	// name of src for "".
+	from    *sftp.Client
+	srcSess *Session
+	as      string
+
+	// clip is the copy of the clipboard that a download makes for this
+	// computer, for a file manager to paste (fileclip.go).
+	clip *fileClip
 
 	// archive packs srcs, all in one folder, with tar on the server,
 	// over an exec channel of ssh (archive.go); src is the first.
@@ -68,6 +82,9 @@ type transferJob struct {
 }
 
 func (t *transferJob) name() string {
+	if t.as != "" {
+		return t.as
+	}
 	name := path.Base(t.src)
 	if t.dir == upload {
 		name = filepath.Base(t.src)
@@ -299,7 +316,10 @@ func (a *App) run(t *transferJob) {
 			default:
 				t.state, t.err = transferFailed, err
 			}
-			if t.dir == upload {
+			if t.clip != nil {
+				a.clipStaged(t)
+			}
+			if t.dir != download {
 				a.refreshIfShowing(t.sess, t.dstDir)
 			}
 			a.pump()
@@ -358,10 +378,14 @@ func (a *App) copyFiles(ctx context.Context, t *transferJob, report remotefs.Arc
 		a.showTransfers()
 	})
 	progress := func(done int64) { report(done, "") }
-	if t.dir == upload {
+	switch t.dir {
+	case upload:
 		return "", remotefs.Upload(ctx, t.sftp, t.src, t.dstDir, progress)
+	case download:
+		return remotefs.Download(ctx, t.sftp, t.src, t.dstDir, progress)
 	}
-	return remotefs.Download(ctx, t.sftp, t.src, t.dstDir, progress)
+	_, err = remotefs.CopyTo(ctx, t.from, t.sftp, t.src, t.dstDir, t.as, progress)
+	return "", err
 }
 
 // measure counts the bytes t copies.
@@ -373,6 +397,8 @@ func (t *transferJob) measure(ctx context.Context) (int64, error) {
 		return remotefs.RemoteArchiveSize(ctx, t.sftp, t.srcs)
 	case t.dir == upload:
 		return remotefs.LocalSize(t.src)
+	case t.dir == remoteCopy:
+		return remotefs.RemoteSize(t.from, t.src)
 	}
 	return remotefs.RemoteSize(t.sftp, t.src)
 }
@@ -421,17 +447,28 @@ func (a *App) transferRow(c *ui.Context, t *transferJob) {
 	row := ui.Row(c).Gap(10).Padding(6, 10).BorderWidth(0, 0, 1, 0).BorderColor(colors.rowLine)
 	row.Children(func() {
 		ic, dirLabel, dest := icons.Get("upload"), locales.UploadDirection(), t.sess.label()+":"+t.dstDir
-		if t.dir == download {
+		switch t.dir {
+		case download:
 			ic, dirLabel, dest = icons.Get("download"), locales.DownloadDirection(), t.dstDir
+		case remoteCopy:
+			ic, dirLabel = icons.Get("copy"), locales.CopyDirection()
+			dest = t.srcSess.label() + ":" + path.Dir(t.src) + " → " + t.sess.label() + ":" + t.dstDir
 		}
 		if t.archive {
 			dirLabel = t.archiveLabel()
+		}
+		if t.clip != nil {
+			ic, dirLabel, dest = icons.Get("copy"), locales.CopyToComputer(), ""
+		}
+		direction := dirLabel + " → " + dest
+		if dest == "" {
+			direction = dirLabel
 		}
 		ui.Icon(c, ic).FontSize(16).TextColor(theme.TextMuted)
 		ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
 			ui.Row(c).Gap(8).Children(func() {
 				ui.Text(c, t.name()).SingleLine().Shrink(1).MinWidth(0)
-				widgets.Muted(c, dirLabel+" → "+dest).FontSize(11.5).SingleLine().Grow(1).MinWidth(0)
+				widgets.Muted(c, direction).FontSize(11.5).SingleLine().Grow(1).MinWidth(0)
 			})
 			switch t.state {
 			case transferWaiting:

@@ -156,6 +156,8 @@
   "homeFolder": "Home folder",
   "followTerminalDir": "Follow the terminal's folder",
   "copyPath": "Copy path",
+  "paste": "Paste",
+  "pasteUnavailable": "The copied files are no longer available.",
   "sftpUnavailable": "SFTP unavailable: {error}",
   "cannotOpenFolder": "Cannot open {dir}: {error}",
   "uploadFiles": "Upload files…",
@@ -190,6 +192,10 @@
   "replace": "Replace",
   "uploadDirection": "Upload",
   "downloadDirection": "Download",
+  "copyDirection": "Copy",
+  "copyIntoItself": "A folder cannot be copied into itself.",
+  "copyToComputer": "Copy to this computer",
+  "copyToComputerReady": "Ready: paste the copy on this computer.",
   "uploadAsArchive": "Upload as archive…",
   "downloadAsArchive": "Download as archive",
   "chooseArchiveUpload": "Choose folders to upload as an archive",
@@ -859,6 +865,17 @@
     "placeholders": {
       "name": {
         "type": "String"
+      }
+    }
+  },
+  "copyOfNameN": "{name} (copy {n})",
+  "@copyOfNameN": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "n": {
+        "type": "int"
       }
     }
   },

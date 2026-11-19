@@ -40,6 +40,7 @@ supported. [configuration.md](configuration.md) covers the files on disk;
   - [File icon themes](#file-icon-themes)
   - [Symbolic links](#symbolic-links)
   - [File operations](#file-operations)
+  - [Copy and paste](#copy-and-paste)
   - [Upload and download](#upload-and-download)
   - [Archive transfer](#archive-transfer)
   - [Transfers tab](#transfers-tab)
@@ -1607,15 +1608,15 @@ written, relative or absolute, not resolved.
 Files and folders can be renamed, deleted and created from the context
 menus of the file table and of the folder tree:
 
-- The file table's menu has New folder, New file, Rename (one item
-  chosen), Delete (one or more chosen) and Change permissions (one item
-  chosen). With the table focused, F2
+- The file table's menu has Copy, Paste, New folder, New file, Rename (one
+  item chosen), Delete (one or more chosen) and Change permissions (one
+  item chosen). With the table focused, F2
   renames the chosen item and Delete (or Cmd+Backspace on macOS) deletes
   the chosen items.
 - The folder tree's menu acts on the folder right-clicked, without
-  opening it: Open, Upload files, Upload folder (into that folder), New
-  folder, New file, Rename, Delete, Refresh and Copy path. `/` has no
-  Rename or Delete.
+  opening it: Open, Copy, Paste (into that folder), Upload files, Upload
+  folder (into that folder), New folder, New file, Rename, Delete, Refresh
+  and Copy path. `/` has no Copy, Rename or Delete.
 
 Rename, New folder and New file ask for a name. Rename starts with the
 name chosen up to its extension, as Finder and Explorer do. A name that is
@@ -1641,6 +1642,32 @@ After a change the folder is listed again and a renamed or new item is
 chosen in the table. When the current folder, or one it is in, is
 renamed, the panel follows it to its new path; when it is deleted, the
 panel goes to the folder it was in.
+
+### Copy and paste
+
+Copy in the table's menu, or Cmd+C with the table focused, and Paste into
+any folder of any session's panel: the folder the table shows, or a folder
+right-clicked in the tree. A folder is copied with everything in it, links
+as links. The files go from the server that holds them to the other one
+through this computer, as a transfer of its own in the Transfers tab, so
+it shows how far it is, and can be canceled and retried. Pasting into the
+folder the files come from names the copies `name (copy)`, as Finder and
+Explorer do, rather than replacing the originals; a name already taken in
+another folder asks before replacing it.
+
+Copying in a panel also fetches the files to this computer, as transfers of
+their own ("Copy to this computer" in the Transfers tab), because Explorer
+and Finder paste files of this computer and not of a server. Once all of
+them are here a notification says so, and they paste anywhere on this
+computer; until then only the app's own Paste can use the copy. They go to
+a folder of the app's cache, cleared of copies a day old at the next copy.
+Cancel those transfers when the copy goes into a panel alone.
+
+Files copied on this computer paste too: Ctrl+C in Explorer, or Cmd+C in
+Finder, then Paste in the panel, or Cmd+V with the table focused, uploads
+them into the folder. A copy made in a panel replaces what the clipboard
+held, and a copy made elsewhere drops it, as any clipboard holds one thing
+at a time.
 
 ### Upload and download
 

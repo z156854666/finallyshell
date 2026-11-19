@@ -364,6 +364,13 @@ func (a *App) treeMenu(c *ui.Context, m *ui.Menu, s *Session, dir string) {
 		a.openDir(s, dir)
 	}
 	m.Separator()
+	if m.Item(locales.Copy()).Shortcut(ui.Cmd, ui.KeyC).Disabled(dir == "/").Chosen() && dir != "/" {
+		a.copyNames(c, s, path.Dir(dir), []string{path.Base(dir)})
+	}
+	if m.Item(locales.Paste()).Shortcut(ui.Cmd, ui.KeyV).Disabled(!a.canPaste(c)).Chosen() {
+		a.pasteInto(c, s, dir)
+	}
+	m.Separator()
 	a.uploadMenuItems(m, s, dir)
 	if dir != "/" && m.Item(locales.DownloadAsArchive()).Chosen() {
 		a.downloadDirArchive(s, dir)

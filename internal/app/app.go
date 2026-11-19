@@ -260,6 +260,12 @@ type App struct {
 	replace *replaceQuestion
 	// The file panel's dialog: a rename, a new folder or file, a delete.
 	fileDlg *fileDialog
+	// What Copy took from a file panel, for Paste (fileclip.go), and the
+	// window's services as the last frame had them, for the clipboard
+	// writes of the copies it makes for this computer, which end between
+	// frames.
+	fileClip *fileClip
+	services ui.Services
 
 	// The System info popover, and what reads it (readSysInfo when nil).
 	sysInfo     sysInfoPopover
@@ -373,6 +379,7 @@ func (a *App) current() *Session {
 func (a *App) View(c *ui.Context) {
 	defer a.stopUnseenPolls()
 	defer a.placeDesktops() // the remote desktops the tabs draw (rdp.go)
+	a.services = c.Services()
 	a.retentionTick(c)
 	useTheme(c)
 	a.showNotices(c)
@@ -600,6 +607,10 @@ func (a *App) closeSession(s *Session) {
 		s.disconnect()
 	}
 	a.sessions = slices.Delete(a.sessions, i, i+1)
+	// Nothing a panel of s copied can be pasted any more.
+	if a.fileClip != nil && a.fileClip.sess == s {
+		a.fileClip = nil
+	}
 	if a.active >= len(a.sessions) || a.active > i {
 		a.active--
 	}

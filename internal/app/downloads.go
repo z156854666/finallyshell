@@ -143,10 +143,17 @@ func (a *App) cancelTransfer(t *transferJob) {
 	a.showTransfers()
 }
 
-// canRetry tells whether t failed or was canceled, and its session is
-// still open and connected, to run it again.
+// canRetry tells whether t failed or was canceled, and its session, and
+// the one a copy comes from, are still open and connected, to run it
+// again.
 func (a *App) canRetry(t *transferJob) bool {
 	s := t.sess
+	if t.dir == remoteCopy {
+		src := t.srcSess
+		if src == nil || !slices.Contains(a.sessions, src) || src.sftp == nil {
+			return false
+		}
+	}
 	return (t.state == transferFailed || t.state == transferCanceled) &&
 		slices.Contains(a.sessions, s) && s.status == statusConnected && s.sftp != nil &&
 		(!t.archive || s.client != nil)
@@ -163,6 +170,9 @@ func (a *App) retry(t *transferJob) {
 	}
 	q.jobs = slices.Delete(q.jobs, i, i+1)
 	t.sftp, t.ssh = t.sess.sftp, t.sess.client
+	if t.dir == remoteCopy {
+		t.from = t.srcSess.sftp
+	}
 	t.state, t.err, t.local, t.cancel, t.current = transferWaiting, nil, "", nil, ""
 	t.skipped = remotefs.SkippedLinks{}
 	t.done, t.total, t.speed, t.sampleDone = 0, -1, 0, 0

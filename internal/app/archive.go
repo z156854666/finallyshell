@@ -113,6 +113,8 @@ func transferErrorText(err error) string {
 		return locales.ArchiveWindowsName(bad.Name)
 	case errors.Is(err, remotefs.ErrNoShell):
 		return locales.ArchiveNoShell()
+	case errors.Is(err, remotefs.ErrIntoItself):
+		return locales.CopyIntoItself()
 	}
 	return err.Error()
 }

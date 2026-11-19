@@ -452,6 +452,14 @@ func (a *App) fileTable(c *ui.Context, s *Session) {
 		if del && f.chosen.Len() > 0 {
 			a.askDeleteChosen(s)
 		}
+		// Cmd+C copies the rows chosen, and Cmd+V pastes into the
+		// folder, as in a file manager.
+		if f.table.Shortcut(c, ui.Cmd, ui.KeyC) {
+			a.copyChosen(c, s)
+		}
+		if f.table.Shortcut(c, ui.Cmd, ui.KeyV) {
+			a.pasteInto(c, s, f.cwd)
+		}
 		t.ContextMenu(func(m *ui.Menu) {
 			names := f.chosenNames()
 			if e, ok := f.entry(names); ok && editable(e) {
@@ -460,6 +468,13 @@ func (a *App) fileTable(c *ui.Context, s *Session) {
 				}
 				m.Separator()
 			}
+			if m.Item(locales.Copy()).Shortcut(ui.Cmd, ui.KeyC).Disabled(len(names) == 0).Chosen() && len(names) > 0 {
+				a.copyNames(c, s, f.cwd, names)
+			}
+			if m.Item(locales.Paste()).Shortcut(ui.Cmd, ui.KeyV).Disabled(!a.canPaste(c)).Chosen() {
+				a.pasteInto(c, s, f.cwd)
+			}
+			m.Separator()
 			a.downloadMenuItems(m, s, names)
 			m.Separator()
 			a.uploadMenuItems(m, s, f.cwd)

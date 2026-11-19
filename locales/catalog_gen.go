@@ -1142,6 +1142,26 @@ func (msgs Messages) CopyPath() string {
 	return Catalog.Format(msgs.locale, "copyPath", nil)
 }
 
+// Paste says "Paste"
+// in the language the app shows.
+func Paste() string { return In(i18n.Locale()).Paste() }
+
+// Paste says "Paste"
+// in the language of msgs.
+func (msgs Messages) Paste() string {
+	return Catalog.Format(msgs.locale, "paste", nil)
+}
+
+// PasteUnavailable says "The copied files are no longer available."
+// in the language the app shows.
+func PasteUnavailable() string { return In(i18n.Locale()).PasteUnavailable() }
+
+// PasteUnavailable says "The copied files are no longer available."
+// in the language of msgs.
+func (msgs Messages) PasteUnavailable() string {
+	return Catalog.Format(msgs.locale, "pasteUnavailable", nil)
+}
+
 // SftpUnavailable says "SFTP unavailable: {error}"
 // in the language the app shows.
 func SftpUnavailable(error string) string { return In(i18n.Locale()).SftpUnavailable(error) }
@@ -1384,6 +1404,46 @@ func DownloadDirection() string { return In(i18n.Locale()).DownloadDirection() }
 // in the language of msgs.
 func (msgs Messages) DownloadDirection() string {
 	return Catalog.Format(msgs.locale, "downloadDirection", nil)
+}
+
+// CopyDirection says "Copy"
+// in the language the app shows.
+func CopyDirection() string { return In(i18n.Locale()).CopyDirection() }
+
+// CopyDirection says "Copy"
+// in the language of msgs.
+func (msgs Messages) CopyDirection() string {
+	return Catalog.Format(msgs.locale, "copyDirection", nil)
+}
+
+// CopyIntoItself says "A folder cannot be copied into itself."
+// in the language the app shows.
+func CopyIntoItself() string { return In(i18n.Locale()).CopyIntoItself() }
+
+// CopyIntoItself says "A folder cannot be copied into itself."
+// in the language of msgs.
+func (msgs Messages) CopyIntoItself() string {
+	return Catalog.Format(msgs.locale, "copyIntoItself", nil)
+}
+
+// CopyToComputer says "Copy to this computer"
+// in the language the app shows.
+func CopyToComputer() string { return In(i18n.Locale()).CopyToComputer() }
+
+// CopyToComputer says "Copy to this computer"
+// in the language of msgs.
+func (msgs Messages) CopyToComputer() string {
+	return Catalog.Format(msgs.locale, "copyToComputer", nil)
+}
+
+// CopyToComputerReady says "Ready: paste the copy on this computer."
+// in the language the app shows.
+func CopyToComputerReady() string { return In(i18n.Locale()).CopyToComputerReady() }
+
+// CopyToComputerReady says "Ready: paste the copy on this computer."
+// in the language of msgs.
+func (msgs Messages) CopyToComputerReady() string {
+	return Catalog.Format(msgs.locale, "copyToComputerReady", nil)
 }
 
 // UploadAsArchive says "Upload as archive…"
@@ -6448,6 +6508,16 @@ func CopyOfName(name string) string { return In(i18n.Locale()).CopyOfName(name) 
 // in the language of msgs.
 func (msgs Messages) CopyOfName(name string) string {
 	return Catalog.Format(msgs.locale, "copyOfName", map[string]any{"name": name})
+}
+
+// CopyOfNameN says "{name} (copy {n})"
+// in the language the app shows.
+func CopyOfNameN(name string, n int) string { return In(i18n.Locale()).CopyOfNameN(name, n) }
+
+// CopyOfNameN says "{name} (copy {n})"
+// in the language of msgs.
+func (msgs Messages) CopyOfNameN(name string, n int) string {
+	return Catalog.Format(msgs.locale, "copyOfNameN", map[string]any{"name": name, "n": n})
 }
 
 // FolderName says "Name"
